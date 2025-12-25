@@ -12,8 +12,8 @@ class PlayerInventoryUI:
         self.dragging = False
         self.drag_offset = (0, 0)
 
+    # Screen dragging shenanigans
     def handle_event(self, event):
-        # Screen dragging shenanigans
         if event.type == py.MOUSEBUTTONDOWN and event.button == 1:
             mx, my = event.pos
             if self.rect.collidepoint(mx, my):

@@ -28,8 +28,8 @@ class Machine:
         self.process_timer = 0.0
         self.process_time = recipe.process_time
 
+    # check if it has enough input items
     def can_process(self):
-        # check if it has enough input items
         for item, amount in self.recipe.inputs.items():
             if self.input_inventory.get_amount(item) < amount:
                 return False
@@ -41,6 +41,7 @@ class Machine:
             self.processing = True
             self.process_timer = 0.0
 
+        # Processing itself
         if self.processing:
             self.process_timer += dt
             if self.process_timer >= self.process_time:

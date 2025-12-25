@@ -16,6 +16,17 @@ class MachineUI:
         self.dragging = False
         self.drag_offset = (0, 0)
     
+    def drag_object_on_screen(self, event, mx, my):
+        if event.type == py.MOUSEBUTTONDOWN and event.button == 1:
+            if self.rect.collidepoint(mx, my):
+                self.dragging = True
+                self.drag_offset = (mx - self.rect.x, my - self.rect.y)
+        if event.type == py.MOUSEBUTTONUP and event.button == 1:
+            self.dragging = False
+        if event.type == py.MOUSEMOTION and self.dragging:
+            self.rect.x = mx - self.drag_offset[0]
+            self.rect.y = my - self.drag_offset[1]
+    
     def handle_event(self, event, machines, camera, screen, just_placed, building, player, player_inventory_ui):
         if building == True: return
         if just_placed: return
@@ -31,15 +42,7 @@ class MachineUI:
             mx, my = event.pos
 
         # Screen dragging shenanigans
-        if event.type == py.MOUSEBUTTONDOWN and event.button == 1:
-            if self.rect.collidepoint(mx, my):
-                self.dragging = True
-                self.drag_offset = (mx - self.rect.x, my - self.rect.y)
-        if event.type == py.MOUSEBUTTONUP and event.button == 1:
-            self.dragging = False
-        if event.type == py.MOUSEMOTION and self.dragging:
-            self.rect.x = mx - self.drag_offset[0]
-            self.rect.y = my - self.drag_offset[1]
+        self.drag_object_on_screen(event, mx, my)
 
         # Set recipe when clicking on one
         if self.open and self.selected_machine and event.type == py.MOUSEBUTTONDOWN and event.button == 1:
@@ -160,7 +163,3 @@ class MachineUI:
         self.draw_inputs_outputs(screen)
         self.draw_recipes(screen)
         self.draw_progress_bar(screen)
-
-        
-
-        

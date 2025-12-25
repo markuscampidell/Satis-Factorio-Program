@@ -10,6 +10,7 @@ from game.Objects.machine_ui import MachineUI
 from entities.player_inventory_ui import PlayerInventoryUI
 
 class Game:
+    # Setup and starting objects
     def __init__(self):
         py.init()
         self.screen_width, self.screen_height = 1920, 1080
@@ -70,7 +71,6 @@ class Game:
         self.just_placed_machine = True
         self.machine_ui.close()
 
-
     def delete_machine(self, event):
         if event.type != py.MOUSEBUTTONDOWN or event.button != 3: return
 
@@ -109,6 +109,7 @@ class Game:
 
     def run(self):
         while True:
+            # EVENTS
             for event in py.event.get():
                 if event.type == py.QUIT:
                     py.quit()
@@ -120,21 +121,16 @@ class Game:
                 if event.type == py.KEYDOWN:
                     if event.key == py.K_q:
                         self.building = not self.building
-                        print(self.building)
                     
                     if event.key == py.K_TAB:
                         self.player_inventory_ui.open = not self.player_inventory_ui.open
-                        
+
                     if self.building == True:
                         if event.key == py.K_1:
                             self.selected_machine_class = Smelter
 
                         elif event.key == py.K_2:
                             self.selected_machine_class = Foundry
-
-                    
-
-
 
                 self.handle_placement(event)
                 self.delete_machine(event)
