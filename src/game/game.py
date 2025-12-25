@@ -36,6 +36,7 @@ class Game:
     
     def handle_placement(self, event):
         if event.type != py.MOUSEBUTTONDOWN or event.button != 1: return
+        if self.building == False: return
 
         self.place_machine()
 
@@ -70,7 +71,7 @@ class Game:
         self.machine_ui.close()
 
 
-    def delete_object(self, event):
+    def delete_machine(self, event):
         if event.type != py.MOUSEBUTTONDOWN or event.button != 3: return
 
         mx, my = py.mouse.get_pos()
@@ -117,20 +118,27 @@ class Game:
                     self.just_placed_machine = False
                 
                 if event.type == py.KEYDOWN:
-                    if event.key == py.K_1:
-                        self.selected_machine_class = Smelter
-
-                    elif event.key == py.K_2:
-                        self.selected_machine_class = Foundry
-
+                    if event.key == py.K_q:
+                        self.building = not self.building
+                        print(self.building)
+                    
                     if event.key == py.K_TAB:
                         self.player_inventory_ui.open = not self.player_inventory_ui.open
+                        
+                    if self.building == True:
+                        if event.key == py.K_1:
+                            self.selected_machine_class = Smelter
+
+                        elif event.key == py.K_2:
+                            self.selected_machine_class = Foundry
+
+                    
 
 
 
                 self.handle_placement(event)
-                self.delete_object(event)
-                self.machine_ui.handle_event(event, self.machines, self.camera, self.screen, self.just_placed_machine, self.player, self.player_inventory_ui)
+                self.delete_machine(event)
+                self.machine_ui.handle_event(event, self.machines, self.camera, self.screen, self.just_placed_machine, self.building, self.player, self.player_inventory_ui)
                 self.player_inventory_ui.handle_event(event)
 
             self.update()
