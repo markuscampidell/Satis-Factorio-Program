@@ -1,10 +1,11 @@
 import pygame as py
 from math import sqrt
 from entities.inventory import Inventory
+from core.vector2 import Vector2
 
 class Player:
     def __init__(self, size, color = ("#534BBE")):
-        self.inventory = Inventory()
+        self.inventory = Inventory(5, 9)
 
         self.color = color
         self.image = py.Surface((size, size))
@@ -12,24 +13,27 @@ class Player:
         self.rect = self.image.get_rect()
         self.rect.x = 0
         self.rect.y = 0
-        self.speed = 5
+        self.speed = 7
 
-    def update(self, smelters):
+        self.dx = 0
+        self.dy = 0
+        self.friction = 0.85
+
+    def update(self, machines):
         dx, dy = self.get_movement()
 
         self.rect.x += dx
-        self.handle_collision_x(smelters, dx)
+        self.handle_collision_x(machines, dx)
         self.rect.y += dy
-        self.handle_collision_y(smelters, dy)
+        self.handle_collision_y(machines, dy)
 
     def handle_collision_x(self, machines, dx):
         for machine in machines:
-                if self.rect.colliderect(machine.rect):
-                    if dx > 0:  # moving right
-                        self.rect.right = machine.rect.left
-                    elif dx < 0:  # moving left
-                        self.rect.left = machine.rect.right
-
+            if self.rect.colliderect(machine.rect):
+                if dx > 0:  # moving right
+                    self.rect.right = machine.rect.left
+                elif dx < 0:  # moving left
+                    self.rect.left = machine.rect.right
     def handle_collision_y(self, machines, dy):
         for machine in machines:
             if self.rect.colliderect(machine.rect):
@@ -46,20 +50,20 @@ class Player:
         down = keys[py.K_DOWN] or keys[py.K_s]
         up = keys[py.K_UP] or keys[py.K_w]
 
-        moving_x = right or left
-        moving_y = down or up
+        moving_x = right - left
+        moving_y = down - up
 
-        if moving_x and moving_y: new_speed = self.speed / sqrt(2)
-        else: new_speed = self.speed
+        multiplier = self.speed * (1-self.friction) / self.friction
+        movement = Vector2(moving_x, moving_y).normalize() * multiplier
 
-        dx, dy = 0, 0
+        #dx, dy = 0, 0
 
-        if right: dx += new_speed
-        if left: dx -= new_speed
-        if down: dy += new_speed
-        if up: dy -= new_speed
+        self.dx += movement.x
+        self.dy += movement.y
+        self.dx *= self.friction
+        self.dy *= self.friction
 
-        return dx, dy
+        return self.dx, self.dy
 
     def draw(self, screen, camera):
         screen.blit(self.image, (self.rect.x - camera.x, self.rect.y - camera.y))
