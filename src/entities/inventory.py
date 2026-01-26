@@ -10,13 +10,10 @@ class Inventory:
         # Each slot can be None or {"item": item_id, "amount": int}
 
     def add_items(self, item, amount):
-        if isinstance(item, Item):
-            item_id = item.item_id
-        else:
-            item_id = item
+        if isinstance(item, Item): item_id = item.item_id
+        else: item_id = item
 
         remaining = amount
-
         # First try to fill existing stacks
         for y in range(self.height):
             for x in range(self.width):

@@ -20,22 +20,15 @@ class PlayerInventoryUI:
         self.image.set_alpha(200)
 
     def draw(self, screen):
-        if not self.open:
-            return
+        if not self.open: return
 
-        # Background
         screen.blit(self.image, self.rect.topleft)
 
         # Draw grid slots
         for y in range(self.player.inventory.height):
             for x in range(self.player.inventory.width):
-                slot_rect = py.Rect(
-                    self.rect.x + self.PADDING + x * self.SLOT_SIZE,
-                    self.rect.y + self.PADDING + y * self.SLOT_SIZE,
-                    self.SLOT_SIZE,
-                    self.SLOT_SIZE
-                )
-                py.draw.rect(screen, "#AAAAAA", slot_rect, 2)  # draw slot border
+                slot_rect = py.Rect(self.rect.x + self.PADDING + x * self.SLOT_SIZE, self.rect.y + self.PADDING + y * self.SLOT_SIZE, self.SLOT_SIZE, self.SLOT_SIZE)
+                py.draw.rect(screen, "#AAAAAA", slot_rect, 2)
 
                 slot = self.player.inventory.slots[y][x]
                 if slot:

@@ -1,23 +1,18 @@
 import pygame as py
-from math import sqrt
 from entities.inventory import Inventory
 from core.vector2 import Vector2
 
 class Player:
-    def __init__(self, size, color = ("#534BBE")):
+    def __init__(self, size, color = ("#6D366A")):
         self.inventory = Inventory(5, 9)
 
         self.color = color
-        self.image = py.Surface((size, size))
-        self.image.fill(color)
-        self.rect = self.image.get_rect()
-        self.rect.x = 0
-        self.rect.y = 0
+        self.image = py.Surface((size, size)) ; self.image.fill(color)
+        self.rect = self.image.get_rect() ; self.rect.x = 0 ; self.rect.y = 0
         self.speed = 7
-
-        self.dx = 0
-        self.dy = 0
         self.friction = 0.85
+
+        self.dx = 0 ; self.dy = 0
 
     def update(self, machines):
         dx, dy = self.get_movement()

@@ -7,7 +7,7 @@ from grid.grid import Grid
 from core.vector2 import Vector2
 
 class BeltSegment:
-    def __init__(self, rect: py.Rect, direction: Vector2, items_per_minute=60):
+    def __init__(self, rect: py.Rect, direction: Vector2, items_per_minute=480):
         self.rect = rect
         self.direction = direction  # must be integer Vector2 (1,0), (0,1), etc.)
         self.item = None
@@ -151,46 +151,66 @@ class ConveyorBelt:
             seg.draw_item(screen, camera, cell_size=cell, prev_direction=prev_seg.direction if prev_seg else seg.direction)
 
 
-
     @classmethod
     def draw_ghost_belt(cls, screen, camera, x, y, direction: Vector2, color_flag="normal"):
         image = cls.get_image(direction).copy()
         image = py.transform.scale(image, (Grid.CELL_SIZE, Grid.CELL_SIZE))
-        
+
+        if color_flag == "normal":
+            image.set_alpha(160)  # just semi-transparent, no overlay
+            screen.blit(image, (x - camera.x, y - camera.y))
+            return
+
+        # for colored overlays:
         overlay = py.Surface((Grid.CELL_SIZE, Grid.CELL_SIZE), py.SRCALPHA)
-        
-        if color_flag == "red":
-            overlay.fill((255, 0, 0, 120))
-        elif color_flag == "orange":
-            overlay.fill((255, 165, 0, 120))
-        elif color_flag == "normal":
-            overlay.fill((200, 200, 200, 100))  # ✨ subtle gray alpha for normal
-        
+        if color_flag == "red": overlay.fill((255, 0, 0, 120))
+        elif color_flag == "orange": overlay.fill((255, 165, 0, 120))
+        elif color_flag == "yellow": overlay.fill((255, 255, 0, 120))
+
         screen.blit(image, (x - camera.x, y - camera.y))
         screen.blit(overlay, (x - camera.x, y - camera.y))
 
 
     @classmethod
     def draw_ghost_belt_while_dragging(cls, screen, camera, rects, start_direction=None, color_flags=None):
-        cell = Grid.CELL_SIZE ; image_cache = {}
+        cell = Grid.CELL_SIZE
+        image_cache = {}
+
         for i, rect in enumerate(rects):
-            if i < len(rects)-1: dx, dy = rects[i+1].x - rect.x, rects[i+1].y - rect.y
-            elif i == 0 and start_direction: dx, dy = start_direction.x, start_direction.y
-            else: dx, dy = rect.x - rects[i-1].x, rect.y - rects[i-1].y
-            direction = Vector2(dx, dy).normalize() if dx or dy else Vector2(1,0)
+            # determine direction
+            if i < len(rects) - 1:
+                dx, dy = rects[i + 1].x - rect.x, rects[i + 1].y - rect.y
+            elif i == 0 and start_direction:
+                dx, dy = start_direction.x, start_direction.y
+            else:
+                dx, dy = rect.x - rects[i - 1].x, rect.y - rects[i - 1].y
+
+            direction = Vector2(dx, dy).normalize() if dx or dy else Vector2(1, 0)
             key = (round(direction.x), round(direction.y))
-            if key not in image_cache: img = py.transform.scale(cls.get_image(direction).copy(), (cell, cell)) ; image_cache[key] = img
-            screen.blit(image_cache[key], (rect.x - camera.x, rect.y - camera.y))
+
+            if key not in image_cache:
+                img = py.transform.scale(cls.get_image(direction).copy(), (cell, cell))
+                image_cache[key] = img
+
+            # draw the belt itself
+            belt_image = image_cache[key].copy()
+
+            # handle color flags
             if color_flags:
-                overlay = py.Surface((cell, cell), py.SRCALPHA)
-                color_map = {
-                    "red": (255,0,0,120),
-                    "orange": (255,165,0,120),
-                    "yellow": (255,255,0,120),
-                    "normal": (200, 200, 200, 100)  # ✨ add alpha overlay for normal
-                }
-                overlay.fill(color_map[color_flags[i]])
-                screen.blit(overlay, (rect.x - camera.x, rect.y - camera.y))
+                flag = color_flags[i]
+                if flag == "normal":
+                    belt_image.set_alpha(160)  # just make it semi-transparent
+                    screen.blit(belt_image, (rect.x - camera.x, rect.y - camera.y))
+                    continue  # skip overlay
+                else:
+                    overlay = py.Surface((cell, cell), py.SRCALPHA)
+                    color_map = {"red": (255, 0, 0, 120), "orange": (255, 165, 0, 120), "yellow": (255, 255, 0, 120)}
+                    overlay.fill(color_map.get(flag, (0, 0, 0, 0)))
+                    screen.blit(belt_image, (rect.x - camera.x, rect.y - camera.y))
+                    screen.blit(overlay, (rect.x - camera.x, rect.y - camera.y))
+            else:
+                # if no color flags, just draw normally
+                screen.blit(belt_image, (rect.x - camera.x, rect.y - camera.y))
 
 
     @classmethod

@@ -11,8 +11,6 @@ from entities.player_inventory_ui import PlayerInventoryUI
 from game.Objects.conveyor_belt import ConveyorBelt, BeltSegment
 from core.vector2 import Vector2
 from constants.itemdata import ITEMS
-from game.Objects.machines.recipes import iron_ingot_recipe, test
-from constants.itemdata import get_item_by_id
 
 class Game:
     def __init__(self):
@@ -47,14 +45,15 @@ class Game:
                 self.event_keys(event)
                 self.event_mouse(event)
                 self.handle_placement(event)
-                self.machine_ui.handle_event(event, self.machines, self.camera, self.screen, self.just_placed_machine, self.build_mode == "building", self.player, self.player_inventory_ui)
+                self.machine_ui.handle_event(event, self.machines, self.camera, self.screen, self.just_placed_machine, self.build_mode == "building", self.player, self.player_inventory_ui, self.screen_width, self.screen_height)
 
             self.update()
-            self.screen.fill("#918D8D")  # background
-            if self.build_mode != None: self.grid.draw(self.screen, self.camera)
+            self.screen.fill("#A38282")  # background
+            if self.build_mode != None:
+                self.grid.draw(self.screen, self.camera)
 
-            self.ghost_machine()
-            self.ghost_conveyor_belt()
+                self.ghost_machine()
+                self.ghost_conveyor_belt()
 
             self.draw_objects()
             self.draw_texts()
@@ -72,38 +71,30 @@ class Game:
         self.update_hovered_delete_target()
 
     def draw_objects(self):
-        # 1️⃣ Draw all belts tiles
+        self.draw_belts()
+        self.draw_items_on_belts()
+        self.player.draw(self.screen, self.camera)
+        for machine in self.machines:
+            machine.draw(self.screen, self.camera)
+        self.machine_ui.draw(self.screen)
+        self.player_inventory_ui.draw(self.screen)
+        self.highlight_hovered_delete_target()
+    def draw_belts(self):
         for belt in self.belts:
             cell = Grid.CELL_SIZE
             for seg in belt.segments:
                 image = py.transform.scale(belt.get_image(seg.direction), (cell, cell))
                 self.screen.blit(image, (seg.rect.x - self.camera.x, seg.rect.y - self.camera.y))
-
-        # 2️⃣ Draw all belt items (above belts, below machines)
+    def draw_items_on_belts(self):
         all_segments = [s for b in self.belts for s in b.segments]
         for belt in self.belts:
             for seg in belt.segments:
-                # Find previous segment for smooth corners
                 prev_seg = None
                 for s in all_segments:
                     if s.rect.x + s.direction.x * Grid.CELL_SIZE == seg.rect.x and s.rect.y + s.direction.y * Grid.CELL_SIZE == seg.rect.y:
                         prev_seg = s
                         break
-                seg.draw_item(self.screen, self.camera, cell_size=Grid.CELL_SIZE,
-                            prev_direction=prev_seg.direction if prev_seg else seg.direction)
-
-        # 3️⃣ Draw machines on top of belt items
-        for machine in self.machines:
-            machine.draw(self.screen, self.camera)
-
-        # 4️⃣ Draw player on top of everything
-        self.player.draw(self.screen, self.camera)
-
-        # 5️⃣ Draw UI overlays
-        self.machine_ui.draw(self.screen)
-        self.player_inventory_ui.draw(self.screen)
-        self.highlight_hovered_delete_target()
-
+                seg.draw_item(self.screen, self.camera, cell_size=Grid.CELL_SIZE, prev_direction=prev_seg.direction if prev_seg else seg.direction)
     def highlight_hovered_delete_target(self):
         if self.build_mode == "deleting" and self.hovered_delete_target is not None:
             alpha = 100
@@ -133,8 +124,7 @@ class Game:
         self.screen.blit(self.font.render(f"FPS: {int(self.clock.get_fps())}", True, "#000000"), (10, 90))
 
     def event_keys(self, event):
-        if event.type != py.KEYDOWN: 
-            return
+        if event.type != py.KEYDOWN: return
 
         # ESC: cancel everything
         if event.key == py.K_ESCAPE:
@@ -155,12 +145,15 @@ class Game:
             else:
                 if self.paused_mode is not None:
                     self.build_mode = self.paused_mode
+                    self.machine_ui.close()
                     self.paused_mode = None
-                self.player_inventory_ui.open = False
+                self.player_inventory_ui.close()
             return
 
         # Q: toggle building mode
         if event.key == py.K_q:
+            self.player_inventory_ui.close()
+            self.machine_ui.close()
             if self.build_mode == "building":
                 self.build_mode = None
                 self.reset_build_state()
@@ -183,36 +176,25 @@ class Game:
                 self.placing_belt = False
             return
 
-        # --- DEBUG KEY: I → add all required input items to selected machine ---
         if event.key == py.K_i:
             if self.machine_ui.open and self.machine_ui.selected_machine:
                 machine = self.machine_ui.selected_machine
-
-                # Loop through all input slots
-                for slot in machine.input_inventory.slots:
-                    # Check that the slot is for an item in the recipe
-                    if slot.allowed_item_id in machine.recipe.inputs:
-                        slot.amount = 100  # give a lot of that item
+                for item_id, amount in machine.recipe.inputs.items():
+                    machine.input_inventory.add_items(item_id, amount)
             return
-
-
-
 
         # Stop here if inventory UI or machine UI is open
-        if self.player_inventory_ui.open or self.machine_ui.open:
-            return
+        if self.player_inventory_ui.open or self.machine_ui.open: return
 
         # R: rotate belt placement
         if event.key == py.K_r:
-            if self.build_mode != "building" or self.selected_machine_class is not ConveyorBelt: 
-                return
+            if self.build_mode != "building" or self.selected_machine_class is not ConveyorBelt: return
             x, y = self.belt_placement_direction.x, self.belt_placement_direction.y
             self.belt_placement_direction = Vector2(-y, x)
 
         # T: toggle first axis of belt placement
         if event.key == py.K_t:
-            if self.build_mode != "building" or self.selected_machine_class is not ConveyorBelt or not self.placing_belt: 
-                return
+            if self.build_mode != "building" or self.selected_machine_class is not ConveyorBelt or not self.placing_belt: return
             self.belt_first_axis_horizontal = not self.belt_first_axis_horizontal
 
         # Number keys: select machine → switch to building mode automatically
@@ -350,34 +332,52 @@ class Game:
                         if len(belt.segments) == 0: self.belts.remove(belt)
                     return
     def ghost_conveyor_belt(self):
-        if self.selected_machine_class is not ConveyorBelt or self.build_mode != 'building': return
+        if self.selected_machine_class is not ConveyorBelt: return
+
         mx, my = py.mouse.get_pos()
         world_x, world_y = mx + self.camera.x, my + self.camera.y
         cell = self.grid.CELL_SIZE
-        segment_cost = BeltSegment(py.Rect(0,0,cell,cell), Vector2(1,0)).BUILD_COST
+        segment_cost = BeltSegment(py.Rect(0, 0, cell, cell), Vector2(1, 0)).BUILD_COST
+
         if not self.placing_belt:
             snapped_x, snapped_y = (world_x // cell) * cell, (world_y // cell) * cell
             temp_rect = py.Rect(snapped_x, snapped_y, cell, cell)
             blocked = self.is_rect_blocked(temp_rect)
+
             if blocked: color = "red"
-            elif not self.player.inventory.has_enough_build_cost_items(segment_cost): color = "yellow"
-            else: color = "normal"
-            ConveyorBelt.draw_ghost_belt(self.screen, self.camera, snapped_x, snapped_y, self.belt_placement_direction or Vector2(1,0), color_flag=color)
+            elif self.player.inventory.has_enough_build_cost_items(segment_cost): color = "normal"
+            else: color = "yellow"
+
+            ConveyorBelt.draw_ghost_belt(self.screen, self.camera, snapped_x, snapped_y, self.belt_placement_direction or Vector2(1, 0), color_flag=color)
+
         else:
             rects, any_blocked = self.get_dragging_belt_placement_preview(world_x, world_y)
-            if any_blocked: color_flags = ["red"] * len(rects)
+
+            color_flags = []
+
+            if any_blocked:
+                color_flags = ["red"] * len(rects)
             else:
+                # Check if we can afford all segments
                 total_cost = {item_id: amount * len(rects) for item_id, amount in segment_cost.items()}
-                if all(self.player.inventory.get_amount(i) >= a for i, a in total_cost.items()): color_flags = ["normal"] * len(rects)
+                if all(self.player.inventory.get_amount(i) >= a for i, a in total_cost.items()):
+                    color_flags = ["normal"] * len(rects)
                 else:
+                    # Partial affordability: orange for segments we can afford, yellow for rest
                     remaining = {i: self.player.inventory.get_amount(i) for i in segment_cost}
-                    color_flags = []
                     for _ in rects:
                         if all(remaining[i] >= amount for i, amount in segment_cost.items()):
                             color_flags.append("orange")
-                            for i, amount in segment_cost.items(): remaining[i] -= amount
-                        else: color_flags.append("yellow")
-            ConveyorBelt.draw_ghost_belt_while_dragging(self.screen, self.camera, rects, start_direction=self.belt_placement_direction or Vector2(1,0), color_flags=color_flags)
+                            for i, amount in segment_cost.items():
+                                remaining[i] -= amount
+                        else:
+                            color_flags.append("yellow")
+
+            ConveyorBelt.draw_ghost_belt_while_dragging(
+                self.screen, self.camera, rects,
+                start_direction=self.belt_placement_direction or Vector2(1, 0),
+                color_flags=color_flags
+            )
 
     def can_afford_belt(self, belt_segments):
         total_cost = {}

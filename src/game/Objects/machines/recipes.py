@@ -1,4 +1,4 @@
-from constants.itemdata import iron_ore, iron_ingot, copper_ore, copper_ingot, steel, coal
+from constants.itemdata import iron_ore, iron_ingot, copper_ore, copper_ingot, coal
 
 class Recipe():
     def __init__(self, name, inputs, outputs, process_time): # dictionaries
@@ -9,7 +9,7 @@ class Recipe():
 
 # Smelter Recipes
 smelter_recipes = []
-iron_ingot_recipe = Recipe("Iron_Ingot", {"iron_ore": 100}, {"iron_ingot": 100}, 2)
+iron_ingot_recipe = Recipe("Iron_Ingot", {"iron_ore": 3}, {"iron_ingot": 1}, 2)
 copper_ingot_recipe = Recipe("Copper_Ingot", {"copper_ore": 3}, {"copper_ingot": 1}, 2)
 zinc_ingot_recipe = Recipe("Zinc_Ingot", {"zinc_ore": 1}, {"zinc_ingot": 1}, 2)
 test = Recipe("test", {"iron_ingot": 1}, {"copper_ore": 3}, 2)
