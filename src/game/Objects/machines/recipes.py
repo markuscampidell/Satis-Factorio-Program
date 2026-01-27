@@ -1,11 +1,21 @@
 from constants.itemdata import iron_ore, iron_ingot, copper_ore, copper_ingot, coal
 
-class Recipe():
-    def __init__(self, name, inputs, outputs, process_time): # dictionaries
+class Recipe:
+    def __init__(self, name, inputs, outputs, process_time):
         self.name = name
-        self.inputs = inputs # for example { "iron_ore": 3 }
-        self.outputs = outputs # { "iron ingot": 1 }
+        self.inputs = inputs
+        self.input_length = len(inputs)
+        self.outputs = outputs
         self.process_time = process_time
+
+
+"""
+a recipe has a name, a dict as an input and a dict as an output
+the input_length is calculated for the inventory slots
+the recipe needs a process_time
+
+example: Recipe("recipe_name", {"inputitem1": 1, "inputitem2": 1}, {"outputitem1": 1}, 1)
+"""
 
 # Smelter Recipes
 smelter_recipes = []

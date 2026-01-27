@@ -138,7 +138,6 @@ class MachineUI:
             for rect, recipe in self.recipe_rects:
                 if rect.collidepoint(mx, my): self.selected_machine.set_recipe(recipe, player_inventory=player.inventory) ; return
 
-    # Under here is fine
 
     def handle_close_click(self, left_click, mx, my, player_inventory_ui):
         if left_click:

@@ -21,8 +21,11 @@ class Machine:
             self.image.blit(image, (0, 0))
         self.rect = self.image.get_rect(center=pos)
 
-        self.input_inventory = Inventory(1, 1)
-        self.output_inventory = Inventory(1, 1)
+        input_slots = len(recipe.inputs)
+        self.input_inventory = Inventory(slot_width=input_slots, slot_height=1)
+
+
+        self.output_inventory = Inventory(slot_width=1, slot_height=1)
 
         self.processing = False
         self.process_timer = 0.0
@@ -38,17 +41,21 @@ class Machine:
         return next(iter(self.recipe.outputs.items()))
     
     def can_process(self):
-        if not self.recipe: return False
+        if not self.recipe:
+            return False
 
-        input_item, input_amount = self.get_recipe_input()
-        output_item, output_amount = self.get_recipe_output()
+        # Check inputs
+        for item_id, amount in self.get_recipe_inputs().items():
+            if self.input_inventory.get_amount(item_id) < amount:
+                return False
 
-        if not input_item or not output_item: return False
-
-        if self.input_inventory.get_amount(input_item) < input_amount: return False
-        if not self.output_inventory.can_add_items(output_item, output_amount): return False
+        # Check output capacity (still single output slot)
+        for item_id, amount in self.get_recipe_outputs().items():
+            if not self.output_inventory.can_add_items(item_id, amount):
+                return False
 
         return True
+
 
     def transfer_processing_items_to_player(self, player_inventory):
         if not player_inventory: return
@@ -67,10 +74,17 @@ class Machine:
 
     def set_recipe(self, recipe, player_inventory=None):
         self.transfer_processing_items_to_player(player_inventory)
+
         self.recipe = recipe
         self.process_time = recipe.process_time
         self.processing = False
         self.process_timer = 0.0
+
+        # Resize inventories
+        input_slots = recipe.input_length
+        self.input_inventory = Inventory(slot_width=input_slots, slot_height=1)
+        self.output_inventory = Inventory(slot_width=1, slot_height=1)
+
 
     # Up here is fine (i think)
 
@@ -93,18 +107,25 @@ class Machine:
     # Under here is fine (i think)
 
     def update(self, dt):
-        if not self.processing and self.can_process(): self.processing = True ; self.process_timer = 0.0
-        if self.processing: 
-            self.process_timer += dt
-            if self.process_timer >= self.recipe.process_time:
-                input_item, input_amount = self.get_recipe_input()
-                output_item, output_amount = self.get_recipe_output()
+        if not self.processing and self.can_process():
+            self.processing = True
+            self.process_timer = 0.0
 
-                self.input_inventory.remove(input_item, input_amount)
-                self.output_inventory.add_items(output_item, output_amount)
+        if self.processing:
+            self.process_timer += dt
+
+            if self.process_timer >= self.process_time:
+                # Remove ALL inputs
+                for item_id, amount in self.get_recipe_inputs().items():
+                    self.input_inventory.remove(item_id, amount)
+
+                # Add ALL outputs (even if currently just one)
+                for item_id, amount in self.get_recipe_outputs().items():
+                    self.output_inventory.add_items(item_id, amount)
 
                 self.processing = False
                 self.process_timer = 0.0
+
 
     def draw(self, screen, camera):
         screen.blit(self.image, (self.rect.x - camera.x, self.rect.y - camera.y))

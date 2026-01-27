@@ -3,11 +3,15 @@ from entities.item import Item
 class Inventory:
     MAX_STACK_SIZE = 100  # default, can be customized per item
 
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        self.slots = [[None for _ in range(width)] for _ in range(height)]
+    def __init__(self, slot_width, slot_height):
+        self.width = slot_width
+        self.height = slot_height
+        self.slots = [[None for _ in range(slot_width)] for _ in range(slot_height)]
+
+        """
+        an inventory has a width and height (slots)
         # Each slot can be None or {"item": item_id, "amount": int}
+        """
 
     def add_items(self, item, amount):
         if isinstance(item, Item): item_id = item.item_id

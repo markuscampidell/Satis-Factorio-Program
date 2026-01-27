@@ -7,7 +7,7 @@ from grid.grid import Grid
 from core.vector2 import Vector2
 
 class BeltSegment:
-    def __init__(self, rect: py.Rect, direction: Vector2, items_per_minute=480):
+    def __init__(self, rect: py.Rect, direction: Vector2, items_per_minute=60):
         self.rect = rect
         self.direction = direction  # must be integer Vector2 (1,0), (0,1), etc.)
         self.item = None
