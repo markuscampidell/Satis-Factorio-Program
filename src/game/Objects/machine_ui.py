@@ -41,44 +41,69 @@ class MachineUI:
     def draw_slots(self, screen):
         start_x = self.rect.x + 20
         start_y = self.rect.y + 80
+        slot_spacing = 10
 
-        # ---- INPUT ----
-        input_label = self.font.render("Input", True, "#000000")
+        # ---- INPUTS ----
+        input_label = self.font.render("Inputs", True, "#000000")
         screen.blit(input_label, (start_x, start_y - 25))
 
-        input_rect = py.Rect(start_x, start_y, self.slot_size, self.slot_size)
-        py.draw.rect(screen, "#8E8CB8", input_rect, border_radius=6)
+        x_offset = 0
+        for inv in self.selected_machine.input_inventories.values():
+            # Draw each slot of this inventory
+            for i in range(inv.width):
+                x = start_x + x_offset + i * (self.slot_size + slot_spacing)
+                rect = py.Rect(x, start_y, self.slot_size, self.slot_size)
+                py.draw.rect(screen, "#8E8CB8", rect, border_radius=6)
 
-        slot = self.selected_machine.input_inventory.slots[0][0]
-        if slot:
-            self.draw_item_in_slot(screen, slot, input_rect)
+                slot = inv.slots[0][i]
+                if slot:
+                    self.draw_item_in_slot(screen, slot, rect)
+
+            # Move x_offset for next input inventory
+            x_offset += inv.width * (self.slot_size + slot_spacing)
 
         # ---- OUTPUT ----
         output_y = start_y + self.slot_size + 40
         output_label = self.font.render("Output", True, "#000000")
         screen.blit(output_label, (start_x, output_y - 25))
 
-        output_rect = py.Rect(start_x, output_y, self.slot_size, self.slot_size)
-        py.draw.rect(screen, "#8E8CB8", output_rect, border_radius=6)
+        inv = self.selected_machine.output_inventory
+        for i in range(inv.width):
+            x = start_x + i * (self.slot_size + slot_spacing)
+            rect = py.Rect(x, output_y, self.slot_size, self.slot_size)
+            py.draw.rect(screen, "#8E8CB8", rect, border_radius=6)
 
-        slot = self.selected_machine.output_inventory.slots[0][0]
-        if slot:
-            self.draw_item_in_slot(screen, slot, output_rect)
+            slot = inv.slots[0][i]
+            if slot:
+                self.draw_item_in_slot(screen, slot, rect)
+
+
+
 
 
 
 
     def draw_item_in_slot(self, screen, slot, rect):
-        item = get_item_by_id(slot["item"])
-        if not item:
-            return
+        raw = slot["item"]
+
+        # Accept both item_id and Item object
+        if isinstance(raw, str):
+            item = get_item_by_id(raw)
+        else:
+            item = raw   # already an Item
 
         amount = slot["amount"]
-        image = py.transform.scale(item.image, rect.size)
-        screen.blit(image, rect.topleft)
 
+        # Draw image only if it exists
+        if item and hasattr(item, "image") and item.image:
+            image = py.transform.scale(item.image, rect.size)
+            screen.blit(image, rect.topleft)
+
+        # ALWAYS draw amount
         amount_text = self.font.render(str(amount), True, "#000000")
         screen.blit(amount_text, amount_text.get_rect(bottomright=rect.bottomright))
+
+
 
     def draw_recipes(self, screen):
         padding = 15
@@ -170,9 +195,15 @@ class MachineUI:
         self.selected_machine = None
 
     def draw(self, screen):
-        if not self.open or not self.selected_machine: return
+        if not self.open or not self.selected_machine:
+            return
+
         self.update_slot_positions()
         screen.blit(self.image, self.rect)
+
+        # Draw background elements first
+        self.draw_progress_bar(screen)
+
+        # Draw foreground on top
         self.draw_slots(screen)
         self.draw_recipes(screen)
-        self.draw_progress_bar(screen)

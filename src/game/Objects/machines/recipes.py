@@ -28,6 +28,6 @@ smelter_recipes.extend([iron_ingot_recipe, copper_ingot_recipe, zinc_ingot_recip
 
 # Foundry Recipes
 foundry_recipes = []
-steel_recipe = Recipe("Steel", {"iron_ore": 2, "coal": 2}, {"steel": 1}, 3)
+steel_recipe = Recipe("Steel", {"iron_ingot": 2, "coal": 2}, {"steel": 1}, 3)
 brass_recipe = Recipe("Brass", {"copper_ingot": 3, "zinc_ingot": 3}, {"brass_ingot": 1}, 5)
 foundry_recipes.extend([steel_recipe, brass_recipe])

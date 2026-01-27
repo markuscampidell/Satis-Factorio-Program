@@ -179,9 +179,14 @@ class Game:
         if event.key == py.K_i:
             if self.machine_ui.open and self.machine_ui.selected_machine:
                 machine = self.machine_ui.selected_machine
+
+                # Add items to each input inventory separately
                 for item_id, amount in machine.recipe.inputs.items():
-                    machine.input_inventory.add_items(item_id, amount)
+                    if item_id in machine.input_inventories:
+                        inv = machine.input_inventories[item_id]
+                        inv.add_items(item_id, amount)
             return
+
 
         # Stop here if inventory UI or machine UI is open
         if self.player_inventory_ui.open or self.machine_ui.open: return
@@ -259,9 +264,9 @@ class Game:
         self.belts = []
 
         # CHEAT ITEMS
-        self.player.inventory.add_items("iron_ingot", 100)
-        self.player.inventory.add_items("copper_ingot", 3)
-        self.player.inventory.add_items("coal", 100)
+        self.player.inventory.add_items("iron_ingot", 20)
+        self.player.inventory.add_items("copper_ingot", 20)
+        self.player.inventory.add_items("coal", 2)
 
     def place_machine(self):
         if self.selected_machine_class is None: return
@@ -323,14 +328,32 @@ class Game:
             for seg in belt.segments[:]:
                 if seg.rect.collidepoint(world_x, world_y):
                     if delete_whole:
+                        # Refund items on all segments
+                        belt.refund_all_items(self.player.inventory)
+
+                        # Refund build costs for all segments
                         for s in belt.segments:
-                            for item_id, amount in s.BUILD_COST.items(): self.player.inventory.add_items(item_id, amount)
+                            for item_id, amount in s.BUILD_COST.items():
+                                self.player.inventory.add_items(item_id, amount)
+
+                        # Remove the belt
                         self.belts.remove(belt)
                     else:
-                        for item_id, amount in seg.BUILD_COST.items(): self.player.inventory.add_items(item_id, amount)
+                        # Refund item on this segment
+                        seg.refund_item(self.player.inventory)
+
+                        # Refund the build cost of this segment
+                        for item_id, amount in seg.BUILD_COST.items():
+                            self.player.inventory.add_items(item_id, amount)
+
+                        # Remove the segment
                         belt.segments.remove(seg)
-                        if len(belt.segments) == 0: self.belts.remove(belt)
-                    return
+
+                        # Remove belt entirely if empty
+                        if len(belt.segments) == 0:
+                            self.belts.remove(belt)
+                    return  # stop after deleting one segment / belt
+
     def ghost_conveyor_belt(self):
         if self.selected_machine_class is not ConveyorBelt: return
 

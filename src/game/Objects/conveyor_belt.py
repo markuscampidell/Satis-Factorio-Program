@@ -1,13 +1,10 @@
 import pygame as py
 from grid.grid import Grid
 from core.vector2 import Vector2
-
-import pygame as py
-from grid.grid import Grid
-from core.vector2 import Vector2
+from constants.itemdata import get_item_by_id
 
 class BeltSegment:
-    def __init__(self, rect: py.Rect, direction: Vector2, items_per_minute=60):
+    def __init__(self, rect: py.Rect, direction: Vector2, items_per_minute=200):
         self.rect = rect
         self.direction = direction  # must be integer Vector2 (1,0), (0,1), etc.)
         self.item = None
@@ -18,45 +15,69 @@ class BeltSegment:
         self.speed = (self.items_per_minute / 60) * Grid.CELL_SIZE
 
     def update(self, all_segments, machines, cell_size, dt):
-        # move item along this segment
+        # ---- MOVE ITEM ALONG BELT ----
         if self.item:
             self.item_progress += self.speed * dt / cell_size
+
             if self.item_progress >= 1.0:
-                # try to move to next segment
                 next_rect = self.rect.move(int(self.direction.x * cell_size), int(self.direction.y * cell_size))
                 moved = False
+
+                # Try to move to next belt segment
                 for segment in all_segments:
                     if segment.rect.topleft == next_rect.topleft and segment.item is None:
                         segment.item = self.item
-                        segment.item_progress = 0.0  # start at beginning
+                        segment.item_progress = 0.0
                         self.item = None
                         moved = True
                         break
 
-                # If no next segment, try to push into machine
+                # Try to push into machine if blocked
                 if not moved:
                     for machine in machines:
                         if machine.rect.colliderect(next_rect):
-                            if self.item.item_id in machine.recipe.inputs:
-                                added = machine.input_inventory.add_items(self.item, 1)
-                                if added:
-                                    self.item = None
+                            # Find the correct input inventory for this item
+                            if hasattr(machine, "input_inventories"):
+                                for inv_item_id, inv in machine.input_inventories.items():
+                                    if self.item.item_id == inv_item_id:
+                                        added = inv.add_items(self.item, 1)
+                                        if added:
+                                            self.item = None
+                                        break
+                            else:
+                                # fallback for older single inventory machines
+                                if self.item.item_id in machine.get_recipe_inputs():
+                                    added = machine.input_inventory.add_items(self.item, 1)
+                                    if added:
+                                        self.item = None
                             break
 
-                # cap progress if blocked
+                # Cap progress if still blocked
                 if self.item:
                     self.item_progress = 1.0
 
-        # pull from machine if belt is empty
+        # ---- PULL ITEM FROM MACHINE IF EMPTY ----
         if self.item is None:
             prev_rect = self.rect.move(-int(self.direction.x * cell_size), -int(self.direction.y * cell_size))
             for machine in machines:
                 if machine.rect.colliderect(prev_rect):
-                    item = machine.push_output_item(peek=True)
-                    if item:
-                        self.item = machine.push_output_item()  # actually take it
+                    # peek output first
+                    item_obj = machine.push_output_item(peek=True)
+                    if item_obj:
+                        # actually take the item
+                        self.item = machine.push_output_item(peek=False)
                         self.item_progress = 0.0
-                        break
+                    break
+
+
+    def refund_item(self, player_inventory):
+        """Give the item on this segment back to the player, if any."""
+        if self.item:
+            if player_inventory:
+                player_inventory.add_items(self.item, 1)
+            self.item = None
+            self.item_progress = 0.0
+
 
     def draw_item(self, screen, camera, cell_size, prev_direction=None):
         if not self.item or self.item.image is None:
@@ -149,7 +170,11 @@ class ConveyorBelt:
                     break
 
             seg.draw_item(screen, camera, cell_size=cell, prev_direction=prev_seg.direction if prev_seg else seg.direction)
-
+            
+    def refund_all_items(self, player_inventory):
+        """Refund all items currently on this belt to the player."""
+        for segment in self.segments:
+            segment.refund_item(player_inventory)
 
     @classmethod
     def draw_ghost_belt(cls, screen, camera, x, y, direction: Vector2, color_flag="normal"):

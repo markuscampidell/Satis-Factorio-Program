@@ -21,36 +21,39 @@ class Machine:
             self.image.blit(image, (0, 0))
         self.rect = self.image.get_rect(center=pos)
 
-        input_slots = len(recipe.inputs)
-        self.input_inventory = Inventory(slot_width=input_slots, slot_height=1)
-
+        # Separate inventory for each input type
+        self.input_inventories = {}
+        if recipe:
+            for item_id in recipe.inputs:
+                self.input_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
 
         self.output_inventory = Inventory(slot_width=1, slot_height=1)
-
         self.processing = False
         self.process_timer = 0.0
         self.process_time = recipe.process_time if recipe else 1.0
 
-    def get_recipe_input(self):
-        if not self.recipe or not self.recipe.inputs:
-            return None, 0
-        return next(iter(self.recipe.inputs.items()))
-    def get_recipe_output(self):
+    def get_recipe_inputs(self):
+            if not self.recipe or not self.recipe.inputs:
+                return {}
+            return self.recipe.inputs
+
+    def get_recipe_outputs(self):
         if not self.recipe or not self.recipe.outputs:
-            return None, 0
-        return next(iter(self.recipe.outputs.items()))
+            return {}
+        return self.recipe.outputs
+
     
     def can_process(self):
         if not self.recipe:
             return False
 
-        # Check inputs
-        for item_id, amount in self.get_recipe_inputs().items():
-            if self.input_inventory.get_amount(item_id) < amount:
+        # Check each input inventory has enough
+        for item_id, amount in self.recipe.inputs.items():
+            if self.input_inventories[item_id].get_amount(item_id) < amount:
                 return False
 
-        # Check output capacity (still single output slot)
-        for item_id, amount in self.get_recipe_outputs().items():
+        # Check output inventory has space
+        for item_id, amount in self.recipe.outputs.items():
             if not self.output_inventory.can_add_items(item_id, amount):
                 return False
 
@@ -58,21 +61,29 @@ class Machine:
 
 
     def transfer_processing_items_to_player(self, player_inventory):
-        if not player_inventory: return
+        if not player_inventory:
+            return
 
-        # Inputs
-        for row in self.input_inventory.slots:
-            for slot in row:
-                if slot: player_inventory.add_items(slot["item"], slot["amount"])
-        # Outputs
+        # Return all items from input inventories
+        for inv in self.input_inventories.values():
+            for row in inv.slots:
+                for slot in row:
+                    if slot:
+                        player_inventory.add_items(slot["item"], slot["amount"])
+
+        # Return all items from output inventory
         for row in self.output_inventory.slots:
             for slot in row:
-                if slot: player_inventory.add_items(slot["item"], slot["amount"])
+                if slot:
+                    player_inventory.add_items(slot["item"], slot["amount"])
 
-        self.input_inventory = Inventory(1, 1)
-        self.output_inventory = Inventory(1, 1)
+        # Reset inventories
+        for item_id in self.input_inventories:
+            self.input_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
+        self.output_inventory = Inventory(slot_width=1, slot_height=1)
 
     def set_recipe(self, recipe, player_inventory=None):
+        # Give player back any existing inputs and outputs
         self.transfer_processing_items_to_player(player_inventory)
 
         self.recipe = recipe
@@ -80,27 +91,33 @@ class Machine:
         self.processing = False
         self.process_timer = 0.0
 
-        # Resize inventories
-        input_slots = recipe.input_length
-        self.input_inventory = Inventory(slot_width=input_slots, slot_height=1)
+        # Reset input inventories: one inventory per input type
+        self.input_inventories = {}
+        for item_id in recipe.inputs:
+            self.input_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
+
+        # Reset output inventory
         self.output_inventory = Inventory(slot_width=1, slot_height=1)
 
 
     # Up here is fine (i think)
 
+    # in your machine class
     def push_output_item(self, peek=False):
-        slot = self.output_inventory.slots[0][0]
-        if not slot:
-            return None
+        for row in self.output_inventory.slots:
+            for i, slot in enumerate(row):
+                if slot and slot["amount"] > 0:  # <- must check amount
+                    item_obj = get_item_by_id(slot["item"])
+                    if peek:
+                        return item_obj
+                    else:
+                        slot["amount"] -= 1
+                        if slot["amount"] == 0:
+                            row[i] = None  # clear slot if empty
+                        return item_obj
+        return None
 
-        item_obj = get_item_by_id(slot["item"])
 
-        if not peek:
-            slot["amount"] -= 1
-            if slot["amount"] <= 0:
-                self.output_inventory.slots[0][0] = None
-
-        return item_obj
 
 
 
@@ -115,12 +132,12 @@ class Machine:
             self.process_timer += dt
 
             if self.process_timer >= self.process_time:
-                # Remove ALL inputs
-                for item_id, amount in self.get_recipe_inputs().items():
-                    self.input_inventory.remove(item_id, amount)
+                # Remove all inputs from their dedicated inventories
+                for item_id, amount in self.recipe.inputs.items():
+                    self.input_inventories[item_id].remove(item_id, amount)
 
-                # Add ALL outputs (even if currently just one)
-                for item_id, amount in self.get_recipe_outputs().items():
+                # Add all outputs to output inventory
+                for item_id, amount in self.recipe.outputs.items():
                     self.output_inventory.add_items(item_id, amount)
 
                 self.processing = False
