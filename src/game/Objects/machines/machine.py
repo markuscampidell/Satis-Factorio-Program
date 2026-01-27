@@ -2,10 +2,6 @@ import pygame as py
 
 from constants.itemdata import get_item_by_id
 from entities.inventory import Inventory
-from core.vector2 import Vector2
-
-import pygame as py
-from constants.itemdata import get_item_by_id
 
 class Machine:
     SIZE = 96
@@ -127,22 +123,17 @@ class Machine:
         if not self.processing and self.can_process():
             self.processing = True
             self.process_timer = 0.0
-
         if self.processing:
             self.process_timer += dt
-
             if self.process_timer >= self.process_time:
-                # Remove all inputs from their dedicated inventories
+                # Remove Inputs / Add Outputs
                 for item_id, amount in self.recipe.inputs.items():
                     self.input_inventories[item_id].remove(item_id, amount)
-
-                # Add all outputs to output inventory
                 for item_id, amount in self.recipe.outputs.items():
                     self.output_inventory.add_items(item_id, amount)
 
                 self.processing = False
                 self.process_timer = 0.0
-
 
     def draw(self, screen, camera):
         screen.blit(self.image, (self.rect.x - camera.x, self.rect.y - camera.y))

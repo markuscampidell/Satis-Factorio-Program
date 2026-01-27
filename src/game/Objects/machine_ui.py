@@ -1,5 +1,6 @@
 import pygame as py
 from constants.itemdata import get_item_by_id
+import time
 
 class MachineUI:
     def __init__(self, screen_width, screen_height):
@@ -18,6 +19,7 @@ class MachineUI:
         self.slot_size = 48
         self.input_slot_rect = py.Rect(0, 0, self.slot_size, self.slot_size)
         self.output_slot_rect = py.Rect(0, 0, self.slot_size, self.slot_size)
+        self.slot_rects = []
 
         self.image.set_alpha(150)
     
@@ -39,37 +41,35 @@ class MachineUI:
     # Over here should be fine
 
     def draw_slots(self, screen):
-        start_x = self.rect.x + 20
-        start_y = self.rect.y + 80
+        self.slot_rects.clear()
+        padding = 40
         slot_spacing = 10
 
-        # ---- INPUTS ----
-        input_label = self.font.render("Inputs", True, "#000000")
-        screen.blit(input_label, (start_x, start_y - 25))
+        # ---- INPUTS (top-left, horizontal) ----
+        input_y = self.rect.y + padding
+        input_x = self.rect.x + padding
+        total_input_slots = sum(inv.width for inv in self.selected_machine.input_inventories.values())
+        slot_index = 0
 
-        x_offset = 0
         for inv in self.selected_machine.input_inventories.values():
-            # Draw each slot of this inventory
             for i in range(inv.width):
-                x = start_x + x_offset + i * (self.slot_size + slot_spacing)
-                rect = py.Rect(x, start_y, self.slot_size, self.slot_size)
+                x = input_x + slot_index * (self.slot_size + slot_spacing)
+                rect = py.Rect(x, input_y, self.slot_size, self.slot_size)
                 py.draw.rect(screen, "#8E8CB8", rect, border_radius=6)
 
                 slot = inv.slots[0][i]
                 if slot:
                     self.draw_item_in_slot(screen, slot, rect)
 
-            # Move x_offset for next input inventory
-            x_offset += inv.width * (self.slot_size + slot_spacing)
+                self.slot_rects.append(rect)
+                slot_index += 1
 
-        # ---- OUTPUT ----
-        output_y = start_y + self.slot_size + 40
-        output_label = self.font.render("Output", True, "#000000")
-        screen.blit(output_label, (start_x, output_y - 25))
-
+        # ---- OUTPUT (bottom-left, horizontal) ----
+        output_y = self.rect.bottom - padding - self.slot_size
+        output_x = self.rect.x + padding
         inv = self.selected_machine.output_inventory
         for i in range(inv.width):
-            x = start_x + i * (self.slot_size + slot_spacing)
+            x = output_x + i * (self.slot_size + slot_spacing)
             rect = py.Rect(x, output_y, self.slot_size, self.slot_size)
             py.draw.rect(screen, "#8E8CB8", rect, border_radius=6)
 
@@ -77,8 +77,56 @@ class MachineUI:
             if slot:
                 self.draw_item_in_slot(screen, slot, rect)
 
+            self.slot_rects.append(rect)
 
+        self.draw_processing_arrow(screen)
 
+    def draw_processing_arrow(self, screen):
+        if not self.selected_machine:
+            return
+
+        m = self.selected_machine
+        arrow_w, arrow_h = 20, 40
+        padding = 55
+        x = self.rect.x + padding
+        y = self.rect.y + self.rect.height // 2 - arrow_h // 2
+
+        base = (50, 50, 50)   # gray
+        target = (0, 200, 0)  # green
+        fade_speed = 0.1      # interpolation factor
+
+        # --- Determine target color based on current machine state ---
+        active = False
+        if m.processing:
+            active = True
+        elif m.recipe and all(
+            m.input_inventories[i].get_amount(i) >= amt
+            for i, amt in m.recipe.inputs.items()
+        ):
+            active = True
+
+        desired_color = target if active else base
+
+        # --- Smooth interpolation (optional) ---
+        if not hasattr(self, "_arrow_color"):
+            self._arrow_color = desired_color  # start from correct state
+        current = list(self._arrow_color)
+        for i in range(3):
+            diff = desired_color[i] - current[i]
+            current[i] += diff * fade_speed
+        self._arrow_color = tuple(int(c) for c in current)
+
+        # --- Draw arrow ---
+        points = [
+            (x, y),
+            (x + arrow_w, y),
+            (x + arrow_w, y + arrow_h - arrow_w // 2),
+            (x + arrow_w * 1.5, y + arrow_h - arrow_w // 2),
+            (x + arrow_w // 2, y + arrow_h),
+            (x - arrow_w // 2, y + arrow_h - arrow_w // 2),
+            (x, y + arrow_h - arrow_w // 2)
+        ]
+        py.draw.polygon(screen, self._arrow_color, points)
 
 
 
@@ -149,12 +197,30 @@ class MachineUI:
         screen.blit(percent_text, percent_rect)
 
     def handle_drag(self, event, mx, my):
-        if event.type == py.MOUSEBUTTONDOWN and event.button == 1:
-            if self.rect.collidepoint(mx, my) and not self.input_slot_rect.collidepoint(mx, my) and not self.output_slot_rect.collidepoint(mx, my): 
-                self.dragging = True ; self.drag_offset = (mx - self.rect.x, my - self.rect.y)
-        if event.type == py.MOUSEBUTTONUP and event.button == 1: self.dragging = False
-        if event.type == py.MOUSEMOTION and self.dragging:
-            self.rect.x = mx - self.drag_offset[0] ; self.rect.y = my - self.drag_offset[1]
+        # Only drag if left mouse and not over a slot
+        if mx is None or my is None:
+            return
+
+        mouse_over_slot = any(rect.collidepoint(mx, my) for rect in self.slot_rects)
+
+        if event.type == py.MOUSEBUTTONDOWN and event.button == 1 and not mouse_over_slot:
+            if self.rect.collidepoint(mx, my):
+                self.dragging = True
+                self.drag_offset = (mx - self.rect.x, my - self.rect.y)
+
+        elif event.type == py.MOUSEBUTTONUP and event.button == 1:
+            self.dragging = False
+
+        elif event.type == py.MOUSEMOTION and self.dragging:
+            self.rect.x = mx - self.drag_offset[0]
+            self.rect.y = my - self.drag_offset[1]
+
+
+
+
+
+
+
 
     # Over here is fine
 

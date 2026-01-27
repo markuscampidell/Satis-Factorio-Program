@@ -264,8 +264,8 @@ class Game:
         self.belts = []
 
         # CHEAT ITEMS
-        self.player.inventory.add_items("iron_ingot", 20)
-        self.player.inventory.add_items("copper_ingot", 20)
+        self.player.inventory.add_items("iron_ingot", 200)
+        self.player.inventory.add_items("copper_ingot", 200)
         self.player.inventory.add_items("coal", 2)
 
     def place_machine(self):
@@ -292,7 +292,7 @@ class Game:
                 machine.transfer_processing_items_to_player(self.player.inventory)
                 for item_id, amount in machine.BUILD_COST.items():
                     self.player.inventory.add_items(item_id, amount)
-                self.machines.remove(machine)
+                self.machines.remove(machine) 
                 return
     def ghost_machine(self):
         if self.selected_machine_class is not None and self.selected_machine_class is not ConveyorBelt:
