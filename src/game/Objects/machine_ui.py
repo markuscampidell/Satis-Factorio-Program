@@ -21,9 +21,9 @@ class MachineUI:
         self.output_slot_rect = py.Rect(0, 0, self.slot_size, self.slot_size)
         self.slot_rects = []
 
-        self.image.set_alpha(150)
+        self.image.set_alpha(220)
     
-    def handle_event(self, event, machines, camera, screen, just_placed, placing_machine, player, player_inventory_ui, screen_width, screen_height):
+    def handle_event(self, event, machines, camera, screen, just_placed, placing_machine, player, player_inventory_ui, screen_width, screen_height, dev_mode=False):
         if placing_machine or just_placed: return
 
         is_mouse_event = event.type in (py.MOUSEBUTTONDOWN, py.MOUSEBUTTONUP, py.MOUSEMOTION)
@@ -32,7 +32,7 @@ class MachineUI:
 
         self.handle_drag(event, mx, my)
         if self.open and self.selected_machine:
-            self.handle_recipe_click(left_click, mx, my, player)
+            self.handle_recipe_click(left_click, mx, my, player, dev_mode=dev_mode)
             self.handle_close_click(left_click, mx, my, player_inventory_ui)
             self.handle_visibility(camera, screen, screen_width, screen_height)
         if not self.open and left_click:
@@ -92,24 +92,17 @@ class MachineUI:
         y = self.rect.y + self.rect.height // 2 - arrow_h // 2
 
         base = (50, 50, 50)   # gray
-        target = (0, 200, 0)  # green
+        target = (0, 230, 0)  # green
         fade_speed = 0.1      # interpolation factor
 
-        # --- Determine target color based on current machine state ---
         active = False
-        if m.processing:
+        if m.processing: active = True
+        elif m.recipe and all(m.input_inventories[i].get_amount(i) >= amt for i, amt in m.recipe.inputs.items()):
             active = True
-        elif m.recipe and all(
-            m.input_inventories[i].get_amount(i) >= amt
-            for i, amt in m.recipe.inputs.items()
-        ):
-            active = True
-
         desired_color = target if active else base
 
-        # --- Smooth interpolation (optional) ---
         if not hasattr(self, "_arrow_color"):
-            self._arrow_color = desired_color  # start from correct state
+            self._arrow_color = desired_color
         current = list(self._arrow_color)
         for i in range(3):
             diff = desired_color[i] - current[i]
@@ -118,12 +111,9 @@ class MachineUI:
 
         # --- Draw arrow ---
         points = [
-            (x, y),
-            (x + arrow_w, y),
-            (x + arrow_w, y + arrow_h - arrow_w // 2),
+            (x, y), (x + arrow_w, y), (x + arrow_w, y + arrow_h - arrow_w // 2),
             (x + arrow_w * 1.5, y + arrow_h - arrow_w // 2),
-            (x + arrow_w // 2, y + arrow_h),
-            (x - arrow_w // 2, y + arrow_h - arrow_w // 2),
+            (x + arrow_w // 2, y + arrow_h), (x - arrow_w // 2, y + arrow_h - arrow_w // 2),
             (x, y + arrow_h - arrow_w // 2)
         ]
         py.draw.polygon(screen, self._arrow_color, points)
@@ -135,10 +125,8 @@ class MachineUI:
         raw = slot["item"]
 
         # Accept both item_id and Item object
-        if isinstance(raw, str):
-            item = get_item_by_id(raw)
-        else:
-            item = raw   # already an Item
+        if isinstance(raw, str): item = get_item_by_id(raw)
+        else: item = raw   # already an Item
 
         amount = slot["amount"]
 
@@ -190,7 +178,7 @@ class MachineUI:
         else: progress = 0.0
 
         fill_rect = py.Rect(bar_x, bar_y, int(bar_width * progress), bar_height)
-        py.draw.rect(screen, "#4CAF50", fill_rect, border_radius=6)
+        py.draw.rect(screen, (0, 230, 0), fill_rect, border_radius=6)
 
         percent_text = self.font.render(f"{int(progress * 100)}%", True, "#000000")
         percent_rect = percent_text.get_rect(center=bg_rect.center)
@@ -224,10 +212,10 @@ class MachineUI:
 
     # Over here is fine
 
-    def handle_recipe_click(self, left_click, mx, my, player):
+    def handle_recipe_click(self, left_click, mx, my, player, dev_mode=False):
         if left_click:
             for rect, recipe in self.recipe_rects:
-                if rect.collidepoint(mx, my): self.selected_machine.set_recipe(recipe, player_inventory=player.inventory) ; return
+                if rect.collidepoint(mx, my): self.selected_machine.set_recipe(recipe, player_inventory=player.inventory, dev_mode=dev_mode) ; return
 
 
     def handle_close_click(self, left_click, mx, my, player_inventory_ui):

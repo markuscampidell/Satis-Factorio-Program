@@ -78,9 +78,10 @@ class Machine:
             self.input_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
         self.output_inventory = Inventory(slot_width=1, slot_height=1)
 
-    def set_recipe(self, recipe, player_inventory=None):
-        # Give player back any existing inputs and outputs
-        self.transfer_processing_items_to_player(player_inventory)
+    def set_recipe(self, recipe, player_inventory=None, dev_mode=False):
+        # Give player back any existing inputs and outputs, unless in dev mode
+        if not dev_mode and player_inventory is not None:
+            self.transfer_processing_items_to_player(player_inventory)
 
         self.recipe = recipe
         self.process_time = recipe.process_time
@@ -94,6 +95,7 @@ class Machine:
 
         # Reset output inventory
         self.output_inventory = Inventory(slot_width=1, slot_height=1)
+
 
 
     # Up here is fine (i think)
@@ -128,7 +130,7 @@ class Machine:
             if self.process_timer >= self.process_time:
                 # Remove Inputs / Add Outputs
                 for item_id, amount in self.recipe.inputs.items():
-                    self.input_inventories[item_id].remove(item_id, amount)
+                    self.input_inventories[item_id].remove_item(item_id, amount)
                 for item_id, amount in self.recipe.outputs.items():
                     self.output_inventory.add_items(item_id, amount)
 
@@ -140,12 +142,27 @@ class Machine:
 
     @classmethod
     def draw_ghost_machine(cls, screen, camera, pos, blocked, player_inventory):
-        if cls.SPRITE_PATH is None: return
+        if cls.SPRITE_PATH is None:
+            return
+
         original = py.image.load(cls.SPRITE_PATH).convert_alpha()
         w, h = original.get_size()
         image = py.transform.scale(original, (w * 2, h * 2))
+
         ghost = py.Surface((cls.SIZE, cls.SIZE), py.SRCALPHA)
         ghost.blit(image, (0, 0))
         ghost.set_alpha(120)
-        if blocked or not player_inventory.has_enough_build_cost_items(cls.BUILD_COST): ghost.fill((255, 0, 0, 80), special_flags=py.BLEND_RGBA_MULT)
-        screen.blit(ghost, (pos[0] - camera.x - cls.SIZE // 2, pos[1] - camera.y - cls.SIZE // 2))
+
+        # 🔥 DEV MODE SAFE CHECK
+        cannot_afford = False
+        if player_inventory is not None:
+            cannot_afford = not player_inventory.has_enough_build_cost_items(cls.BUILD_COST)
+
+        if blocked or cannot_afford:
+            ghost.fill((255, 0, 0, 80), special_flags=py.BLEND_RGBA_MULT)
+
+        screen.blit(
+            ghost,
+            (pos[0] - camera.x - cls.SIZE // 2,
+            pos[1] - camera.y - cls.SIZE // 2)
+        )

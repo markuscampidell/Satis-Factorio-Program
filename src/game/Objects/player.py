@@ -3,7 +3,7 @@ from entities.inventory import Inventory
 from core.vector2 import Vector2
 
 class Player:
-    def __init__(self, size, color = ("#6D366A")):
+    def __init__(self, size, color = ("#5F2D5D")):
         self.inventory = Inventory(5, 9)
 
         self.color = color
