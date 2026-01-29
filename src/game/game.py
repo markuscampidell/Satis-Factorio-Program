@@ -127,15 +127,15 @@ class Game:
         self.screen.blit(self.font.render(f"FPS: {int(self.clock.get_fps())}", True, "#000000"), (10, 90))
         if self.dev_mode:
             self.screen.blit(self.font.render(f"DEV_MODE is True, every building is free", True, "#000000"), (10, 130))
-            self.screen.blit(self.font.render(f"You can toggle DEV_MODE with F12", True, "#000000"), (10, 170))
+            self.screen.blit(self.font.render(f"You can toggle DEV_MODE with 0", True, "#000000"), (10, 170))
         else:
-            self.screen.blit(self.font.render(f"You can toggle DEV_MODE with F12", True, "#000000"), (10, 130))
+            self.screen.blit(self.font.render(f"You can toggle DEV_MODE with 0", True, "#000000"), (10, 130))
 
 
     def event_keys(self, event):
         if event.type != py.KEYDOWN: return
 
-        if event.key == py.K_F12:
+        if event.key == py.K_0:
             self.dev_mode = not self.dev_mode
         # ESC: cancel everything
         if event.key == py.K_ESCAPE:
