@@ -16,7 +16,7 @@ class Game:
     def __init__(self):
         py.init()
 
-        self.dev_mode = False
+        self.dev_mode = True
 
         self.screen_width, self.screen_height = 1920, 1080
         self.screen = py.display.set_mode((self.screen_width, self.screen_height))
@@ -125,10 +125,18 @@ class Game:
         self.screen.blit(self.title_font_surface, (10, 10))
         self.screen.blit(self.font.render(f"X: {self.player.rect.x} Y: {self.player.rect.y}", True, "#000000"), (10, 50))
         self.screen.blit(self.font.render(f"FPS: {int(self.clock.get_fps())}", True, "#000000"), (10, 90))
+        if self.dev_mode:
+            self.screen.blit(self.font.render(f"DEV_MODE is True, every building is free", True, "#000000"), (10, 130))
+            self.screen.blit(self.font.render(f"You can toggle DEV_MODE with F12", True, "#000000"), (10, 170))
+        else:
+            self.screen.blit(self.font.render(f"You can toggle DEV_MODE with F12", True, "#000000"), (10, 130))
+
 
     def event_keys(self, event):
         if event.type != py.KEYDOWN: return
 
+        if event.key == py.K_F12:
+            self.dev_mode = not self.dev_mode
         # ESC: cancel everything
         if event.key == py.K_ESCAPE:
             self.player_inventory_ui.close()
