@@ -127,16 +127,18 @@ class Game:
         self.screen.blit(self.font.render(f"FPS: {int(self.clock.get_fps())}", True, "#000000"), (10, 90))
         if self.dev_mode:
             self.screen.blit(self.font.render(f"DEV_MODE is True, every building is free", True, "#000000"), (10, 130))
-            self.screen.blit(self.font.render(f"You can toggle DEV_MODE with 0", True, "#000000"), (10, 170))
+            self.screen.blit(self.font.render(f"You can disable DEV_MODE with 0", True, "#000000"), (10, 170))
         else:
-            self.screen.blit(self.font.render(f"You can toggle DEV_MODE with 0", True, "#000000"), (10, 130))
+            self.screen.blit(self.font.render(f"You can enable DEV_MODE with 0", True, "#000000"), (10, 130))
 
 
     def event_keys(self, event):
         if event.type != py.KEYDOWN: return
 
+        # 0: toggle dev_mode
         if event.key == py.K_0:
             self.dev_mode = not self.dev_mode
+        
         # ESC: cancel everything
         if event.key == py.K_ESCAPE:
             self.player_inventory_ui.close()
@@ -307,7 +309,6 @@ class Game:
 
                 self.machines.remove(machine)
                 return
-
     def ghost_machine(self):
         if self.selected_machine_class is not None and self.selected_machine_class is not ConveyorBelt:
             if self.build_mode == 'building':
@@ -316,7 +317,6 @@ class Game:
                 inventory = None if self.dev_mode else self.player.inventory
 
                 self.selected_machine_class.draw_ghost_machine(self.screen, self.camera, pos, blocked, inventory)
-
 
     def place_belt(self, mx, my, world_x2, world_y2, first_segment_direction=None):
         if self.is_mouse_over_ui(mx, my): return
@@ -344,8 +344,6 @@ class Game:
             self.player.inventory.remove_build_cost_items(total_cost)
 
         self.belts.append(belt)
-
-
     def delete_belt(self, mx, my, delete_whole=False):
         world_x = mx + self.camera.x
         world_y = my + self.camera.y
@@ -375,8 +373,6 @@ class Game:
                             self.belts.remove(belt)
 
                     return
-
-
     def ghost_conveyor_belt(self):
         if self.selected_machine_class is not ConveyorBelt:
             return
@@ -486,7 +482,6 @@ class Game:
             start_direction=self.belt_placement_direction or Vector2(1, 0),
             color_flags=color_flags
         )
-
     def can_afford_belt(self, belt_segments):
         total_cost = {}
         for seg in belt_segments:

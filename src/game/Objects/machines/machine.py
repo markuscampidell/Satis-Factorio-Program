@@ -138,7 +138,47 @@ class Machine:
                 self.process_timer = 0.0
 
     def draw(self, screen, camera):
+        # draw machine first
         screen.blit(self.image, (self.rect.x - camera.x, self.rect.y - camera.y))
+
+        # draw recipe output icon on top, centered
+        self.draw_recipe_outputs(screen, camera)
+
+
+    def draw_recipe_outputs(self, screen, camera):
+        if not self.recipe:
+            return
+
+        outputs = self.get_recipe_outputs()
+        if not outputs:
+            return
+
+        images = []
+        for item_id in outputs:
+            item_obj = get_item_by_id(item_id)
+            if item_obj:
+                item_obj.load_sprite()
+                if item_obj.image:
+                    images.append(item_obj.image)
+
+        if not images:
+            return
+
+        spacing = 4
+        total_width = sum(img.get_width() for img in images) + spacing * (len(images) - 1)
+        start_x = self.rect.centerx - camera.x - total_width // 2
+
+        # Draw a little above the machine center (not way up)
+        x = start_x
+        for img in images:
+            # y = machine center y minus half the item height
+            y = self.rect.centery - camera.y - img.get_height() // 2
+            screen.blit(img, (x, y))
+            x += img.get_width() + spacing
+
+
+
+
 
     @classmethod
     def draw_ghost_machine(cls, screen, camera, pos, blocked, player_inventory):

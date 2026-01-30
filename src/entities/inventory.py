@@ -1,7 +1,5 @@
 from entities.item import Item
 
-from entities.item import Item
-
 class Inventory:
     # Maximum number of items per slot
     MAX_STACK_SIZE = 100
