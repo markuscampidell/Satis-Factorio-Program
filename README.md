@@ -10,6 +10,7 @@ Keybinds:
   ESC: close/cancel every flag
   Numbers 1-10: Machines
   R: Rotate Conveyorbelts or Splitters
+  T: change how you drag Conveyorbelts
 
   Temporary for game development:
     0: toggle dev_mode (with dev_mode you dont need items to build machines etc.)
