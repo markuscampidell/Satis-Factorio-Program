@@ -8,7 +8,7 @@ class Player:
 
         self.color = color
         self.image = py.Surface((size, size)) ; self.image.fill(color)
-        self.rect = self.image.get_rect() ; self.rect.x = 0 ; self.rect.y = 0
+        self.rect = self.image.get_rect() ; self.rect.centerx=0 ; self.rect.centery=0
         self.speed = 7
         self.friction = 0.85
 

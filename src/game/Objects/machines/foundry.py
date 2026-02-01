@@ -1,9 +1,8 @@
-from game.Objects.machines.machine import Machine
+from game.Objects.machines.producing_machine import ProducingMachine
 from game.Objects.machines.recipes import foundry_recipes
-from entities.inventory import Inventory
 
-class Foundry(Machine):
-    SPRITE_PATH = "assets/Sprites/foundry.png"
+class Foundry(ProducingMachine):
+    SPRITE_PATH = "assets/Sprites/machines/foundry.png"
     BUILD_COST = {"iron_ingot": 3, "coal": 2}
     SIZE = 96
 

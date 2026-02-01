@@ -51,3 +51,11 @@ class Vector2():
     
     def __mul__(self, scalar: float):
         return Vector2(self.x * scalar, self.y * scalar)
+
+    def __eq__(self, other):
+        if not isinstance(other, Vector2):
+            return False
+        return self.x == other.x and self.y == other.y
+
+    def __neg__(self):
+        return Vector2(-self.x, -self.y)
