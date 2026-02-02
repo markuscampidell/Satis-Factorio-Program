@@ -16,20 +16,19 @@ class BeltSegment:
         self.items_per_minute = items_per_minute
         self.speed = (self.items_per_minute / 60) * Grid.CELL_SIZE
 
-    def update(self, all_segments, machines, cell_size, dt):
+    def update(self, belt_map, machines, cell_size, dt):
         if self.item: 
             self.item_progress += self.speed * dt / cell_size
 
             if self.item_progress >= 1.0:
                 next_rect = self.rect.move(int(self.direction.x * cell_size), int(self.direction.y * cell_size))
                 moved = False
-                for segment in all_segments:
-                    if segment.rect.topleft == next_rect.topleft and segment.item is None:
-                        segment.item = self.item
-                        segment.item_progress = 0.0
-                        self.item = None
-                        moved = True
-                        break
+                next_segment = belt_map.get(next_rect.topleft)
+                if next_segment and next_segment.item is None:
+                    next_segment.item = self.item
+                    next_segment.item_progress = 0.0
+                    self.item = None
+                    moved = True
 
                 if not moved:
                     for machine in machines:
@@ -122,19 +121,6 @@ class ConveyorBelt:
         for segment in self.segments:
             segment.refund_item(player_inventory)
 
-    def draw(self, screen, camera, all_belts):
-        cell = Grid.CELL_SIZE
-        all_segments = [s for b in all_belts for s in b.segments]
-        for seg in self.segments:
-            image = py.transform.scale(self.get_image(seg.direction), (cell, cell))
-            screen.blit(image, (seg.rect.x - camera.x, seg.rect.y - camera.y))
-            prev_seg = None
-            for s in all_segments:
-                if s.rect.x + s.direction.x * cell == seg.rect.x and s.rect.y + s.direction.y * cell == seg.rect.y:
-                    prev_seg = s
-                    break
-
-            seg.draw_item(screen, camera, cell_size=cell, prev_direction=prev_seg.direction if prev_seg else seg.direction)
     @classmethod
     def draw_ghost_belt(cls, screen, camera, x, y, direction: Vector2, color_flag="normal"):
         image = cls.get_image(direction).copy()

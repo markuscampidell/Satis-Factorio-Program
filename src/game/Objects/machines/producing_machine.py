@@ -114,7 +114,6 @@ class ProducingMachine(Machine):
         for item_id in outputs:
             item_obj = get_item_by_id(item_id)
             if item_obj:
-                item_obj.load_sprite()
                 if item_obj.image: images.append(item_obj.image)
         if not images: return
 

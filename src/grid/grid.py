@@ -7,28 +7,25 @@ class Grid:
         self.color = color
         self.screen_width = screen_width
         self.screen_height = screen_height
-        self.build_lines()
+        self.grid_surface = py.Surface((screen_width, screen_height), py.SRCALPHA)
+        self.last_camera_pos = None
+        self.build_grid_surface()
 
-    def build_lines(self, alpha=120):
-        max_len = max(self.screen_width, self.screen_height)
+    def build_grid_surface(self, alpha=120):
+        self.grid_surface.fill((0, 0, 0, 0))
+        size = self.CELL_SIZE
+        w, h = self.screen_width, self.screen_height
 
-        self.vline = py.Surface((1, max_len), py.SRCALPHA)
-        self.vline.fill((*self.color, alpha))
-
-        self.hline = py.transform.rotate(self.vline, 90)
+        for x in range(0, w, size):
+            py.draw.line(self.grid_surface, (*self.color, alpha), (x, 0), (x, h))
+        for y in range(0, h, size):
+            py.draw.line(self.grid_surface, (*self.color, alpha), (0, y), (w, y))
 
     def draw(self, screen, camera):
-        size = self.CELL_SIZE
-        cam_x = camera.x
-        cam_y = camera.y
+        if self.last_camera_pos != (camera.x, camera.y):
+            self.last_camera_pos = (camera.x, camera.y)
+            self.build_grid_surface()
 
-        w, h = screen.get_size()
-
-        start_x = int(-cam_x % size)
-        start_y = int(-cam_y % size)
-
-        for x in range(start_x, w, size):
-            screen.blit(self.vline, (x, 0))
-
-        for y in range(start_y, h, size):
-            screen.blit(self.hline, (0, y))
+        offset_x = -camera.x % self.CELL_SIZE
+        offset_y = -camera.y % self.CELL_SIZE
+        screen.blit(self.grid_surface, (offset_x - self.CELL_SIZE, offset_y - self.CELL_SIZE))
