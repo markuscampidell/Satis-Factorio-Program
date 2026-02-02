@@ -70,21 +70,36 @@ class BeltSegment:
             self.item_progress = 0.0
 
     def draw_item(self, screen, camera, cell_size, prev_direction=None):
-        if not self.item or self.item.image is None: return
+        if not self.item or self.item.image is None:
+            return
 
-        if prev_direction is None: prev_direction = self.direction
-        start_x = self.rect.x + cell_size // 2 - prev_direction.x * (cell_size // 2) ; start_y = self.rect.y + cell_size // 2 - prev_direction.y * (cell_size // 2)
+        if prev_direction is None:
+            prev_direction = self.direction
+
+        start_x = self.rect.x + cell_size // 2
+        start_y = self.rect.y + cell_size // 2
+
         if prev_direction == self.direction:
-            move_x = self.direction.x * cell_size * self.item_progress ; move_y = self.direction.y * cell_size * self.item_progress
+            move_x = self.direction.x * cell_size * self.item_progress
+            move_y = self.direction.y * cell_size * self.item_progress
         else:
-            if self.item_progress < 0.5: t = self.item_progress / 0.5 ; move_x = prev_direction.x * (cell_size / 2) * t ; move_y = prev_direction.y * (cell_size / 2) * t
-            else: t = (self.item_progress - 0.5) / 0.5 ; move_x = prev_direction.x * (cell_size / 2) + self.direction.x * (cell_size / 2) * t ; move_y = prev_direction.y * (cell_size / 2) + self.direction.y * (cell_size / 2) * t
+            if self.item_progress < 0.5:
+                t = self.item_progress / 0.5
+                move_x = prev_direction.x * (cell_size / 2) * t
+                move_y = prev_direction.y * (cell_size / 2) * t
+            else:
+                t = (self.item_progress - 0.5) / 0.5
+                move_x = prev_direction.x * (cell_size / 2) + self.direction.x * (cell_size / 2) * t
+                move_y = prev_direction.y * (cell_size / 2) + self.direction.y * (cell_size / 2) * t
 
-        draw_x = start_x + move_x ; draw_y = start_y + move_y
+        draw_x = start_x + move_x
+        draw_y = start_y + move_y
 
         size = int(cell_size * 0.5)
         sprite = py.transform.scale(self.item.image, (size, size))
         screen.blit(sprite, (draw_x - camera.x - size // 2, draw_y - camera.y - size // 2))
+
+
 
 class ConveyorBelt:
     SPRITE_PATH_RIGHT = "assets/Sprites/conveyors/belt_right.png"
@@ -121,59 +136,13 @@ class ConveyorBelt:
         for segment in self.segments:
             segment.refund_item(player_inventory)
 
-    @classmethod
-    def draw_ghost_belt(cls, screen, camera, x, y, direction: Vector2, color_flag="normal"):
-        image = cls.get_image(direction).copy()
-        image = py.transform.scale(image, (Grid.CELL_SIZE, Grid.CELL_SIZE))
-        if color_flag == "normal":
-            image.set_alpha(160)
-            screen.blit(image, (x - camera.x, y - camera.y))
-            return
-        
-        overlay = py.Surface((Grid.CELL_SIZE, Grid.CELL_SIZE), py.SRCALPHA)
-        if color_flag == "red": overlay.fill((255, 0, 0, 120))
-        elif color_flag == "orange": overlay.fill((255, 165, 0, 120))
-        elif color_flag == "yellow": overlay.fill((255, 255, 0, 120))
-
-        screen.blit(image, (x - camera.x, y - camera.y))
-        screen.blit(overlay, (x - camera.x, y - camera.y))
-    @classmethod
-    def draw_ghost_belt_while_dragging(cls, screen, camera, rects, start_direction=None, color_flags=None):
+    def draw(self, screen, camera, belt_map):
         cell = Grid.CELL_SIZE
-        image_cache = {}
+        for seg in self.segments:
+            image = py.transform.scale(self.get_image(seg.direction), (cell, cell))
+            screen.blit(image, (seg.rect.x - camera.x, seg.rect.y - camera.y))
+            prev_pos = (seg.rect.x - seg.direction.x * cell, seg.rect.y - seg.direction.y * cell)
+            prev_seg = belt_map.get(prev_pos)
 
-        for i, rect in enumerate(rects):
-            if i < len(rects) - 1: dx, dy = rects[i + 1].x - rect.x, rects[i + 1].y - rect.y
-            elif i == 0 and start_direction: dx, dy = start_direction.x, start_direction.y
-            else: dx, dy = rect.x - rects[i - 1].x, rect.y - rects[i - 1].y
-
-            direction = Vector2(dx, dy).normalize() if dx or dy else Vector2(1, 0)
-            key = (round(direction.x), round(direction.y))
-            if key not in image_cache:
-                img = py.transform.scale(cls.get_image(direction).copy(), (cell, cell))
-                image_cache[key] = img
-            belt_image = image_cache[key].copy()
-
-            if color_flags:
-                flag = color_flags[i]
-                if flag == "normal":
-                    belt_image.set_alpha(160)
-                    screen.blit(belt_image, (rect.x - camera.x, rect.y - camera.y))
-                    continue
-                else:
-                    overlay = py.Surface((cell, cell), py.SRCALPHA)
-                    color_map = {"red": (255, 0, 0, 120), "orange": (255, 165, 0, 120), "yellow": (255, 255, 0, 120)}
-                    overlay.fill(color_map.get(flag, (0, 0, 0, 0)))
-                    screen.blit(belt_image, (rect.x - camera.x, rect.y - camera.y))
-                    screen.blit(overlay, (rect.x - camera.x, rect.y - camera.y))
-            else:
-                screen.blit(belt_image, (rect.x - camera.x, rect.y - camera.y))
-    @classmethod
-    def get_image(cls, direction: Vector2):
-        if direction.x > 0: key, path = "right", cls.SPRITE_PATH_RIGHT
-        elif direction.x < 0: key, path = "left", cls.SPRITE_PATH_LEFT
-        elif direction.y > 0: key, path = "down", cls.SPRITE_PATH_DOWN
-        else: key, path = "up", cls.SPRITE_PATH_UP
-
-        if key not in cls.IMAGES: cls.IMAGES[key] = py.image.load(path).convert_alpha()
-        return cls.IMAGES[key]
+            seg.draw_item(screen, camera, cell_size=cell, prev_direction=prev_seg.direction if prev_seg else seg.direction)
+    

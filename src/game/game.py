@@ -13,6 +13,7 @@ from core.vector2 import Vector2
 from constants.itemdata import ITEMS
 from game.Objects.machines.splitter import Splitter
 from game.Objects.machines.producing_machine import ProducingMachine
+from game.Objects.conveyor_belt_ghost import draw_ghost_belt, draw_ghost_belt_while_dragging, get_image
 
 class Game:
     def __init__(self):
@@ -60,6 +61,8 @@ class Game:
         self.player_inventory_ui = PlayerInventoryUI(self.player)
 
         self.belts = []
+        self.belt_segments = []
+        self.belt_map = {}
 
     def run(self):
         while True:
@@ -94,18 +97,9 @@ class Game:
         self.player.update(self.machines)
         self.camera.update(self.player, self.screen_width, self.screen_height)
 
-        self.all_segments = []
-        self.belt_map = {}
-
-        for belt in self.belts:
-            for seg in belt.segments:
-                self.all_segments.append(seg)
-                self.belt_map[seg.rect.topleft] = seg
-
         cell = self.grid.CELL_SIZE
-        for belt in self.belts:
-            for segment in belt.segments:
-                segment.update(self.belt_map, self.machines, cell, delta_time)
+        for segment in self.belt_segments:
+            segment.update(self.belt_map, self.machines, cell, delta_time)
 
         for machine in self.machines:
             if isinstance(machine, ProducingMachine):
@@ -154,21 +148,31 @@ class Game:
     def draw_belts(self):
         cell = self.grid.CELL_SIZE
         camera_rect = py.Rect(self.camera.x, self.camera.y, self.screen_width, self.screen_height)
-        for belt in self.belts:
-            for seg in belt.segments:
-                if seg.rect.colliderect(camera_rect):
-                    image = self.get_scaled_image(belt, seg.direction, cell)
-                    self.screen.blit(image, (seg.rect.x - self.camera.x, seg.rect.y - self.camera.y))
+        for seg in self.belt_segments:
+            if seg.rect.colliderect(camera_rect):
+                image = self.get_scaled_image(seg.direction, cell)
+                self.screen.blit(image, (seg.rect.x - self.camera.x, seg.rect.y - self.camera.y))
+
     def draw_items_on_belts(self):
         cell = self.grid.CELL_SIZE
-        camera_rect = py.Rect(self.camera.x, self.camera.y, self.screen_width, self.screen_height)
-        next_segment_map = {(s.rect.x + s.direction.x * cell, s.rect.y + s.direction.y * cell): s for belt in self.belts for s in belt.segments}
-        for belt in self.belts:
-            for seg in belt.segments:
-                if seg.rect.colliderect(camera_rect):
-                    prev_seg = next_segment_map.get((seg.rect.x, seg.rect.y))
-                    prev_dir = prev_seg.direction if prev_seg else seg.direction
-                    seg.draw_item(self.screen, self.camera, cell_size=cell, prev_direction=prev_dir)
+        camera_rect = py.Rect(self.camera.x, self.camera.y,
+                            self.screen_width, self.screen_height)
+
+        for seg in self.belt_segments:
+            if seg.rect.colliderect(camera_rect):
+                prev_pos = (
+                    seg.rect.x - seg.direction.x * cell,
+                    seg.rect.y - seg.direction.y * cell
+                )
+                prev_seg = self.belt_map.get(prev_pos)
+
+                seg.draw_item(
+                    self.screen,
+                    self.camera,
+                    cell_size=cell,
+                    prev_direction=prev_seg.direction if prev_seg else seg.direction
+                )
+
     def draw_texts(self):
         self.screen.blit(self.title_font_surface, (10, 10))
         self.screen.blit(self.font.render(f"Player position: x:{self.player.rect.centerx} y:{self.player.rect.centery}", True, "#000000"), (10, 50))
@@ -180,23 +184,17 @@ class Game:
             self.screen.blit(self.font.render(f"You can enable DEV_MODE with 0", True, "#000000"), (10, 130))
 
     def highlight_hovered_delete_target(self):
-        if self.build_mode == "deleting" and self.hovered_delete_target is not None:
-            alpha = 100 ; color = (255, 0, 0)
-            if isinstance(self.hovered_delete_target, ConveyorBelt):
-                for seg in self.hovered_delete_target.segments:
-                    overlay = py.Surface((seg.rect.width, seg.rect.height), py.SRCALPHA)
-                    overlay.fill((*color, alpha))
-                    self.screen.blit(overlay, (seg.rect.x - self.camera.x, seg.rect.y - self.camera.y))
-            elif hasattr(self.hovered_delete_target, 'rect'):
-                rect = self.hovered_delete_target.rect
-                overlay = py.Surface((rect.width, rect.height), py.SRCALPHA)
-                overlay.fill((*color, alpha))
-                self.screen.blit(overlay, (rect.x - self.camera.x, rect.y - self.camera.y))
-            else:
-                rect = self.hovered_delete_target.rect
-                overlay = py.Surface((rect.width, rect.height), py.SRCALPHA)
-                overlay.fill((*color, alpha))
-                self.screen.blit(overlay, (rect.x - self.camera.x, rect.y - self.camera.y))
+        if self.build_mode != "deleting" or self.hovered_delete_target is None: return
+
+        alpha = 100 ; color = (255, 0, 0)
+
+        if hasattr(self.hovered_delete_target, "rect"): rect = self.hovered_delete_target.rect
+        else: return
+        
+        overlay = py.Surface((rect.width, rect.height), py.SRCALPHA)
+        overlay.fill((*color, alpha))
+        self.screen.blit(overlay, (rect.x - self.camera.x, rect.y - self.camera.y))
+
     
     def event_keys(self, event):
         if event.type != py.KEYDOWN: return
@@ -414,7 +412,11 @@ class Game:
             self.selected_machine_class._ghost_image = ghost
 
         ghost = self.selected_machine_class._ghost_image.copy()
+        if self.selected_machine_class is Splitter:
+            ghost = py.transform.rotate(ghost, -90 * self.splitter_rotation_steps)
+
         ghost.set_alpha(120)
+
         if blocked:
             overlay = py.Surface(ghost.get_size(), py.SRCALPHA)
             overlay.fill((255, 0, 0, 120))
@@ -430,6 +432,7 @@ class Game:
         camera_rect = py.Rect(self.camera.x, self.camera.y, self.screen_width, self.screen_height)
         if ghost_rect.colliderect(camera_rect):
             self.screen.blit(ghost, (ghost_rect.x - self.camera.x, ghost_rect.y - self.camera.y))
+
     def get_machine_placement_preview(self):
         mx, my = py.mouse.get_pos() ; world_x = mx + self.camera.x ; world_y = my + self.camera.y ; cell = self.grid.CELL_SIZE
         snapped_x = (world_x // cell) * cell + cell // 2 ; snapped_y = (world_y // cell) * cell + cell // 2
@@ -463,16 +466,39 @@ class Game:
 
     def place_belt(self, mx, my, world_x2, world_y2, first_segment_direction=None):
         if self.is_mouse_over_ui(mx, my): return
+
         rects, blocked = self.get_dragging_belt_placement_preview(world_x2, world_y2)
         if blocked: return
-        
-        belt = ConveyorBelt(rects)
-        if len(belt.segments) == 1:
-            if first_segment_direction is not None:  belt.segments[0].direction = first_segment_direction
-            else: belt.segments[0].direction = Vector2(1, 0)
+
+        cell = self.grid.CELL_SIZE
+        segments = []
+
+        for i, rect in enumerate(rects):
+            direction = Vector2(1, 0)
+
+            if i < len(rects) - 1:
+                next_rect = rects[i + 1]
+                dx = next_rect.x - rect.x
+                dy = next_rect.y - rect.y
+                if dx > 0:
+                    direction = Vector2(1, 0)
+                elif dx < 0:
+                    direction = Vector2(-1, 0)
+                elif dy > 0:
+                    direction = Vector2(0, 1)
+                elif dy < 0:
+                    direction = Vector2(0, -1)
+            elif i > 0:
+                direction = segments[i - 1].direction
+
+            if i == 0 and first_segment_direction is not None:
+                direction = first_segment_direction
+
+            seg = BeltSegment(rect, direction)
+            segments.append(seg)
 
         total_cost = {}
-        for seg in belt.segments:
+        for seg in segments:
             for item_id, amount in seg.BUILD_COST.items():
                 total_cost[item_id] = total_cost.get(item_id, 0) + amount
 
@@ -480,31 +506,37 @@ class Game:
             if not self.player.inventory.has_enough_build_cost_items(total_cost): return
             self.player.inventory.remove_build_cost_items(total_cost)
 
-        self.belts.append(belt)
-        self.update_all_splitters_outputs()
-    def delete_belt(self, mx, my, delete_whole=False):
-        world_x = mx + self.camera.x ; world_y = my + self.camera.y
+        self.belt_segments.extend(segments)
+        for seg in segments:
+            self.belt_map[seg.rect.topleft] = seg
 
-        for belt in self.belts[:]:
-            for seg in belt.segments[:]:
-                if seg.rect.collidepoint(world_x, world_y):
-                    if delete_whole:
-                        if not self.dev_mode:
-                            belt.refund_all_items(self.player.inventory)
-                            for s in belt.segments:
-                                for item_id, amount in s.BUILD_COST.items():
-                                    self.player.inventory.add_items(item_id, amount)
-                        self.belts.remove(belt)
-                    else:
-                        if not self.dev_mode:
-                            seg.refund_item(self.player.inventory)
-                            for item_id, amount in seg.BUILD_COST.items():
-                                self.player.inventory.add_items(item_id, amount)
-                        belt.segments.remove(seg)
-                        if len(belt.segments) == 0:
-                            self.belts.remove(belt)
-                    self.update_all_splitters_outputs()
-                    return
+        self.update_all_splitters_outputs()
+
+    def delete_belt(self, mx, my, delete_whole=False):
+        world_x = mx + self.camera.x
+        world_y = my + self.camera.y
+        shift_held = py.key.get_mods() & py.KMOD_SHIFT
+        target_seg = None
+
+        for seg in self.belt_segments:
+            if seg.rect.collidepoint(world_x, world_y):
+                target_seg = seg
+                break
+        if not target_seg: return
+
+        if delete_whole or shift_held:
+            to_delete = [s for s in self.belt_segments if s.rect.topleft == target_seg.rect.topleft]
+        else:
+            to_delete = [target_seg]
+
+        for seg in to_delete:
+            if not self.dev_mode:
+                seg.refund_item(self.player.inventory)
+                for item_id, amount in seg.BUILD_COST.items():
+                    self.player.inventory.add_items(item_id, amount)
+            self.remove_segment_from_map(seg)
+
+        self.update_all_splitters_outputs()
     def ghost_conveyor_belt(self):
         if self.selected_machine_class is not ConveyorBelt: return
 
@@ -522,16 +554,15 @@ class Game:
             if blocked: color_flag = "red"
             elif self.dev_mode: color_flag = "normal"
             else:
-                segment_cost = BeltSegment(temp_rect, Vector2(1, 0)).BUILD_COST
-                color_flag = "normal" if self.player.inventory.has_enough_build_cost_items(segment_cost) else "yellow"
+                cost = BeltSegment(temp_rect, Vector2(1, 0)).BUILD_COST
+                color_flag = "normal" if self.player.inventory.has_enough_build_cost_items(cost) else "yellow"
 
             if temp_rect.colliderect(camera_rect):
-                ConveyorBelt.draw_ghost_belt(self.screen, self.camera, snapped_x, snapped_y, self.belt_placement_direction or Vector2(1, 0), color_flag=color_flag)
+                draw_ghost_belt(self.screen, self.camera, snapped_x, snapped_y, self.belt_placement_direction or Vector2(1, 0), color_flag=color_flag)
             return
         
         rects, any_blocked = self.get_dragging_belt_placement_preview(world_x, world_y)
         segment_cost = BeltSegment(py.Rect(0, 0, cell, cell), Vector2(1, 0)).BUILD_COST
-
         total_cost = {i: amount * len(rects) for i, amount in segment_cost.items()}
         can_afford_full = self.player.inventory.has_enough_build_cost_items(total_cost)
 
@@ -545,11 +576,12 @@ class Game:
                     color_flags.append("orange")
                     for i, amount in segment_cost.items():
                         remaining[i] -= amount
-                else: color_flags.append("yellow")
+                else:
+                    color_flags.append("yellow")
 
         visible_rects_flags = [(r, f) for r, f in zip(rects, color_flags) if r.colliderect(camera_rect)]
         if visible_rects_flags:
-            ConveyorBelt.draw_ghost_belt_while_dragging(self.screen, self.camera, [r for r, _ in visible_rects_flags], start_direction=self.belt_placement_direction or Vector2(1, 0), color_flags=[f for _, f in visible_rects_flags])
+            draw_ghost_belt_while_dragging(self.screen, self.camera, [r for r, _ in visible_rects_flags], start_direction=self.belt_placement_direction or Vector2(1, 0), color_flags=[f for _, f in visible_rects_flags])
     def can_afford_belt(self, belt_segments):
         total_cost = {}
         for seg in belt_segments:
@@ -560,10 +592,13 @@ class Game:
         for rect in rects:
             temp_seg = BeltSegment(rect, Vector2(1, 0)) ; segments.append(temp_seg)
         return segments
+    
     def get_dragging_belt_placement_preview(self, world_x2, world_y2):
         cell = self.grid.CELL_SIZE
-        x1 = int((self.beltX1 // cell) * cell) ; y1 = int((self.beltY1 // cell) * cell)
-        x2 = int((world_x2 // cell) * cell) ; y2 = int((world_y2 // cell) * cell)
+        x1 = int((self.beltX1 // cell) * cell)
+        y1 = int((self.beltY1 // cell) * cell)
+        x2 = int((world_x2 // cell) * cell)
+        y2 = int((world_y2 // cell) * cell)
         rects = []
         blocked = False
 
@@ -591,9 +626,18 @@ class Game:
                 rects.append(r)
 
         return rects, blocked
-    
+    def rebuild_belt_map(self):
+        self.belt_map = {seg.rect.topleft: seg for seg in self.belt_segments}
+    def remove_segment_from_map(self, seg):
+        if seg in self.belt_segments:
+            self.belt_segments.remove(seg)
+        self.belt_map.pop(seg.rect.topleft, None)
 
-    
+    def remove_belt_from_map(self, belt):
+        for seg in belt.segments:
+            self.all_segments.remove(seg)
+            self.belt_map.pop(seg.rect.topleft, None)
+
     def is_mouse_over_ui(self, mx, my):
         return (self.machine_ui.open and self.machine_ui.rect.collidepoint(mx, my)) or (self.player_inventory_ui.open and self.player_inventory_ui.rect.collidepoint(mx, my))
     
@@ -603,35 +647,40 @@ class Game:
             if abs(machine.rect.centerx - rect.centerx) < 500 and abs(machine.rect.centery - rect.centery) < 500:
                 if machine.rect.colliderect(rect): return True
                 
-        for belt in self.belts:
-            for seg in belt.segments:
-                if abs(seg.rect.centerx - rect.centerx) < 500 and abs(seg.rect.centery - rect.centery) < 500:
-                    if seg.rect.colliderect(rect): return True
+        for seg in self.belt_segments:
+            if abs(seg.rect.centerx - rect.centerx) < 500 and \
+            abs(seg.rect.centery - rect.centery) < 500:
+                if seg.rect.colliderect(rect):
+                    return True
         return False
     
-    def get_scaled_image(self, belt, direction, cell_size):
-        key = (id(belt), direction.x, direction.y)
+    def get_scaled_image(self, direction, cell_size):
+        key = (direction.x, direction.y)
+
         if key not in self.image_cache:
-            original = belt.get_image(direction)
+            original = get_image(ConveyorBelt, direction)
             self.image_cache[key] = py.transform.scale(original, (cell_size, cell_size))
+
         return self.image_cache[key]
 
     def update_hovered_delete_target(self):
-        if self.build_mode != "deleting": self.hovered_delete_target = None ; return
+        if self.build_mode != "deleting":
+            self.hovered_delete_target = None
+            return
+        
         mx, my = py.mouse.get_pos()
         world_x = mx + self.camera.x
         world_y = my + self.camera.y
-        shift_held = py.key.get_mods() & py.KMOD_SHIFT
         for machine in self.machines:
             if machine.rect.collidepoint(world_x, world_y):
-                self.hovered_delete_target = machine ; return
-        for belt in self.belts:
-            for seg in belt.segments:
-                if seg.rect.collidepoint(world_x, world_y):
-                    if shift_held: self.hovered_delete_target = belt
-                    else: self.hovered_delete_target = seg
-                    return
-
+                self.hovered_delete_target = machine
+                return
+            
+        for seg in self.belt_segments:
+            if seg.rect.collidepoint(world_x, world_y):
+                self.hovered_delete_target = seg
+                return
+            
         self.hovered_delete_target = None
 
     def reset_build_state(self):
