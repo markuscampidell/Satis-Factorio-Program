@@ -9,7 +9,7 @@ class Player:
         self.color = color
         self.image = py.Surface((size, size)) ; self.image.fill(color)
         self.rect = self.image.get_rect() ; self.rect.centerx=0 ; self.rect.centery=0
-        self.speed = 7
+        self.speed = 1.5
         self.friction = 0.85
 
         self.dx = 0 ; self.dy = 0
@@ -17,48 +17,61 @@ class Player:
     def update(self, machines):
         dx, dy = self.get_movement()
 
-        self.rect.x += dx
-        self.handle_collision_x(machines, dx)
-        self.rect.y += dy
-        self.handle_collision_y(machines, dy)
+        if dx:
+            self.rect.x += dx
+            self.handle_collision_x(machines, dx)
+
+        if dy:
+            self.rect.y += dy
+            self.handle_collision_y(machines, dy)
+
 
     def handle_collision_x(self, machines, dx):
         for machine in machines:
+            if abs(machine.rect.centerx - self.rect.centerx) > 64:
+                continue
             if self.rect.colliderect(machine.rect):
-                if dx > 0:  # moving right
+                if dx > 0:
                     self.rect.right = machine.rect.left
-                elif dx < 0:  # moving left
+                elif dx < 0:
                     self.rect.left = machine.rect.right
+
     def handle_collision_y(self, machines, dy):
         for machine in machines:
+            if abs(machine.rect.centery - self.rect.centery) > 64:
+                continue
             if self.rect.colliderect(machine.rect):
-                if dy > 0:  # moving down
+                if dy > 0:
                     self.rect.bottom = machine.rect.top
-                elif dy < 0:  # moving up
+                elif dy < 0:
                     self.rect.top = machine.rect.bottom
+
+
 
     def get_movement(self):
         keys = py.key.get_pressed()
 
-        right = keys[py.K_RIGHT] or keys[py.K_d]
-        left = keys[py.K_LEFT] or keys[py.K_a]
-        down = keys[py.K_DOWN] or keys[py.K_s]
-        up = keys[py.K_UP] or keys[py.K_w]
+        # Determine movement directions
+        moving_x = (keys[py.K_RIGHT] or keys[py.K_d]) - (keys[py.K_LEFT] or keys[py.K_a])
+        moving_y = (keys[py.K_DOWN]  or keys[py.K_s]) - (keys[py.K_UP]   or keys[py.K_w])
 
-        moving_x = right - left
-        moving_y = down - up
+        # Normalize diagonal movement
+        if moving_x != 0 and moving_y != 0:
+            factor = 0.7071  # 1/sqrt(2)
+        else:
+            factor = 1.0
 
-        multiplier = self.speed * (1-self.friction) / self.friction
-        movement = Vector2(moving_x, moving_y).normalize() * multiplier
+        # Apply speed and friction
+        self.dx += moving_x * self.speed * factor
+        self.dy += moving_y * self.speed * factor
 
-        #dx, dy = 0, 0
-
-        self.dx += movement.x
-        self.dy += movement.y
         self.dx *= self.friction
         self.dy *= self.friction
 
         return self.dx, self.dy
+
+
+
 
     def draw(self, screen, camera):
         screen.blit(self.image, (self.rect.x - camera.x, self.rect.y - camera.y))

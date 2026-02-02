@@ -2,24 +2,33 @@ import pygame as py
 
 class Grid:
     CELL_SIZE = 32
+
     def __init__(self, screen_width, screen_height, color=(204, 204, 204)):
+        self.color = color
         self.screen_width = screen_width
         self.screen_height = screen_height
-        self.color = color
+        self.build_lines()
 
-    def draw(self, screen, camera, alpha=150):
-        # Create a temporary surface for the grid lines
-        grid_surf = py.Surface((self.screen_width, self.screen_height), py.SRCALPHA)
-        
-        start_x = int(-camera.x % self.CELL_SIZE)
-        start_y = int(-camera.y % self.CELL_SIZE)
+    def build_lines(self, alpha=120):
+        max_len = max(self.screen_width, self.screen_height)
 
-        # Draw vertical lines
-        for x in range(start_x, self.screen_width, self.CELL_SIZE):
-            py.draw.line(grid_surf, (*self.color, alpha), (x, 0), (x, self.screen_height))
-        # Draw horizontal lines
-        for y in range(start_y, self.screen_height, self.CELL_SIZE):
-            py.draw.line(grid_surf, (*self.color, alpha), (0, y), (self.screen_width, y))
+        self.vline = py.Surface((1, max_len), py.SRCALPHA)
+        self.vline.fill((*self.color, alpha))
 
-        # Blit the grid surface onto the main screen
-        screen.blit(grid_surf, (0, 0))
+        self.hline = py.transform.rotate(self.vline, 90)
+
+    def draw(self, screen, camera):
+        size = self.CELL_SIZE
+        cam_x = camera.x
+        cam_y = camera.y
+
+        w, h = screen.get_size()
+
+        start_x = int(-cam_x % size)
+        start_y = int(-cam_y % size)
+
+        for x in range(start_x, w, size):
+            screen.blit(self.vline, (x, 0))
+
+        for y in range(start_y, h, size):
+            screen.blit(self.hline, (0, y))

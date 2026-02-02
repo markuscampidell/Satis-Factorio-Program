@@ -35,6 +35,17 @@ class Game:
         self.belt_first_axis_horizontal = True
         self.beltX1 = 0 ; self.beltY1 = 0
 
+        self.overlay_none = py.Surface((self.screen_width, self.screen_height), py.SRCALPHA)
+
+        self.overlay_build_select = py.Surface((self.screen_width, self.screen_height), py.SRCALPHA)
+        self.overlay_build_select.fill((80, 160, 100, 20))
+
+        self.overlay_build_place = py.Surface((self.screen_width, self.screen_height), py.SRCALPHA)
+        self.overlay_build_place.fill((255, 170, 80, 28))
+
+        self.overlay_delete = py.Surface((self.screen_width, self.screen_height), py.SRCALPHA)
+        self.overlay_delete.fill((255, 80, 80, 35))
+
         self.splitter_rotation_steps = 0
 
         self.paused_mode = None
@@ -58,16 +69,18 @@ class Game:
             self.update()
             self.screen.fill("#987171")
 
+            if self.build_mode is not None:
+                self.grid.draw(self.screen, self.camera)
+
             if self.build_mode == "building" and self.selected_machine_class:
                 self.ghost_machine()
                 self.ghost_conveyor_belt()
-
-            self.grid.draw(self.screen, self.camera, alpha=60)
 
             self.draw_objects()
             self.draw_texts()
             self.draw_cursor()
             py.display.flip()
+
 
     def update(self):
         delta_time = self.clock.tick(60) / 1000
@@ -99,25 +112,14 @@ class Game:
         self.player_inventory_ui.draw(self.screen)
         self.highlight_hovered_delete_target()
 
-        overlay = py.Surface((self.screen_width, self.screen_height), py.SRCALPHA)
-
-        overlay_color = (0, 0, 0, 0)
-
         if self.build_mode == "building":
             if self.selected_machine_class is None:
-                overlay_color = (80, 160, 100, 20)    # selection (soft green)
+                self.screen.blit(self.overlay_build_select, (0, 0))
             else:
-                overlay_color = (255, 170, 80, 28)    # building (soft orange)
-
+                self.screen.blit(self.overlay_build_place, (0, 0))
         elif self.build_mode == "deleting":
-            overlay_color = (255, 80, 80, 35)         # deleting (red)
+            self.screen.blit(self.overlay_delete, (0, 0))
 
-        else:
-            overlay_color = (0, 0, 0, 0)
-        # deleting mode (soft red)
-
-        overlay.fill(overlay_color)
-        self.screen.blit(overlay, (0, 0))
     def draw_cursor(self):
         mx, my = py.mouse.get_pos()
         
@@ -142,15 +144,35 @@ class Game:
                 image = py.transform.scale(belt.get_image(seg.direction), (cell, cell))
                 self.screen.blit(image, (seg.rect.x - self.camera.x, seg.rect.y - self.camera.y))
     def draw_items_on_belts(self):
-        all_segments = [s for b in self.belts for s in b.segments]
+        cell = Grid.CELL_SIZE
+
+        # Build lookup ONCE per frame
+        next_segment_map = {
+            (s.rect.x + s.direction.x * cell,
+            s.rect.y + s.direction.y * cell): s
+            for belt in self.belts for s in belt.segments
+        }
+
         for belt in self.belts:
             for seg in belt.segments:
-                prev_seg = None
-                for s in all_segments:
-                    if s.rect.x + s.direction.x * Grid.CELL_SIZE == seg.rect.x and s.rect.y + s.direction.y * Grid.CELL_SIZE == seg.rect.y:
-                        prev_seg = s
-                        break
-                seg.draw_item(self.screen, self.camera, cell_size=Grid.CELL_SIZE, prev_direction=prev_seg.direction if prev_seg else seg.direction)
+                prev_seg = next_segment_map.get((seg.rect.x, seg.rect.y))
+                prev_dir = prev_seg.direction if prev_seg else seg.direction
+
+                seg.draw_item(
+                    self.screen,
+                    self.camera,
+                    cell_size=cell,
+                    prev_direction=prev_dir
+                )
+                
+    def get_scaled_image(self, direction, cell_size):
+        key = (direction.x, direction.y)
+        if key not in self.image_cache:
+            original = self.get_image(direction)
+            self.image_cache[key] = py.transform.scale(original, (cell_size, cell_size))
+        return self.image_cache[key]
+
+
     def highlight_hovered_delete_target(self):
         if self.build_mode == "deleting" and self.hovered_delete_target is not None:
             alpha = 100 ; color = (255, 0, 0)
@@ -332,6 +354,13 @@ class Game:
         self.player_inventory_ui = PlayerInventoryUI(self.player)
 
         self.belts = []
+
+        #world_w = self.grid.width
+        #world_h = self.grid.height
+
+        #self.grid_surface = py.Surface((world_w, world_h), py.SRCALPHA)
+        #self.grid.draw(self.grid_surface, camera=None, alpha=60)
+
 
     def place_machine(self):
         if self.selected_machine_class is None: return
