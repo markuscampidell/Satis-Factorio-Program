@@ -166,12 +166,7 @@ class Game:
                 )
                 prev_seg = self.belt_map.get(prev_pos)
 
-                seg.draw_item(
-                    self.screen,
-                    self.camera,
-                    cell_size=cell,
-                    prev_direction=prev_seg.direction if prev_seg else seg.direction
-                )
+                seg.draw_item(self.screen, self.camera, cell_size=cell)
 
     def draw_texts(self):
         self.screen.blit(self.title_font_surface, (10, 10))
@@ -184,16 +179,27 @@ class Game:
             self.screen.blit(self.font.render(f"You can enable DEV_MODE with 0", True, "#000000"), (10, 130))
 
     def highlight_hovered_delete_target(self):
-        if self.build_mode != "deleting" or self.hovered_delete_target is None: return
+        if self.build_mode != "deleting" or self.hovered_delete_target is None:
+            return
 
-        alpha = 100 ; color = (255, 0, 0)
+        alpha = 100
+        color = (255, 0, 0)
 
-        if hasattr(self.hovered_delete_target, "rect"): rect = self.hovered_delete_target.rect
-        else: return
-        
-        overlay = py.Surface((rect.width, rect.height), py.SRCALPHA)
-        overlay.fill((*color, alpha))
-        self.screen.blit(overlay, (rect.x - self.camera.x, rect.y - self.camera.y))
+        # If Shift is held and it's a belt segment, highlight the whole connected belt
+        shift_held = py.key.get_mods() & py.KMOD_SHIFT
+
+        if isinstance(self.hovered_delete_target, BeltSegment) and shift_held:
+            segments_to_highlight = self.get_connected_belt_segments(self.hovered_delete_target)
+        else:
+            segments_to_highlight = [self.hovered_delete_target]
+
+        for obj in segments_to_highlight:
+            if hasattr(obj, "rect"):
+                rect = obj.rect
+                overlay = py.Surface((rect.width, rect.height), py.SRCALPHA)
+                overlay.fill((*color, alpha))
+                self.screen.blit(overlay, (rect.x - self.camera.x, rect.y - self.camera.y))
+
 
     
     def event_keys(self, event):
@@ -434,20 +440,39 @@ class Game:
             self.screen.blit(ghost, (ghost_rect.x - self.camera.x, ghost_rect.y - self.camera.y))
 
     def get_machine_placement_preview(self):
-        mx, my = py.mouse.get_pos() ; world_x = mx + self.camera.x ; world_y = my + self.camera.y ; cell = self.grid.CELL_SIZE
-        snapped_x = (world_x // cell) * cell + cell // 2 ; snapped_y = (world_y // cell) * cell + cell // 2
-        temp_machine_rect = py.Rect(0, 0, self.selected_machine_class.SIZE, self.selected_machine_class.SIZE) ; temp_machine_rect.center = (snapped_x, snapped_y)
+        mx, my = py.mouse.get_pos()
+        world_x = mx + self.camera.x
+        world_y = my + self.camera.y
+        cell = self.grid.CELL_SIZE
+
+        snapped_x = (world_x // cell) * cell + cell // 2
+        snapped_y = (world_y // cell) * cell + cell // 2
+
+        temp_machine_rect = py.Rect(
+            0, 0,
+            self.selected_machine_class.SIZE,
+            self.selected_machine_class.SIZE
+        )
+        temp_machine_rect.center = (snapped_x, snapped_y)
+
         blocked = False
 
-        if self.player.rect.colliderect(temp_machine_rect): blocked = True
+        if self.player.rect.colliderect(temp_machine_rect):
+            blocked = True
+
         for machine in self.machines:
-            if machine.rect.colliderect(temp_machine_rect): blocked = True ; break
+            if machine.rect.colliderect(temp_machine_rect):
+                blocked = True
+                break
+
         if not blocked:
-            for belt in self.belts:
-                for seg in belt.segments:
-                    if seg.rect.colliderect(temp_machine_rect): blocked = True ; break
-                if blocked: break
+            for seg in self.belt_segments:
+                if seg.rect.colliderect(temp_machine_rect):
+                    blocked = True
+                    break
+
         return (snapped_x, snapped_y), blocked
+
 
     def update_all_splitters_outputs(self):
         cell = self.grid.CELL_SIZE
@@ -466,33 +491,23 @@ class Game:
 
     def place_belt(self, mx, my, world_x2, world_y2, first_segment_direction=None):
         if self.is_mouse_over_ui(mx, my): return
-
         rects, blocked = self.get_dragging_belt_placement_preview(world_x2, world_y2)
         if blocked: return
 
-        cell = self.grid.CELL_SIZE
         segments = []
 
         for i, rect in enumerate(rects):
             direction = Vector2(1, 0)
-
             if i < len(rects) - 1:
                 next_rect = rects[i + 1]
                 dx = next_rect.x - rect.x
                 dy = next_rect.y - rect.y
-                if dx > 0:
-                    direction = Vector2(1, 0)
-                elif dx < 0:
-                    direction = Vector2(-1, 0)
-                elif dy > 0:
-                    direction = Vector2(0, 1)
-                elif dy < 0:
-                    direction = Vector2(0, -1)
+                if dx > 0: direction = Vector2(1, 0)
+                elif dx < 0: direction = Vector2(-1, 0)
+                elif dy > 0: direction = Vector2(0, 1)
+                elif dy < 0: direction = Vector2(0, -1)
             elif i > 0:
                 direction = segments[i - 1].direction
-
-            if i == 0 and first_segment_direction is not None:
-                direction = first_segment_direction
 
             seg = BeltSegment(rect, direction)
             segments.append(seg)
@@ -512,23 +527,28 @@ class Game:
 
         self.update_all_splitters_outputs()
 
+
     def delete_belt(self, mx, my, delete_whole=False):
         world_x = mx + self.camera.x
         world_y = my + self.camera.y
         shift_held = py.key.get_mods() & py.KMOD_SHIFT
-        target_seg = None
 
+        # Find the segment under the mouse
+        target_seg = None
         for seg in self.belt_segments:
             if seg.rect.collidepoint(world_x, world_y):
                 target_seg = seg
                 break
-        if not target_seg: return
+        if not target_seg:
+            return
 
+        # If shift is held or delete_whole=True, find all connected segments
         if delete_whole or shift_held:
-            to_delete = [s for s in self.belt_segments if s.rect.topleft == target_seg.rect.topleft]
+            to_delete = self.get_connected_belt_segments(target_seg)
         else:
             to_delete = [target_seg]
 
+        # Delete segments
         for seg in to_delete:
             if not self.dev_mode:
                 seg.refund_item(self.player.inventory)
@@ -537,6 +557,35 @@ class Game:
             self.remove_segment_from_map(seg)
 
         self.update_all_splitters_outputs()
+    
+    def get_connected_belt_segments(self, start_seg):
+        visited = set()
+        stack = [start_seg]
+        cell = self.grid.CELL_SIZE
+
+        while stack:
+            seg = stack.pop()
+            if seg in visited:
+                continue
+            visited.add(seg)
+
+            neighbors_coords = [(seg.rect.x + cell, seg.rect.y),
+                                (seg.rect.x - cell, seg.rect.y),
+                                (seg.rect.x, seg.rect.y + cell),
+                                (seg.rect.x, seg.rect.y - cell)]
+            for nx, ny in neighbors_coords:
+                neighbor = self.belt_map.get((nx, ny))
+                if not neighbor or neighbor in visited:
+                    continue
+
+                if ((seg.rect.centerx + seg.direction.x * cell == neighbor.rect.centerx and
+                    seg.rect.centery + seg.direction.y * cell == neighbor.rect.centery) or
+                    (neighbor.rect.centerx + neighbor.direction.x * cell == seg.rect.centerx and
+                    neighbor.rect.centery + neighbor.direction.y * cell == seg.rect.centery)):
+                    stack.append(neighbor)
+
+        return list(visited)
+
     def ghost_conveyor_belt(self):
         if self.selected_machine_class is not ConveyorBelt: return
 
