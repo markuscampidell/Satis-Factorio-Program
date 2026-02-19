@@ -10,19 +10,19 @@ class PlayerInventoryUI:
         self.open = False
         width = self.player.inventory.width * self.SLOT_SIZE + self.PADDING * 2
         height = self.player.inventory.height * self.SLOT_SIZE + self.PADDING * 2
-        self.image = py.Surface((width, height))
-        self.image.fill("#CAC8E4")
-        self.rect = self.image.get_rect(x=0,centery=540)
+        self.sprite = py.Surface((width, height))
+        self.sprite.fill("#CAC8E4")
+        self.rect = self.sprite.get_rect(x=0,centery=540)
         self.font = py.font.SysFont("Arial", 10)
 
         self.dragging = False
         self.drag_offset = (0, 0)
-        self.image.set_alpha(200)
+        self.sprite.set_alpha(200)
 
     def draw(self, screen):
         if not self.open: return
 
-        screen.blit(self.image, self.rect.topleft)
+        screen.blit(self.sprite, self.rect.topleft)
 
         # Draw grid slots
         for y in range(self.player.inventory.height):
@@ -37,9 +37,9 @@ class PlayerInventoryUI:
 
                     # Get the Item object
                     item = get_item_by_id(item_id)
-                    if item and item.image:
+                    if item and item.sprite:
                         # Scale sprite to fit slot
-                        img = py.transform.scale(item.image, (self.SLOT_SIZE - 10, self.SLOT_SIZE - 10))
+                        img = py.transform.scale(item.sprite, (self.SLOT_SIZE - 10, self.SLOT_SIZE - 10))
                         screen.blit(img, (slot_rect.x + 5, slot_rect.y + 5))
 
                     # Draw stack amount

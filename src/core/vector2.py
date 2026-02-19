@@ -20,15 +20,13 @@ class Vector2():
         return cls(1, 0)
     
     def normalize(self):
-        length = self.length()  # nutzt die neue length()
-        if length == 0:
-            return Vector2(0, 0)
+        length = self.length()
+        if length == 0: return Vector2(0, 0)
         return Vector2(self.x / length, self.y / length)
     
     def magnitude(self):
         return (self.x ** 2 + self.y ** 2) ** 0.5
     
-    # NEU: alias length() für kompatibilität
     def length(self):
         return self.magnitude()
     
@@ -59,3 +57,16 @@ class Vector2():
 
     def __neg__(self):
         return Vector2(-self.x, -self.y)
+
+    def __truediv__(self, scalar: float):
+        return Vector2(self.x / scalar, self.y / scalar)
+
+    def __itruediv__(self, scalar: float):
+        self.x /= scalar
+        self.y /= scalar
+        return self
+    
+    def snapped(self, threshold=0.1):
+        x = 0 if abs(self.x) < threshold else (1 if self.x > 0 else -1)
+        y = 0 if abs(self.y) < threshold else (1 if self.y > 0 else -1)
+        return Vector2(x, y)

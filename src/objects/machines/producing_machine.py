@@ -2,7 +2,7 @@ import pygame as py
 
 from constants.itemdata import get_item_by_id
 from entities.inventory import Inventory
-from game.Objects.machines.machine import Machine
+from objects.machines.machine import Machine
 
 class ProducingMachine(Machine):
     def __init__(self, pos, recipe=None):
@@ -19,8 +19,14 @@ class ProducingMachine(Machine):
         if recipe:
             for item_id in recipe.inputs:
                 self.input_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
+        
+        self.output_inventories = {}
+        if recipe:
+            for item_id in recipe.outputs:
+                self.output_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
 
-        self.output_inventory = Inventory(slot_width=1, slot_height=1)
+        self._last_output_item_id = None
+
         self.processing = False
         self.process_timer = 0.0
         self.process_time = recipe.process_time if recipe else 1.0
@@ -33,9 +39,9 @@ class ProducingMachine(Machine):
             self.process_timer += dt
             if self.process_timer >= self.process_time:
                 for item_id, amount in self.recipe.inputs.items():
-                    self.input_inventories[item_id].remove_item(item_id, amount)
+                    self.input_inventories[item_id].try_remove_item(item_id, amount)
                 for item_id, amount in self.recipe.outputs.items():
-                    self.output_inventory.add_items(item_id, amount)
+                    self.output_inventories[item_id].try_add_items(item_id, amount)
                 self.processing = False
                 self.process_timer = 0.0
 
@@ -43,17 +49,24 @@ class ProducingMachine(Machine):
             if not self.recipe or not self.recipe.inputs:
                 return {}
             return self.recipe.inputs
+    
     def get_recipe_outputs(self):
         if not self.recipe or not self.recipe.outputs:
             return {}
         return self.recipe.outputs
     
     def outputs_per_minute(self):
-        if not self.recipe: return {}
-        return {item_id: amount * (60 / self.process_time) for item_id, amount in self.recipe.outputs.items()}
+        if not self.recipe or self.process_time <= 0:
+            return {}
+        crafts_per_minute = 60 / self.process_time
+        return {item_id: amount * crafts_per_minute
+                for item_id, amount in self.recipe.outputs.items()}
+
     def inputs_per_minute(self):
-        if not self.recipe: return {}
-        return {item_id: amount * (60 / self.process_time) for item_id, amount in self.recipe.inputs.items()}
+        if not self.recipe or self.process_time <= 0: return {}
+        crafts_per_minute = 60 / self.process_time
+        return {item_id: amount * crafts_per_minute
+                for item_id, amount in self.recipe.inputs.items()}
 
     def can_process(self):
         if not self.recipe: return False
@@ -61,41 +74,59 @@ class ProducingMachine(Machine):
         for item_id, amount in self.recipe.inputs.items():
             if self.input_inventories[item_id].get_amount(item_id) < amount: return False
         for item_id, amount in self.recipe.outputs.items():
-            if not self.output_inventory.can_add_items(item_id, amount): return False
+            if not self.output_inventories[item_id].can_add_items(item_id, amount): return False
         return True
+    
     def transfer_processing_items_to_player(self, player_inventory):
         if not player_inventory: return
 
         for inv in self.input_inventories.values():
             for row in inv.slots:
                 for slot in row:
-                    if slot: player_inventory.add_items(slot["item"], slot["amount"])
-        for row in self.output_inventory.slots:
-            for slot in row:
-                if slot: player_inventory.add_items(slot["item"], slot["amount"])
+                    if slot: player_inventory.try_add_items(slot["item"], slot["amount"])
+        for inv in self.output_inventories.values():
+            for row in inv.slots:
+                for slot in row:
+                    if slot: player_inventory.try_add_items(slot["item"], slot["amount"])
         for item_id in self.input_inventories:
             self.input_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
 
-        self.output_inventory = Inventory(slot_width=1, slot_height=1)
-    def set_recipe(self, recipe, player_inventory=None, dev_mode=False):
-        if not dev_mode and player_inventory is not None:
+        self.output_inventories = {}
+        if self.recipe:
+            for item_id in self.recipe.outputs:
+                self.output_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
+
+    def set_recipe(self, recipe, player_inventory=None):
+        if player_inventory is not None:
             self.transfer_processing_items_to_player(player_inventory)
+
         self.recipe = recipe
         self.process_time = recipe.process_time
         self.processing = False
         self.process_timer = 0.0
+
+        # Create input inventories
         self.input_inventories = {}
         for item_id in recipe.inputs:
             self.input_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
-        self.output_inventory = Inventory(slot_width=1, slot_height=1)
 
-    def push_output_item(self, peek=False):
-        for row in self.output_inventory.slots:
-            for i, slot in enumerate(row):
-                if slot and slot["amount"] > 0:
-                    item_obj = get_item_by_id(slot["item"])
-                    if peek: return item_obj
-                    else:
+        # Create output inventories
+        self.output_inventories = {}
+        for item_id in recipe.outputs:
+            self.output_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
+
+    def push_output_items(self, peek=False):
+        for item_id, inv in self.output_inventories.items():
+            total_amount = sum(slot["amount"] for row in inv.slots for slot in row if slot)
+            if total_amount <= 0:
+                continue
+
+            for row in inv.slots:
+                for i, slot in enumerate(row):
+                    if slot and slot["amount"] > 0:
+                        item_obj = get_item_by_id(slot["item"])
+                        if peek:
+                            return item_obj
                         slot["amount"] -= 1
                         if slot["amount"] == 0:
                             row[i] = None
@@ -105,6 +136,7 @@ class ProducingMachine(Machine):
     def draw(self, screen, camera):
         screen.blit(self.image, (self.rect.x - camera.x, self.rect.y - camera.y))
         self.draw_recipe_outputs(screen, camera)
+
     def draw_recipe_outputs(self, screen, camera):
         if not self.recipe: return
         outputs = self.get_recipe_outputs()
@@ -114,7 +146,7 @@ class ProducingMachine(Machine):
         for item_id in outputs:
             item_obj = get_item_by_id(item_id)
             if item_obj:
-                if item_obj.image: images.append(item_obj.image)
+                if item_obj.sprite: images.append(item_obj.sprite)
         if not images: return
 
         spacing = 4

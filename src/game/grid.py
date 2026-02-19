@@ -15,12 +15,12 @@ class Grid:
         self.grid_surface.fill((0, 0, 0, 0))
         size = self.CELL_SIZE
         w, h = self.screen_width, self.screen_height
-
+        
         for x in range(0, w, size):
             py.draw.line(self.grid_surface, (*self.color, alpha), (x, 0), (x, h))
         for y in range(0, h, size):
             py.draw.line(self.grid_surface, (*self.color, alpha), (0, y), (w, y))
-
+        
     def draw(self, screen, camera):
         if self.last_camera_pos != (camera.x, camera.y):
             self.last_camera_pos = (camera.x, camera.y)

@@ -3,7 +3,7 @@ from core.vector2 import Vector2
 
 class Splitter:
     SIZE = 32
-    SPRITE_PATH = "assets/Sprites/machines/splitter.png"
+    SPRITE_PATH = "src/assets/sprites/machines/splitter.png"
     BUILD_COST = {"iron_ingot": 4}
 
     def __init__(self, pos=None, direction=None):
@@ -89,18 +89,3 @@ class Splitter:
 
     def draw(self, screen, camera):
         screen.blit(self.image, (self.rect.x - camera.x, self.rect.y - camera.y))
-
-    @classmethod
-    def draw_ghost_machine(cls, screen, camera, pos, blocked, player_inventory):
-        ghost = py.Surface((cls.SIZE, cls.SIZE), py.SRCALPHA)
-        if cls.SPRITE_PATH:
-            original = py.image.load(cls.SPRITE_PATH).convert_alpha()
-            img = py.transform.scale(original, (cls.SIZE, cls.SIZE))
-            ghost.blit(img, (0, 0))
-        ghost.set_alpha(120)
-        cannot_afford = False
-        if player_inventory is not None:
-            cannot_afford = not player_inventory.has_enough_build_cost_items(cls.BUILD_COST)
-        if blocked or cannot_afford:
-            ghost.fill((255, 0, 0, 80), special_flags=py.BLEND_RGBA_MULT)
-        screen.blit(ghost, (pos[0] - camera.x - cls.SIZE // 2, pos[1] - camera.y - cls.SIZE // 2))

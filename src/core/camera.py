@@ -1,11 +1,11 @@
 class Camera:
-    def __init__(self, width, height, margin=400, smooth=0.05):
+    def __init__(self, width:float, height:float, margin=400, smooth=0.05):
         self.x = 0
         self.y = 0
         self.width = width
         self.height = height
-        self.margin = margin
-        self.smooth = smooth
+        self.margin = margin # distance from the edge of the screen where the camera starts moving
+        self.smooth = smooth # how quickly the camera moves towards the player (0.05 means 5% of the distance per frame)
 
     def update(self, player, screen_width, screen_height):
         playerx = player.rect.x - self.x
