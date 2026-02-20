@@ -18,4 +18,4 @@ Keybinds:
 
 You can click on machines to open them and change their recipe.
 
-<img width="1906" height="1094" alt="image" src="https://github.com/user-attachments/assets/914d2a49-8e28-44d6-946a-92e02b436b52" />
+<img width="1907" height="1059" alt="image" src="https://github.com/user-attachments/assets/3cd8f8b7-10fb-48b8-a136-5368d7180c88" />
