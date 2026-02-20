@@ -1,19 +1,18 @@
-This is a game about automation. (like Satisfactory, Factorio or Dyson Sphere Program)
+This is a game about automation. (inspired by Satisfactory, Factorio and Dyson Sphere Program)
 
 Machines have inputs and outputs, when they have enough inputs, they produce
-Items can flow with belts into and out of machines.
+Items can flow with belts into and out of machines and splitters.
 
 Keybinds:
   Q: Enter building
   x: Enter deleting
   Tab: open/close Player Inventory
   ESC: close/cancel every flag
-  Numbers 1-10: Machines
+  Number Keys: Select Machines
   R: Rotate Conveyorbelts or Splitters
   T: change how you drag Conveyorbelts
 
   Temporary for game development:
-    0: toggle dev_mode (with dev_mode you dont need items to build machines etc.)
     I: put input items into machines
 
 You can click on machines to open them and change their recipe.
