@@ -1,52 +1,122 @@
 import pygame as py
+
 from constants.itemdata import get_item_by_id
 
 class PlayerInventoryUI:
     SLOT_SIZE = 64
     PADDING = 10
 
-    def __init__(self, player):
+    def __init__(self, player, screen_height):
         self.player = player
         self.open = False
+
         width = self.player.inventory.width * self.SLOT_SIZE + self.PADDING * 2
         height = self.player.inventory.height * self.SLOT_SIZE + self.PADDING * 2
-        self.sprite = py.Surface((width, height))
-        self.sprite.fill("#CAC8E4")
-        self.rect = self.sprite.get_rect(x=0,centery=540)
-        self.font = py.font.SysFont("Arial", 10)
 
-        self.dragging = False
-        self.drag_offset = (0, 0)
-        self.sprite.set_alpha(200)
+        # Panel Surface
+        self.sprite = py.Surface((width, height), py.SRCALPHA)
+        color = (202, 200, 228, 220)
+        py.draw.rect(self.sprite, color, self.sprite.get_rect(), border_radius=18)
+
+        self.rect = self.sprite.get_rect(x=0, centery=screen_height // 2)
+
+        self.font_small = py.font.SysFont("Arial", 14)
+
+        # Hover
+        self.slot_rects = []
+
+        self._hovered_item = None
+        self._tooltip_visible = False
 
     def draw(self, screen):
         if not self.open: return
 
         screen.blit(self.sprite, self.rect.topleft)
 
-        # Draw grid slots
+        self._draw_grid_slots(screen)
+        self._handle_hover(screen)
+
+    def _draw_grid_slots(self, screen):
+        self.slot_rects = []
+
         for y in range(self.player.inventory.height):
             for x in range(self.player.inventory.width):
-                slot_rect = py.Rect(self.rect.x + self.PADDING + x * self.SLOT_SIZE, self.rect.y + self.PADDING + y * self.SLOT_SIZE, self.SLOT_SIZE, self.SLOT_SIZE)
+                left = self.rect.x + self.PADDING + x * self.SLOT_SIZE
+                top = self.rect.y + self.PADDING + y * self.SLOT_SIZE
+                width = self.SLOT_SIZE
+                height = self.SLOT_SIZE
+
+                slot_rect = py.Rect(left, top, width, height)
+
                 py.draw.rect(screen, "#AAAAAA", slot_rect, 2)
 
                 slot = self.player.inventory.slots[y][x]
+
                 if slot:
                     item_id = slot["item"]
                     amount = slot["amount"]
 
-                    # Get the Item object
                     item = get_item_by_id(item_id)
+
                     if item and item.sprite:
-                        # Scale sprite to fit slot
                         img = py.transform.scale(item.sprite, (self.SLOT_SIZE - 10, self.SLOT_SIZE - 10))
                         screen.blit(img, (slot_rect.x + 5, slot_rect.y + 5))
 
-                    # Draw stack amount
-                    text = self.font.render(str(amount), True, "#000000")
-                    # Put it in the bottom-right corner
+                    # Stack number
+                    text = self.font_small.render(str(amount), True, "#000000")
                     text_rect = text.get_rect(bottomright=(slot_rect.right - 5, slot_rect.bottom - 5))
                     screen.blit(text, text_rect)
-    
+
+                    # Save for hover detection
+                    self.slot_rects.append((slot_rect, item))
+
+    def _handle_hover(self, screen):
+        mx, my = py.mouse.get_pos()
+        hovered_item = None
+
+        for rect, item in self.slot_rects:
+            if rect.collidepoint(mx, my):
+                hovered_item = item
+                break
+
+        if hovered_item != self._hovered_item:
+            self._hovered_item = hovered_item
+            self._tooltip_visible = False
+
+        elif hovered_item:
+            self._tooltip_visible = True
+
+        else:
+            self._tooltip_visible = False
+
+        if self._tooltip_visible and self._hovered_item:
+            self._draw_tooltip(screen, self._hovered_item.name, (mx, my))
+
+    def _draw_tooltip(self, screen, text, pos):
+        font = py.font.SysFont("Arial", 16)
+        padding = 8
+
+        text_surf = font.render(text, True, "#000000")
+
+        width = text_surf.get_width() + padding * 2
+        height = text_surf.get_height() + padding * 2
+
+        x = pos[0] + 15
+        y = pos[1] + 15
+
+        # Bildschirmgrenzen prüfen
+        if x + width > screen.get_width():
+            x = screen.get_width() - width - 5
+        if y + height > screen.get_height():
+            y = screen.get_height() - height - 5
+
+        panel_color = (202, 200, 228, 220)
+
+        tooltip_surface = py.Surface((width, height), py.SRCALPHA)
+        py.draw.rect(tooltip_surface, panel_color, tooltip_surface.get_rect(), border_radius=12)
+
+        tooltip_surface.blit(text_surf, (padding, padding))
+        screen.blit(tooltip_surface, (x, y))
+
     def close(self):
         self.open = False

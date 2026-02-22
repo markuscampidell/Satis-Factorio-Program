@@ -1,26 +1,22 @@
 import pygame as py
 from core.vector2 import Vector2
+from objects.machines.machine import Machine
 
-class Splitter:
-    SIZE = 32
+class Splitter(Machine):
+    WIDTH = 1
+    HEIGHT = 1
     SPRITE_PATH = "src/assets/sprites/machines/splitter.png"
     BUILD_COST = {"iron_ingot": 4}
 
     def __init__(self, pos=None, direction=None):
-        self.rect = py.Rect(0, 0, self.SIZE, self.SIZE)
-        self.rect.center = pos
+        super().__init__(pos)  # creates rect & image correctly
 
         self.direction = direction or Vector2(1, 0)
         self.current_item = None
         self.current_output_index = 0
         self.output_belts = []
 
-        # For drawing
-        self.image_original = py.Surface((self.SIZE, self.SIZE), py.SRCALPHA)
-        if self.SPRITE_PATH:
-            original = py.image.load(self.SPRITE_PATH).convert_alpha()
-            self.image_original.blit(py.transform.scale(original, (self.SIZE, self.SIZE)), (0, 0))
-        self.image = self.image_original.copy()
+        self.image_original = self.image.copy()  # keep original for rotation
         self.rotation_angle = 0
 
         self.item_progress = 0.0
@@ -60,11 +56,20 @@ class Splitter:
             next_rect = self.rect.move(int(direction.x * cell_size), int(direction.y * cell_size))
             seg = belt_map.get((next_rect.x, next_rect.y))
 
-            if seg and seg.item is None and seg.direction == direction:
-                seg.item = self.current_item
-                self.current_item = None
-                self.current_output_index = (self.current_output_index + 1) % num_dirs
-                return True
+            if seg and seg.item is None:
+                # For straight belts, check the direction. For curves, check incoming_direction
+                if seg.incoming_direction and seg.direction != seg.incoming_direction:
+                    # Curve: check if incoming_direction matches the push direction
+                    acceptable = seg.incoming_direction == direction
+                else:
+                    # Straight belt: check if direction matches the push direction
+                    acceptable = seg.direction == direction
+                
+                if acceptable:
+                    seg.item = self.current_item
+                    self.current_item = None
+                    self.current_output_index = (self.current_output_index + 1) % num_dirs
+                    return True
 
             self.current_output_index = (self.current_output_index + 1) % num_dirs
 
@@ -72,7 +77,9 @@ class Splitter:
 
     def _get_relative_dirs(self):
         dx, dy = float(self.direction.x), float(self.direction.y)
-        return [Vector2(-dy, dx), Vector2(dx, dy), Vector2(dy, -dx)]
+        return [Vector2(-dy, dx), 
+                Vector2(dx, dy), 
+                Vector2(dy, -dx)]
 
     def receive_item(self, item, incoming_direction: Vector2 = None):
         if self.current_item is not None: return False

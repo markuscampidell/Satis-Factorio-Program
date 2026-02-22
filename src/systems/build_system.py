@@ -2,7 +2,7 @@
 import pygame as py
 
 from objects.machines.splitter import Splitter
-from objects.conveyors.conveyor_belt import BeltSegment
+from objects.conveyors.belt_segment import BeltSegment
 
 from core.vector2 import Vector2
 

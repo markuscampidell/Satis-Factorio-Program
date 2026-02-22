@@ -1,5 +1,5 @@
 import pygame as py
-from objects.conveyors.conveyor_belt import BeltSegment
+from objects.conveyors.belt_segment import BeltSegment
 from objects.machines.splitter import Splitter
 from core.vector2 import Vector2
 
@@ -93,12 +93,31 @@ class MachinePlacer:
     def get_machine_placement_preview(self, selected_machine_class):
         mx, my = py.mouse.get_pos()
         world_x, world_y = mx + self.camera.x, my + self.camera.y
+
         cell = self.grid.CELL_SIZE
+        width_cells = selected_machine_class.WIDTH
+        height_cells = selected_machine_class.HEIGHT
 
-        snapped_x = (world_x // cell) * cell + cell // 2
-        snapped_y = (world_y // cell) * cell + cell // 2
+        pixel_width = width_cells * cell
+        pixel_height = height_cells * cell
 
-        temp_machine_rect = py.Rect(0, 0, selected_machine_class.SIZE, selected_machine_class.SIZE)
+        # Determine top-left grid position
+        if width_cells % 2 == 0:
+            snapped_tl_x = (world_x // cell) * cell
+        else:
+            center_cell_x = world_x // cell
+            snapped_tl_x = (center_cell_x - width_cells // 2) * cell
+
+        if height_cells % 2 == 0:
+            snapped_tl_y = (world_y // cell) * cell
+        else:
+            center_cell_y = world_y // cell
+            snapped_tl_y = (center_cell_y - height_cells // 2) * cell
+
+        snapped_x = snapped_tl_x + pixel_width // 2
+        snapped_y = snapped_tl_y + pixel_height // 2
+
+        temp_machine_rect = py.Rect(0, 0, pixel_width, pixel_height)
         temp_machine_rect.center = (snapped_x, snapped_y)
 
         blocked = False
@@ -122,59 +141,69 @@ class MachinePlacer:
     def ghost_machine(self, selected_machine_class=None, build_mode=None, rotation_steps=0):
         """
         Draws a ghost preview for the selected machine.
-        Handles rotation for Splitters only.
+        Uses WIDTH/HEIGHT (grid cells) instead of SIZE (pixels).
         """
-        if selected_machine_class is None or build_mode != 'building': return
-        if selected_machine_class is BeltSegment: return
+        if selected_machine_class is None or build_mode != 'building':
+            return
 
-        mx, my = py.mouse.get_pos()
-        world_x, world_y = mx + self.camera.x, my + self.camera.y
+        if selected_machine_class is BeltSegment:
+            return
+
+        # Get snapped position & blocked state
+        (snapped_x, snapped_y), blocked = self.get_machine_placement_preview(selected_machine_class)
+
         cell = self.grid.CELL_SIZE
-        snapped_x = (world_x // cell) * cell + cell // 2
-        snapped_y = (world_y // cell) * cell + cell // 2
+        width_cells = selected_machine_class.WIDTH
+        height_cells = selected_machine_class.HEIGHT
 
-        temp_rect = py.Rect(0, 0, selected_machine_class.SIZE, selected_machine_class.SIZE)
-        temp_rect.center = (snapped_x, snapped_y)
-        blocked = self.world.is_rect_blocked(temp_rect)
+        pixel_width = width_cells * cell
+        pixel_height = height_cells * cell
 
-        # Load/cached ghost image
-        if not hasattr(selected_machine_class, "_ghost_image"):
-            ghost = py.Surface((selected_machine_class.SIZE, selected_machine_class.SIZE), py.SRCALPHA)
+        # Create and cache ghost image if needed
+        cache_key = f"_ghost_image_{width_cells}x{height_cells}"
+
+        if not hasattr(selected_machine_class, cache_key):
+            ghost = py.Surface((pixel_width, pixel_height), py.SRCALPHA)
+
             if selected_machine_class.SPRITE_PATH:
                 original = py.image.load(selected_machine_class.SPRITE_PATH).convert_alpha()
-                ghost.blit(
-                    py.transform.scale(original, (selected_machine_class.SIZE, selected_machine_class.SIZE)),
-                    (0, 0)
-                )
-            selected_machine_class._ghost_image = ghost
+                scaled = py.transform.scale(original, (pixel_width, pixel_height))
+                ghost.blit(scaled, (0, 0))
 
-        ghost = selected_machine_class._ghost_image.copy()
+            setattr(selected_machine_class, cache_key, ghost)
 
-        # Rotate ghost if it's a splitter
+        ghost = getattr(selected_machine_class, cache_key).copy()
+
+        # Rotate ghost (for splitters or future rotatable machines)
         if selected_machine_class is Splitter:
             ghost = py.transform.rotate(ghost, -90 * rotation_steps)
 
         ghost.set_alpha(120)
 
-        # Blocked overlay
+        # 🔴 Red overlay if blocked
         if blocked:
             overlay = py.Surface(ghost.get_size(), py.SRCALPHA)
             overlay.fill((255, 0, 0, 120))
             ghost.blit(overlay, (0, 0))
 
-        # Can't afford overlay
+        # 🟡 Yellow overlay if can't afford
         if not self.player.inventory.has_enough_items(selected_machine_class.BUILD_COST):
             overlay = py.Surface(ghost.get_size(), py.SRCALPHA)
             overlay.fill((255, 255, 0, 120))
             ghost.blit(overlay, (0, 0))
 
         # Draw if inside camera
-        ghost_rect = py.Rect(
-            snapped_x - ghost.get_width() // 2,
-            snapped_y - ghost.get_height() // 2,
-            ghost.get_width(),
-            ghost.get_height()
+        ghost_rect = ghost.get_rect(center=(snapped_x, snapped_y))
+
+        camera_rect = py.Rect(
+            self.camera.x,
+            self.camera.y,
+            self.screen_width,
+            self.screen_height
         )
-        camera_rect = py.Rect(self.camera.x, self.camera.y, self.screen_width, self.screen_height)
+
         if ghost_rect.colliderect(camera_rect):
-            self.screen.blit(ghost, (ghost_rect.x - self.camera.x, ghost_rect.y - self.camera.y))
+            self.screen.blit(
+                ghost,
+                (ghost_rect.x - self.camera.x, ghost_rect.y - self.camera.y)
+            )

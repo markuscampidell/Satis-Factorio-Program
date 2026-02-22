@@ -27,6 +27,9 @@ from systems.conveyors.beltsystem import BeltSystem
 from systems.conveyors.beltspritemanager import BeltSpriteManager
 from systems.conveyors.ghost_belt_renderer import GhostBeltRenderer
 
+from ui.hand_crafting_ui import HandCraftingUI
+from constants.recipes import smelter_recipes, assembler_recipes
+
 
 from game.world import World
 
@@ -58,9 +61,6 @@ class Game:
         self.splitter_rotation_steps = 0
         self.build_mode = None
 
-        # For handling temporary pause of build mode when opening inventory
-        self.paused_mode = None
-
         # For detecting hovered object in delete mode
         self.hovered_delete_target = None
 
@@ -87,8 +87,9 @@ class Game:
         self.camera.y = self.player.rect.centery - self.screen_height // 2
 
         # UIs
-        self.player_inventory_ui = PlayerInventoryUI(self.player)
+        self.player_inventory_ui = PlayerInventoryUI(self.player, self.screen_height)
         self.machine_ui = ProducingMachineUI(self.screen_width, self.screen_height, self.world, self.camera, self.player, self.player_inventory_ui, self.screen)
+        self.crafting_ui = HandCraftingUI(self.player, self.screen_width, self.screen_height)
         
 
         # Systems
@@ -99,9 +100,14 @@ class Game:
         self.belts = BeltSystem(self.world, self.grid, self.player, self.screen, self.camera, self.screen_width, self.screen_height, self.ghost_belt_renderer)
         self.machine_placer = MachinePlacer(self.world, self.player, self.grid, self.camera, self.screen_width, self.screen_height, self.screen, self.machine_ui, self)
 
+        
+        
+        self.player.handcrafting.recipes = smelter_recipes + assembler_recipes
+
         # This is just for testing
         self._cheat_add_items("iron_ingot", 1000)
         self._cheat_add_items("coal", 100)
+        self._cheat_add_items("copper_ore", 2)
         self._cheat_add_items("copper_ingot", 1000)
     
     def run(self):
@@ -121,7 +127,8 @@ class Game:
 
                 self.machine_ui.handle_event(event, self.just_placed_machine, self.build_mode == "building",)
 
-            self.machine_interaction_system.handle_click(event)
+                if self.build_mode == None:
+                    game.machine_interaction_system.handle_click(event, self.just_placed_machine)
 
             self.update()
             
@@ -138,9 +145,12 @@ class Game:
             py.display.flip()
 
     def update(self):
-        delta_time = self.clock.tick(60) / 1000
-        self.player.update(self.world.machines)
+        delta_time = self.clock.tick() / 1000
+        self.player.update(self.world.machines, delta_time)
         self.camera.update(self.player, self.screen_width, self.screen_height)
+
+        if self.crafting_ui.open:
+            self.crafting_ui.update(delta_time)
 
         cell = self.grid.CELL_SIZE
         for segment in self.world.belt_segments:

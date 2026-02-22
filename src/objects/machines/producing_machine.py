@@ -8,28 +8,14 @@ class ProducingMachine(Machine):
     def __init__(self, pos, recipe=None):
         super().__init__(pos)
         self.recipe = recipe
-        self.image = py.Surface((self.SIZE, self.SIZE), py.SRCALPHA)
-        if self.SPRITE_PATH:
-            original = py.image.load(self.SPRITE_PATH).convert_alpha()
-            image = py.transform.scale(original, (self.SIZE, self.SIZE))
-            self.image.blit(image, (0, 0))
         self.rect = self.image.get_rect(center=pos)
-
-        self.input_inventories = {}
-        if recipe:
-            for item_id in recipe.inputs:
-                self.input_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
-        
-        self.output_inventories = {}
-        if recipe:
-            for item_id in recipe.outputs:
-                self.output_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
-
-        self._last_output_item_id = None
 
         self.processing = False
         self.process_timer = 0.0
         self.process_time = recipe.process_time if recipe else 1.0
+
+        if recipe:
+            self._reset_inventories(recipe)
 
     def update(self, dt):
         if not self.processing and self.can_process():
@@ -45,6 +31,8 @@ class ProducingMachine(Machine):
                 self.processing = False
                 self.process_timer = 0.0
 
+
+
     def get_recipe_inputs(self):
             if not self.recipe or not self.recipe.inputs:
                 return {}
@@ -55,6 +43,12 @@ class ProducingMachine(Machine):
             return {}
         return self.recipe.outputs
     
+    def inputs_per_minute(self):
+        if not self.recipe or self.process_time <= 0: return {}
+        crafts_per_minute = 60 / self.process_time
+        return {item_id: amount * crafts_per_minute
+                for item_id, amount in self.recipe.inputs.items()}
+    
     def outputs_per_minute(self):
         if not self.recipe or self.process_time <= 0:
             return {}
@@ -62,11 +56,7 @@ class ProducingMachine(Machine):
         return {item_id: amount * crafts_per_minute
                 for item_id, amount in self.recipe.outputs.items()}
 
-    def inputs_per_minute(self):
-        if not self.recipe or self.process_time <= 0: return {}
-        crafts_per_minute = 60 / self.process_time
-        return {item_id: amount * crafts_per_minute
-                for item_id, amount in self.recipe.inputs.items()}
+
 
     def can_process(self):
         if not self.recipe: return False
@@ -83,18 +73,14 @@ class ProducingMachine(Machine):
         for inv in self.input_inventories.values():
             for row in inv.slots:
                 for slot in row:
-                    if slot: player_inventory.try_add_items(slot["item"], slot["amount"])
+                    if slot:
+                        player_inventory.try_add_items(slot["item"], slot["amount"])
+
         for inv in self.output_inventories.values():
             for row in inv.slots:
                 for slot in row:
-                    if slot: player_inventory.try_add_items(slot["item"], slot["amount"])
-        for item_id in self.input_inventories:
-            self.input_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
-
-        self.output_inventories = {}
-        if self.recipe:
-            for item_id in self.recipe.outputs:
-                self.output_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
+                    if slot:
+                        player_inventory.try_add_items(slot["item"], slot["amount"])
 
     def set_recipe(self, recipe, player_inventory=None):
         if player_inventory is not None:
@@ -105,15 +91,8 @@ class ProducingMachine(Machine):
         self.processing = False
         self.process_timer = 0.0
 
-        # Create input inventories
-        self.input_inventories = {}
-        for item_id in recipe.inputs:
-            self.input_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
-
-        # Create output inventories
-        self.output_inventories = {}
-        for item_id in recipe.outputs:
-            self.output_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
+        self._reset_inventories(recipe)
+        
 
     def push_output_items(self, peek=False):
         for item_id, inv in self.output_inventories.items():
@@ -132,12 +111,23 @@ class ProducingMachine(Machine):
                             row[i] = None
                         return item_obj
         return None
+    
+    def _reset_inventories(self, recipe):
+        self.input_inventories = {}
+        for item_id in recipe.inputs:
+            self.input_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
+
+        self.output_inventories = {}
+        for item_id in recipe.outputs:
+            self.output_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
+
+
 
     def draw(self, screen, camera):
         screen.blit(self.image, (self.rect.x - camera.x, self.rect.y - camera.y))
-        self.draw_recipe_outputs(screen, camera)
+        self._draw_recipe_outputs(screen, camera)
 
-    def draw_recipe_outputs(self, screen, camera):
+    def _draw_recipe_outputs(self, screen, camera):
         if not self.recipe: return
         outputs = self.get_recipe_outputs()
         if not outputs: return

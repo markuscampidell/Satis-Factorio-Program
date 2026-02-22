@@ -21,7 +21,7 @@ class BeltSegment:
         if self.belt_type == "fast": return 240
         if self.belt_type == "express": return 480
 
-    def update(self, belt_map, machines, cell_size, dt): # ok
+    def update(self, belt_map, machines, cell_size, dt):
         if self.item:
             self.item_progress += self.speed * dt / cell_size
             if self.item_progress >= 1.0:
@@ -63,12 +63,12 @@ class BeltSegment:
         sprite = py.transform.scale(self.item.sprite, (size, size))
         screen.blit(sprite, (draw_x - camera.x - size // 2, draw_y - camera.y - size // 2))
 
-    def refund_item_on_segment(self, player_inventory): # ok
+    def refund_item_on_segment(self, player_inventory):
         if self.item:
             player_inventory.try_add_items(self.item.item_id, 1)
             self._clear_item()
 
-    def _clear_item(self): # ok
+    def _clear_item(self):
         self.item = None
         self.item_progress = 0.0
 
@@ -76,17 +76,15 @@ class BeltSegment:
         prev_rect = self.rect.move(-int(self.direction.x * cell_size), -int(self.direction.y * cell_size))
         for machine in machines:
             if isinstance(machine, ProducingMachine) and machine.rect.colliderect(prev_rect):
-                # Peek at the next available output item
                 next_item = machine.push_output_items(peek=True)
                 if next_item:
-                    # Actually remove the item from the machine
                     self.item = machine.push_output_items(peek=False)
                     self.item_progress = 0.0
                     self.incoming_direction = self.direction
                 break  # Only pull from the first matching machine
 
     def _try_insert_into_machine(self, machine):
-        if isinstance(machine, Splitter): # ok
+        if isinstance(machine, Splitter):
             success = machine.receive_item(self.item, incoming_direction=self.direction)
             if success: self._clear_item()
             return success

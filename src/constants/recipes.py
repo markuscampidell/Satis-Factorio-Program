@@ -27,12 +27,12 @@ class Recipe:
         return result
 
 smelter_recipes = []
-iron_ingot_recipe = Recipe("Iron_Ingot", {"iron_ore": 3}, {"iron_ingot": 1}, 2)
-copper_ingot_recipe = Recipe("Copper_Ingot", {"copper_ore": 3}, {"copper_ingot": 1}, 2)
-test = Recipe("test", {"iron_ingot": 1}, {"copper_ore": 3}, 2)
+iron_ingot_recipe = Recipe("Iron Ingot", {"iron_ore": 3}, {"iron_ingot": 1}, 2)
+copper_ingot_recipe = Recipe("Copper Ingot", {"copper_ore": 3}, {"copper_ingot": 1}, 2)
+test = Recipe("Test", {"iron_ingot": 1}, {"copper_ore": 3}, 2)
 steel_recipe = Recipe("Steel", {"iron_ingot": 2, "coal": 2}, {"steel": 1}, 3)
 smelter_recipes.extend([iron_ingot_recipe, copper_ingot_recipe, test, steel_recipe])
 
 assembler_recipes = []
-iron_plate_recipe = Recipe("Iron_Plate", {"iron_ingot": 2}, {"iron_plate": 1, "coal": 40}, 1) # for testing
+iron_plate_recipe = Recipe("Iron Plate", {"iron_ingot": 2}, {"iron_plate": 1, "coal": 40}, 1) # for testing
 assembler_recipes.extend([iron_plate_recipe])

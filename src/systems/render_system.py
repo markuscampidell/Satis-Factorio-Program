@@ -1,6 +1,6 @@
 # systems/render_system.py
 import pygame as py
-from objects.conveyors.conveyor_belt import BeltSegment
+from objects.conveyors.belt_segment import BeltSegment
 
 class RenderSystem:
     def __init__(self, game):
@@ -12,10 +12,10 @@ class RenderSystem:
 
         screen.fill("#987171")  # background
 
-        """
+        
         if game.build_mode is not None:
             game.grid.draw(screen, game.camera)
-        """
+        
         # Ghost previews
         if game.build_mode == "building" and game.selected_machine_class is not None:
             game.machine_placer.ghost_machine(game.selected_machine_class, game.build_mode, game.splitter_rotation_steps)
@@ -37,6 +37,7 @@ class RenderSystem:
         # Draw UIs
         game.machine_ui.draw(screen)
         game.player_inventory_ui.draw(screen)
+        game.crafting_ui.draw(screen)
 
         # Highlight objects if deleting
         self._highlight_hovered_delete_target(screen)

@@ -1,7 +1,7 @@
 import pygame as py
 
 from core.vector2 import Vector2
-from objects.conveyors.conveyor_belt import BeltSegment
+from objects.conveyors.belt_segment import BeltSegment
 
 class BeltSystem:
     BUILD_COSTS = {"basic": {"iron_ingot": 2},

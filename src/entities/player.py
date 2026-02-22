@@ -1,21 +1,28 @@
 import pygame as py
 from entities.inventory import Inventory
 from core.vector2 import Vector2
+from entities.hand_crafting_component import HandcraftingComponent
 
 class Player:
     def __init__(self, size, color = ("#5F2D5D")):
         self.inventory = Inventory(5, 9)
+        self.handcrafting = HandcraftingComponent(self.inventory)
 
         self.color = color
-        self.image = py.Surface((size, size)) ; self.image.fill(color)
-        self.rect = self.image.get_rect() ; self.rect.centerx=0 ; self.rect.centery=0
+        self.image = py.Surface((size, size))
+        self.image.fill(color)
+        self.rect = self.image.get_rect()
+        self.rect.centerx=0
+        self.rect.centery=0
         self.speed = 1.5
         self.friction = 0.85
 
         self.dx = 0
         self.dy = 0
 
-    def update(self, machines):
+    def update(self, machines, dt):
+        self.handcrafting.update(dt)
+
         dx, dy = self.get_movement()
 
         if dx:
