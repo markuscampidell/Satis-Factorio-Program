@@ -145,7 +145,7 @@ class Game:
             py.display.flip()
 
     def update(self):
-        delta_time = self.clock.tick() / 1000
+        delta_time = self.clock.tick(60) / 1000
         self.player.update(self.world.machines, delta_time)
         self.camera.update(self.player, self.screen_width, self.screen_height)
 
