@@ -14,7 +14,8 @@ class RenderSystem:
 
         
         if game.build_mode is not None:
-            game.grid.draw(screen, game.camera)
+            if game.draw_grid:
+                game.grid.draw(screen, game.camera)
         
         # Ghost previews
         if game.build_mode == "building" and game.selected_machine_class is not None:
@@ -100,8 +101,7 @@ class RenderSystem:
 
     def _highlight_hovered_delete_target(self, screen):
         game = self.game
-        if game.build_mode != "deleting" or game.hovered_delete_target is None:
-            return
+        if game.build_mode != "deleting" or game.hovered_delete_target is None: return
 
         alpha = 100
         color = (255, 0, 0)

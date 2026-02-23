@@ -1,6 +1,5 @@
 import pygame as py
 
-from constants.itemdata import get_item_by_id
 from ui.recipe_ui import RecipeUI
 
 
@@ -42,12 +41,20 @@ class HandCraftingUI:
         screen.blit(self.sprite, self.rect)
 
         self._draw_recipes(screen)
-        self._draw_selected_recipe_preview(screen)
+        self._draw_selected_recipe_panel(screen)
         self._draw_produce_button(screen)
         self._draw_progress_bar(screen)
         self._draw_cancel_button(screen)
 
         self._update_hover(screen)
+
+    def _draw_selected_recipe_panel(self, screen):
+        recipe = self.player.handcrafting.get_selected_recipe()
+        if not recipe: return
+
+        panel_rect = py.Rect(self.rect.x + 20, self.rect.bottom - 240, self.width - 40, 180)
+
+        self.recipe_ui.draw_recipe_panel(screen, recipe, custom_rect=panel_rect)
 
     def _draw_recipes(self, screen):
         self.recipe_rects = []
@@ -67,47 +74,6 @@ class HandCraftingUI:
             screen.blit(text, (r.x + 10, r.y + 8))
 
             y += 45
-
-    def _draw_selected_recipe_preview(self, screen):
-        recipe = self.player.handcrafting.get_selected_recipe()
-        if not recipe: return
-
-        preview = py.Surface((self.width - 40, 80), py.SRCALPHA)
-        py.draw.rect(preview, (202, 200, 228, 220), preview.get_rect(), border_radius=12)
-
-        # Inputs
-        preview.blit(self.small_font.render("Inputs:", True, "#000000"), (10, 10))
-
-        x = 80
-        for item_id, amount_needed in recipe.inputs.items():
-            item = get_item_by_id(item_id)
-            current = self.player.handcrafting.inventory.get_amount(item_id)
-
-            display_amount = min(current, amount_needed)
-            color = "#000000" if current >= amount_needed else "#AA0000"
-
-            if item and item.sprite:
-                sprite = py.transform.scale(item.sprite, (24, 24))
-                preview.blit(sprite, (x, 8))
-
-            text = f"{display_amount}/{amount_needed}"
-            preview.blit(self.small_font.render(text, True, color), (x + 28, 12))
-
-            x += 70
-
-        # Outputs
-        preview.blit(self.small_font.render("Outputs:", True, "#000000"), (10, 45))
-        x = 80
-        for item_id, amount in recipe.outputs.items():
-            item = get_item_by_id(item_id)
-            if item and item.sprite:
-                sprite = py.transform.scale(item.sprite, (24, 24))
-                preview.blit(sprite, (x, 43))
-
-            preview.blit(self.small_font.render(f"x{amount}", True, "#000000"), (x + 28, 47))
-            x += 70
-
-        screen.blit(preview, (self.rect.x + 20, self.rect.bottom - 240))
 
     def _draw_produce_button(self, screen):
         recipe = self.player.handcrafting.get_selected_recipe()

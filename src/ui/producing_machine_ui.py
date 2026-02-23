@@ -1,5 +1,4 @@
 import pygame as py
-import time
 
 from constants.itemdata import get_item_by_id
 from ui.recipe_ui import RecipeUI
@@ -102,13 +101,8 @@ class ProducingMachineUI:
                     hovered_recipe = recipe
                     break
 
-        if hovered_recipe != self._hovered_recipe:
-            self._hovered_recipe = hovered_recipe
-            self._hover_panel_visible = False
-        elif hovered_recipe:
-            self._hover_panel_visible = True
-        else:
-            self._hover_panel_visible = False
+        self._hovered_recipe = hovered_recipe
+        self._hover_panel_visible = bool(hovered_recipe)
 
         if self._hover_panel_visible and self._hovered_recipe:
             self.recipe_ui.draw_recipe_panel(screen, self._hovered_recipe, self.rect, self.panel_side)

@@ -38,9 +38,14 @@ class Game:
     def __init__(self):
         # Initialize Pygame and create the window
         py.init()
+  
         self.screen_width, self.screen_height = 1920, 1080
-        self.screen = py.display.set_mode((self.screen_width, self.screen_height))
+
+        self.screen = py.display.set_mode((self.screen_width, self.screen_height), py.RESIZABLE)
         self.clock = py.time.Clock()
+
+        # load item sprites
+        for item in ITEMS: item.load_sprite()
 
         # Fonts
         self.font = py.font.SysFont("Arial", 32)
@@ -60,6 +65,12 @@ class Game:
         self.selected_belt_type = "basic"
         self.splitter_rotation_steps = 0
         self.build_mode = None
+
+        # options flags
+        self.draw_grid = True
+        self.show_items_player_inventory = False
+        self.explain_recipe_machine = False
+        self.explain_recipe_hand_crafting = True
 
         # For detecting hovered object in delete mode
         self.hovered_delete_target = None
@@ -101,7 +112,7 @@ class Game:
         self.machine_placer = MachinePlacer(self.world, self.player, self.grid, self.camera, self.screen_width, self.screen_height, self.screen, self.machine_ui, self)
 
         
-        
+        # Recipes that can be used by player handcrafting
         self.player.handcrafting.recipes = smelter_recipes + assembler_recipes
 
         # This is just for testing
@@ -128,7 +139,7 @@ class Game:
                 self.machine_ui.handle_event(event, self.just_placed_machine, self.build_mode == "building",)
 
                 if self.build_mode == None:
-                    game.machine_interaction_system.handle_click(event, self.just_placed_machine)
+                    self.machine_interaction_system.handle_click(event, self.just_placed_machine)
 
             self.update()
             
@@ -167,7 +178,3 @@ class Game:
 
     def _cheat_add_items(self, item_id, amount):
         self.player.inventory.try_add_items(item_id, amount)
-
-game = Game()
-for item in ITEMS: item.load_sprite()
-game.run()
