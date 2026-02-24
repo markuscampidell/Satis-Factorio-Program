@@ -30,7 +30,7 @@ class RenderSystem:
         game.player.draw(screen, game.camera)
 
         # Draw machines in camera view
-        camera_rect = py.Rect(game.camera.x, game.camera.y, game.screen_width, game.screen_height)
+        camera_rect = py.Rect(game.camera.x, game.camera.y, game.camera.screen_width, game.camera.screen_height)
         for machine in game.world.machines:
             if machine.rect.colliderect(camera_rect):
                 machine.draw(screen, game.camera)
@@ -74,7 +74,7 @@ class RenderSystem:
 
     def _draw_belts(self, screen):
         game = self.game
-        camera_rect = py.Rect(game.camera.x, game.camera.y, game.screen_width, game.screen_height)
+        camera_rect = py.Rect(game.camera.x, game.camera.y, game.camera.screen_width, game.camera.screen_height)
 
         for seg in game.world.belt_segments:
             if seg.rect.colliderect(camera_rect):
@@ -87,7 +87,7 @@ class RenderSystem:
     def _draw_items_on_belts(self, screen):
         game = self.game
         cell = game.grid.CELL_SIZE
-        camera_rect = py.Rect(game.camera.x, game.camera.y, game.screen_width, game.screen_height)
+        camera_rect = py.Rect(game.camera.x, game.camera.y, game.camera.screen_width, game.camera.screen_height)
 
         for seg in game.world.belt_segments:
             if seg.rect.colliderect(camera_rect):

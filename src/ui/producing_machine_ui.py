@@ -250,3 +250,7 @@ class ProducingMachineUI:
         """Opens the UI for a specific machine."""
         self.open = True
         self.selected_machine = machine
+    
+    def update_size(self, width, height):
+        self.width = width
+        self.height = height

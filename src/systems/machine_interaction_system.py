@@ -9,10 +9,11 @@ class MachineInteractionSystem:
     def handle_click(self, event, just_placed_machine):
         if event.type != py.MOUSEBUTTONDOWN or event.button != 1: return
         if just_placed_machine: return
-
+        if self.game.build_mode is not None: return
+        if self.game.machine_ui.open: return
+        
         game = self.game
 
-        # Don't block based on build_mode or other UIs — InputSystem already handles UI priority
         mx, my = event.pos
         machine = game.world.get_machine_at_screen_pos(mx, my, game.camera)
 

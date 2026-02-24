@@ -1,13 +1,14 @@
 import pygame as py
 
 from ui.recipe_ui import RecipeUI
+from constants.itemdata import get_item_by_id
 
 
 class HandCraftingUI:
 
-    def __init__(self, player, screen_width, screen_height, panel_side="left"):
-
+    def __init__(self, player, get_screen_size, panel_side="left"):
         self.player = player
+        self.get_screen_size = get_screen_size
         self.open = False
         self.panel_side = panel_side
 
@@ -17,7 +18,8 @@ class HandCraftingUI:
         self.sprite = py.Surface((self.width, self.height), py.SRCALPHA)
         py.draw.rect(self.sprite, (202, 200, 228, 220), self.sprite.get_rect(), border_radius=18)
 
-        self.rect = self.sprite.get_rect(x=screen_width - self.width, y=screen_height // 2 - self.height // 2)
+        w, h = self.get_screen_size()
+        self.rect = self.sprite.get_rect(x=w - self.width, y=h // 2 - self.height // 2)
 
         self.font = py.font.SysFont("Arial", 20)
         self.small_font = py.font.SysFont("Arial", 16)
@@ -36,23 +38,34 @@ class HandCraftingUI:
         self.recipe_ui = RecipeUI()
 
     def draw(self, screen):
-        if not self.open: return
+        if not self.open: 
+            return
 
+        # Get current screen size
+        w, h = self.get_screen_size()
+
+        # Always stick to right side, vertically centered
+        self.rect.x = w - self.width - 20  # 20px padding from right edge
+        self.rect.y = h // 2 - self.height // 2
+
+        # Draw the panel
         screen.blit(self.sprite, self.rect)
 
+        # Draw inner components
         self._draw_recipes(screen)
         self._draw_selected_recipe_panel(screen)
         self._draw_produce_button(screen)
         self._draw_progress_bar(screen)
         self._draw_cancel_button(screen)
 
+        # Update hover info
         self._update_hover(screen)
 
     def _draw_selected_recipe_panel(self, screen):
         recipe = self.player.handcrafting.get_selected_recipe()
         if not recipe: return
 
-        panel_rect = py.Rect(self.rect.x + 20, self.rect.bottom - 240, self.width - 40, 180)
+        panel_rect = py.Rect(self.rect.x + 20, self.rect.bottom - 320, self.width - 40, 180)
 
         self.recipe_ui.draw_recipe_panel(screen, recipe, custom_rect=panel_rect)
 
@@ -60,6 +73,7 @@ class HandCraftingUI:
         self.recipe_rects = []
         y = self.rect.y + 40
 
+        # Header
         header = self.font.render("Handcrafting", True, "#000000")
         screen.blit(header, (self.rect.x + 10, self.rect.y + 10))
 
@@ -67,13 +81,24 @@ class HandCraftingUI:
             r = py.Rect(self.rect.x + 10, y, self.width - 20, 40)
             self.recipe_rects.append((r, recipe))
 
+            # Highlight selected recipe
             if i == self.player.handcrafting.selected_recipe_index:
                 py.draw.rect(screen, (255, 165, 0), r, border_radius=6)
 
+            # Draw recipe name
             text = self.font.render(recipe.name, True, "#000000")
             screen.blit(text, (r.x + 10, r.y + 8))
 
-            y += 45
+            # Draw output item sprites
+            output_x = r.x + 150  # start drawing outputs 150px from left
+            for item_id in recipe.outputs.keys():
+                item = get_item_by_id(item_id)
+                if item and item.sprite:
+                    sprite = py.transform.scale(item.sprite, (24, 24))
+                    screen.blit(sprite, (output_x, r.y + 8))
+                    output_x += 28  # move to the right for next sprite
+
+            y += 45  # spacing between recipes
 
     def _draw_produce_button(self, screen):
         recipe = self.player.handcrafting.get_selected_recipe()

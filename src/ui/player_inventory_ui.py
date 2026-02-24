@@ -6,30 +6,39 @@ class PlayerInventoryUI:
     SLOT_SIZE = 64
     PADDING = 10
 
-    def __init__(self, player, screen_height):
+    def __init__(self, player, get_screen_size, panel_side="left"):
         self.player = player
+        self.get_screen_size = get_screen_size
+        self.panel_side = panel_side  # "left" or "right"
         self.open = False
 
-        width = self.player.inventory.width * self.SLOT_SIZE + self.PADDING * 2
-        height = self.player.inventory.height * self.SLOT_SIZE + self.PADDING * 2
+        self.width = self.player.inventory.width * self.SLOT_SIZE + self.PADDING * 2
+        self.height = self.player.inventory.height * self.SLOT_SIZE + self.PADDING * 2
 
         # Panel Surface
-        self.sprite = py.Surface((width, height), py.SRCALPHA)
-        color = (202, 200, 228, 220)
-        py.draw.rect(self.sprite, color, self.sprite.get_rect(), border_radius=18)
+        self.sprite = py.Surface((self.width, self.height), py.SRCALPHA)
+        py.draw.rect(self.sprite, (202, 200, 228, 220), self.sprite.get_rect(), border_radius=18)
 
-        self.rect = self.sprite.get_rect(x=0, centery=screen_height // 2)
+        # Initial position; we'll update Y each draw
+        screen_w, screen_h = self.get_screen_size()
+        x = 0 if self.panel_side == "left" else screen_w - self.width
+        self.rect = self.sprite.get_rect(x=x, centery=screen_h // 2)
 
         self.font_small = py.font.SysFont("Arial", 14)
 
         # Hover
         self.slot_rects = []
-
         self._hovered_item = None
         self._tooltip_visible = False
 
     def draw(self, screen):
-        if not self.open: return
+        if not self.open:
+            return
+
+        # Always recalc screen size and update position
+        screen_w, screen_h = self.get_screen_size()
+        self.rect.centery = screen_h // 2
+        self.rect.x = 0 if self.panel_side == "left" else screen_w - self.width
 
         screen.blit(self.sprite, self.rect.topleft)
 

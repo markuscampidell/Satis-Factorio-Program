@@ -4,13 +4,11 @@ from objects.machines.splitter import Splitter
 from core.vector2 import Vector2
 
 class MachineSystem:
-    def __init__(self, world, player, grid, camera, screen_width, screen_height, screen, machine_ui, game=None, splitter_rotation_steps=0):
+    def __init__(self, world, player, grid, camera, screen, machine_ui, game=None, splitter_rotation_steps=0):
         self.world = world
         self.player = player
         self.grid = grid
         self.camera = camera
-        self.screen_width = screen_width
-        self.screen_height = screen_height
         self.screen = screen
         self.machine_ui = machine_ui
         self.game = game
@@ -19,72 +17,66 @@ class MachineSystem:
         self.just_placed_machine = False
 
     def place_machine(self, selected_machine_class):
-        """
-        Places the selected machine in the world.
-        Handles rotation for splitters according to self.splitter_rotation_steps.
-        """
         if selected_machine_class is None: return
         (snapped_x, snapped_y), blocked = self.get_machine_placement_preview(selected_machine_class)
         if blocked: return
 
         cost = selected_machine_class.BUILD_COST
         if not self.player.inventory.has_enough_items(cost): return
-
         self.player.inventory.try_remove_items(cost)
 
-        # Splitter placement with rotation
         if selected_machine_class.__name__ == "Splitter":
-            from objects.machines.splitter import Splitter
+            direction_map = [Vector2(1, 0),
+                             Vector2(0, 1),
+                             Vector2(-1, 0),
+                             Vector2(0, -1)]
 
-            # Determine direction from rotation steps
-            direction_map = [
-                Vector2(1, 0),   # 0°
-                Vector2(0, 1),   # 90°
-                Vector2(-1, 0),  # 180°
-                Vector2(0, -1)   # 270°
-            ]
             direction = direction_map[self.game.splitter_rotation_steps]
 
-            splitter = Splitter(pos=(snapped_x, snapped_y), direction=direction)
-            splitter.rotation_angle = self.game.splitter_rotation_steps * 90
-            splitter.image = py.transform.rotate(splitter.image_original, -splitter.rotation_angle)
-            splitter.rect = splitter.image.get_rect(center=(snapped_x, snapped_y))
+            machine = Splitter(pos=(snapped_x, snapped_y), direction=direction)
+            machine.rotation_angle = self.game.splitter_rotation_steps * 90
+            machine.image = py.transform.rotate(machine.image_original, -machine.rotation_angle)
+            machine.rect = machine.image.get_rect(center=(snapped_x, snapped_y))
 
-            # Set outputs to belts
             cell_size = self.grid.CELL_SIZE
-            splitter.output_belts = []
-            for dir_vec in splitter._get_relative_dirs():
-                next_rect = splitter.rect.move(int(dir_vec.x * cell_size), int(dir_vec.y * cell_size))
+            machine.output_belts = []
+
+            for dir_vec in machine._get_relative_dirs():
+                next_rect = machine.rect.move(int(dir_vec.x * cell_size),
+                                              int(dir_vec.y * cell_size))
                 seg = self.world.belt_map.get((next_rect.x, next_rect.y))
                 if seg:
-                    splitter.output_belts.append(seg)
+                    machine.output_belts.append(seg)
 
-            splitter.current_output_index %= max(len(splitter.output_belts), 1)
-            self.world.machines.append(splitter)
-            self.preview_machine = None
+            machine.current_output_index %= max(len(machine.output_belts), 1)
 
-        # Other machines (producing machines)
         else:
-            self.world.machines.append(selected_machine_class(pos=(snapped_x, snapped_y)))
+            machine = selected_machine_class(pos=(snapped_x, snapped_y))
 
+        self.world.add_machine(machine)
+
+        self.preview_machine = None
         self.just_placed_machine = True
         self.machine_ui.close()
 
     def delete_machine(self, mx, my):
-        world_x, world_y = mx + self.camera.x, my + self.camera.y
+        world_x = mx + self.camera.x
+        world_y = my + self.camera.y
 
-        for machine in self.world.machines:
+        for machine in list(self.world.machines):
             if machine.rect.collidepoint(world_x, world_y):
-                if self.machine_ui.selected_machine == machine:
-                    self.machine_ui.close()
                 if hasattr(machine, "transfer_processing_items_to_player"):
                     machine.transfer_processing_items_to_player(self.player.inventory)
-                if machine.__class__.__name__ == "Splitter" and getattr(machine, "current_item", None):
-                    self.player.inventory.try_add_items(machine.current_item, 1)
-                    machine.current_item = None
+
+                if machine.__class__.__name__ == "Splitter":
+                    if getattr(machine, "current_item", None):
+                        self.player.inventory.try_add_items(machine.current_item, 1)
+                        machine.current_item = None
+
                 for item_id, amount in machine.BUILD_COST.items():
                     self.player.inventory.try_add_items(item_id, amount)
-                self.world.machines.remove(machine)
+
+                self.world.remove_machine(machine)
                 return
 
     def get_machine_placement_preview(self, selected_machine_class):
@@ -181,7 +173,7 @@ class MachineSystem:
         # Draw if inside camera
         ghost_rect = ghost.get_rect(center=(snapped_x, snapped_y))
 
-        camera_rect = py.Rect(self.camera.x, self.camera.y, self.screen_width, self.screen_height)
+        camera_rect = py.Rect(self.camera.x, self.camera.y, self.camera.screen_width, self.camera.screen_height)
 
         if ghost_rect.colliderect(camera_rect):
             self.screen.blit(ghost, (ghost_rect.x - self.camera.x, ghost_rect.y - self.camera.y))
