@@ -20,7 +20,6 @@ class InputSystem:
         if event.type != py.KEYDOWN:
             return
 
-        # --- ESCAPE: Close all UIs and cancel build ---
         if event.key == py.K_ESCAPE:
             self.ui_manager.close_all_uis()
             game.build_mode = None
@@ -28,7 +27,6 @@ class InputSystem:
             game.selected_machine_class = None
             return
 
-        # --- Toggle Build Mode ---
         if event.key == py.K_q:
             self.ui_manager.close_all_uis()
             if game.build_mode == "building":
@@ -39,7 +37,6 @@ class InputSystem:
                 game.placing_belt = False
             return
 
-        # --- Toggle Delete Mode ---
         if event.key == py.K_x:
             self.ui_manager.close_all_uis()
 
@@ -51,7 +48,6 @@ class InputSystem:
                 
             return
 
-        # --- Fill Selected Machine Inputs ---
         if event.key == py.K_i:
             if game.machine_ui.open and game.machine_ui.selected_machine:
                 machine = game.machine_ui.selected_machine
@@ -61,7 +57,6 @@ class InputSystem:
                         inv.try_add_items(item_id, amount)
             return
 
-        # --- Toggle Crafting UI ---
         if event.key == py.K_f:
             # Opening crafting UI cancels build
             if not game.crafting_ui.open:
@@ -72,7 +67,6 @@ class InputSystem:
                 game.crafting_ui.close()
             return
 
-        # --- Toggle Inventory UI ---
         if event.key == py.K_TAB:
             # Opening inventory cancels build
             if not game.player_inventory_ui.open:
@@ -81,18 +75,15 @@ class InputSystem:
             self.ui_manager.toggle_ui("player_inventory")
             return
 
-        # --- Crafting Shortcuts ---
         if game.crafting_ui.open:
             if event.key == py.K_SPACE:
                 game.crafting_ui.auto_crafting = not game.crafting_ui.auto_crafting
                 game.crafting_ui.progress = 0.0
             return
         
-        # --- Block keys if other UIs are open ---
         if game.player_inventory_ui.open or game.machine_ui.open:
             return
 
-        # --- Rotate Machine / Belt ---
         if event.key == py.K_r and game.build_mode == "building":
             if game.selected_machine_class is Splitter:
                 game.splitter_rotation_steps = (game.splitter_rotation_steps + 1) % 4
@@ -100,14 +91,12 @@ class InputSystem:
                 x, y = game.belts.belt_placement_direction.x, game.belts.belt_placement_direction.y
                 game.belts.belt_placement_direction = Vector2(-y, x)
 
-        # --- Toggle Belt Axis ---
         if event.key == py.K_t:
             if game.build_mode == "building" and \
                game.selected_machine_class is BeltSegment and \
                game.placing_belt:
                 game.belts.belt_first_axis_horizontal = not game.belts.belt_first_axis_horizontal
 
-        # --- Number keys: Select Machine Type ---
         if game.build_mode in ("building", "deleting"):
             if event.key in (py.K_1, py.K_2, py.K_3, py.K_4):
                 if event.key == py.K_1:
@@ -138,6 +127,7 @@ class InputSystem:
         # Right click cancels build/delete
         if event.button == 3:
             self.cancel_build_or_delete()
+            self.reset_rotation()
             return
 
         # Left click for world interactions

@@ -8,15 +8,12 @@ class BeltSystem:
                    "fast": {"iron_ingot": 5, "copper_ingot": 1},
                    "express": {"iron_ingot": 10, "copper_ingot": 5}}
     
-    def __init__(self, world, grid, player, screen, camera, screen_width, screen_height, ghost_belt_renderer):
+    def __init__(self, world, grid, player, ghost_belt_renderer):
         self.world = world
         self.grid = grid
         self.player = player
-        self.screen = screen
-        self.camera = camera
-        self.screen_width = screen_width
-        self.screen_height = screen_height
-        self.ghost_belt_renderer = ghost_belt_renderer  # <--- set it here
+        self.ghost_belt_renderer = ghost_belt_renderer
+
         self.belt_first_axis_horizontal = True
         self.beltX1 = 0
         self.beltY1 = 0
@@ -27,12 +24,9 @@ class BeltSystem:
         end_x, end_y = self._snap_to_grid(world_x2, world_y2)
 
         rects = self._get_snapped_rects_for_drag(start_x, start_y, end_x, end_y, horizontal_first=self.belt_first_axis_horizontal)
-
-        # Convert rects into segments
         segments, blocked = self._rects_to_segments(rects, belt_type=belt_type, check_blocked=True)
         if blocked: return
 
-        # Calculate total cost
         total_cost = {}
         build_cost = self.BUILD_COSTS[belt_type]
         for seg in segments:
@@ -40,28 +34,19 @@ class BeltSystem:
                 total_cost[item_id] = total_cost.get(item_id, 0) + amount
 
         if not self.player.inventory.has_enough_items(total_cost): return
-        
         self.player.inventory.try_remove_items(total_cost)
 
-        self.world.belt_segments.extend(segments)
         for seg in segments:
-            self.world.belt_map[seg.rect.topleft] = seg
+            self.world.add_belt_segment(seg)
 
-        self.recalc_belt_directions(segments)
-        self.update_belt_sprites(segments)
         self.update_belt_incoming_direction(segments)
-
     
     def delete_belt(self, mx, my, delete_whole=False, camera_x=0, camera_y=0, player_inventory=None): # ok
         world_x = mx + camera_x
         world_y = my + camera_y
         shift_held = py.key.get_mods() & py.KMOD_SHIFT
 
-        target_seg = None
-        for seg in self.world.belt_segments:
-            if seg.rect.collidepoint(world_x, world_y):
-                target_seg = seg
-                break
+        target_seg = self.world.get_belt_segment_at(world_x, world_y)
         if not target_seg: return
 
         if delete_whole or shift_held: to_delete = self.get_connected_belt_segments(target_seg)
@@ -71,33 +56,9 @@ class BeltSystem:
             seg.refund_item_on_segment(self.player.inventory)
             for item_id, amount in self.BUILD_COSTS[seg.belt_type].items():
                 player_inventory.try_add_items(item_id, amount)
-            self.remove_segment_from_map(seg)
+            self.world.remove_belt_segment(seg)
 
 
-    def recalc_belt_directions(self, segments=None):
-        cell = self.grid.CELL_SIZE
-        segments = segments or self.world.belt_segments
-
-        for seg in segments:
-            # If single segment, just use placement direction
-            if len(segments) == 1:
-                seg.direction = self.belt_placement_direction
-                continue
-
-            # Find the next segment in line
-            neighbors = {(1, 0): self.world.belt_map.get((seg.rect.x + cell, seg.rect.y)),
-                         (-1, 0): self.world.belt_map.get((seg.rect.x - cell, seg.rect.y)),
-                         (0, 1): self.world.belt_map.get((seg.rect.x, seg.rect.y + cell)),
-                         (0, -1): self.world.belt_map.get((seg.rect.x, seg.rect.y - cell))}
-
-            current_dir = (seg.direction.x, seg.direction.y)
-            next_seg = neighbors.get(current_dir)
-
-            if next_seg:
-                # Set direction toward next segment
-                dx = (next_seg.rect.x - seg.rect.x) // cell
-                dy = (next_seg.rect.y - seg.rect.y) // cell
-                seg.direction = Vector2(dx, dy)
     
     def get_connected_belt_segments(self, start_seg):
         visited = set()
@@ -162,35 +123,6 @@ class BeltSystem:
         return segments
 
 
-
-    def update_belt_sprites(self, segments=None):
-        """
-        Updates sprite_type for belt segments based on neighbors.
-        Only affects visuals, not direction.
-        """
-        cell = self.grid.CELL_SIZE
-        targets = segments or self.world.belt_segments
-
-        for seg in targets:
-            seg.sprite_type = "straight"  # default
-
-            # Get front neighbor
-            fx = seg.rect.x + seg.direction.x * cell
-            fy = seg.rect.y + seg.direction.y * cell
-            front = self.world.belt_map.get((fx, fy))
-
-            if front and (front.direction.x != seg.direction.x or front.direction.y != seg.direction.y):
-                # front neighbor is orthogonal → possible curve
-                # check side neighbors
-                left_dx, left_dy = -seg.direction.y, seg.direction.x
-                right_dx, right_dy = seg.direction.y, -seg.direction.x
-                left_neighbor = self.world.belt_map.get((seg.rect.x + left_dx*cell, seg.rect.y + left_dy*cell))
-                right_neighbor = self.world.belt_map.get((seg.rect.x + right_dx*cell, seg.rect.y + right_dy*cell))
-
-                if left_neighbor and not right_neighbor:
-                    seg.sprite_type = "curve_left"
-                elif right_neighbor and not left_neighbor:
-                    seg.sprite_type = "curve_right"
     
     def update_belt_incoming_direction(self, segments=None):
         """
@@ -227,13 +159,7 @@ class BeltSystem:
 
 
 
-    def rebuild_belt_map(self):
-        self.world.belt_map = {seg.rect.topleft: seg for seg in self.world.belt_segments}
     
-    def remove_segment_from_map(self, seg):
-        if seg in self.world.belt_segments:
-            self.world.belt_segments.remove(seg)
-        self.world.belt_map.pop(seg.rect.topleft, None)
 
     def _get_snapped_rects_for_drag(self, start_x, start_y, end_x, end_y, horizontal_first=True):
         start_x, start_y = self._snap_to_grid(start_x, start_y)
@@ -252,6 +178,7 @@ class BeltSystem:
             for x in range(start_x + dx * cell, end_x + dx * cell, dx * cell): rects.append(py.Rect(x, end_y, cell, cell))
 
         return rects
+    
 
     def ghost_conveyor_belt(self, selected_machine_class, placing_belt=False, selected_belt_type="basic"):
         if selected_machine_class is not BeltSegment: return
@@ -302,6 +229,8 @@ class BeltSystem:
                 visible_flags.append(flag)
 
         self.ghost_belt_renderer.draw_dragging(self.screen, self.camera, visible_segments, color_flags=visible_flags)
+
+    
 
     def _snap_to_grid(self, x, y):
             cell = self.grid.CELL_SIZE

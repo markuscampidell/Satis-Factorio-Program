@@ -20,7 +20,7 @@ class RenderSystem:
         # Ghost previews
         if game.build_mode == "building" and game.selected_machine_class is not None:
             game.machine_placer.ghost_machine(game.selected_machine_class, game.build_mode, game.splitter_rotation_steps)
-            game.belts.ghost_conveyor_belt(game.selected_machine_class, game.placing_belt, game.selected_belt_type)
+            game.ghost_placer.draw_ghost(game.selected_machine_class, game.placing_belt, game.selected_belt_type)
 
         # Draw belts and items
         self._draw_belts(screen)

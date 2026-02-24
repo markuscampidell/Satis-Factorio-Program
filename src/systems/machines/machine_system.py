@@ -3,7 +3,7 @@ from objects.conveyors.belt_segment import BeltSegment
 from objects.machines.splitter import Splitter
 from core.vector2 import Vector2
 
-class MachinePlacer:
+class MachineSystem:
     def __init__(self, world, player, grid, camera, screen_width, screen_height, screen, machine_ui, game=None, splitter_rotation_steps=0):
         self.world = world
         self.player = player
@@ -23,12 +23,9 @@ class MachinePlacer:
         Places the selected machine in the world.
         Handles rotation for splitters according to self.splitter_rotation_steps.
         """
-        if selected_machine_class is None:
-            return
-
+        if selected_machine_class is None: return
         (snapped_x, snapped_y), blocked = self.get_machine_placement_preview(selected_machine_class)
-        if blocked:
-            return
+        if blocked: return
 
         cost = selected_machine_class.BUILD_COST
         if not self.player.inventory.has_enough_items(cost): return
@@ -139,17 +136,9 @@ class MachinePlacer:
         return (snapped_x, snapped_y), blocked
     
     def ghost_machine(self, selected_machine_class=None, build_mode=None, rotation_steps=0):
-        """
-        Draws a ghost preview for the selected machine.
-        Uses WIDTH/HEIGHT (grid cells) instead of SIZE (pixels).
-        """
-        if selected_machine_class is None or build_mode != 'building':
-            return
+        if selected_machine_class is None or build_mode != 'building': return
+        if selected_machine_class is BeltSegment: return
 
-        if selected_machine_class is BeltSegment:
-            return
-
-        # Get snapped position & blocked state
         (snapped_x, snapped_y), blocked = self.get_machine_placement_preview(selected_machine_class)
 
         cell = self.grid.CELL_SIZE
@@ -174,19 +163,16 @@ class MachinePlacer:
 
         ghost = getattr(selected_machine_class, cache_key).copy()
 
-        # Rotate ghost (for splitters or future rotatable machines)
         if selected_machine_class is Splitter:
             ghost = py.transform.rotate(ghost, -90 * rotation_steps)
 
         ghost.set_alpha(120)
 
-        # 🔴 Red overlay if blocked
         if blocked:
             overlay = py.Surface(ghost.get_size(), py.SRCALPHA)
             overlay.fill((255, 0, 0, 120))
             ghost.blit(overlay, (0, 0))
 
-        # 🟡 Yellow overlay if can't afford
         if not self.player.inventory.has_enough_items(selected_machine_class.BUILD_COST):
             overlay = py.Surface(ghost.get_size(), py.SRCALPHA)
             overlay.fill((255, 255, 0, 120))
@@ -195,15 +181,7 @@ class MachinePlacer:
         # Draw if inside camera
         ghost_rect = ghost.get_rect(center=(snapped_x, snapped_y))
 
-        camera_rect = py.Rect(
-            self.camera.x,
-            self.camera.y,
-            self.screen_width,
-            self.screen_height
-        )
+        camera_rect = py.Rect(self.camera.x, self.camera.y, self.screen_width, self.screen_height)
 
         if ghost_rect.colliderect(camera_rect):
-            self.screen.blit(
-                ghost,
-                (ghost_rect.x - self.camera.x, ghost_rect.y - self.camera.y)
-            )
+            self.screen.blit(ghost, (ghost_rect.x - self.camera.x, ghost_rect.y - self.camera.y))

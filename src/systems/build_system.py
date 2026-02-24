@@ -81,21 +81,18 @@ class BuildSystem:
         world_x = mx + game.camera.x
         world_y = my + game.camera.y
 
-        # Check machines first
+        # Check machines (we'll improve this later)
         for machine in game.world.machines:
             if machine.rect.collidepoint(world_x, world_y):
                 game.hovered_delete_target = machine
                 return
 
-        # Then check belts
-        for seg in game.world.belt_segments:
-            if seg.rect.collidepoint(world_x, world_y):
-                game.hovered_delete_target = seg
-                return
+        snapped_x, snapped_y = game.belts._snap_to_grid(world_x, world_y)
+        seg = game.world.belt_map.get((snapped_x, snapped_y))
 
-        game.hovered_delete_target = None
+        if seg: game.hovered_delete_target = seg
+        else: game.hovered_delete_target = None
 
-    # --- Helper ---
     def _mouse_over_ui(self, mx, my):
         game = self.game
         return ((game.machine_ui.open and game.machine_ui.rect.collidepoint(mx, my)) or

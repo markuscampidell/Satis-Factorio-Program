@@ -16,9 +16,9 @@ from objects.machines.smelter import Smelter
 from objects.machines.splitter import Splitter
 from objects.machines.producing_machine import ProducingMachine
 
-from systems.machines.machine_placer import MachinePlacer
-
+from systems.machines.machine_system import MachineSystem
 from systems.machine_interaction_system import MachineInteractionSystem
+
 from systems.input_system import InputSystem
 from systems.build_system import BuildSystem
 from systems.render_system import RenderSystem
@@ -26,6 +26,7 @@ from systems.render_system import RenderSystem
 from systems.conveyors.beltsystem import BeltSystem
 from systems.conveyors.beltspritemanager import BeltSpriteManager
 from systems.conveyors.ghost_belt_renderer import GhostBeltRenderer
+from systems.conveyors.ghost_belt_placer import GhostBeltPlacer
 
 from ui.hand_crafting_ui import HandCraftingUI
 from constants.recipes import smelter_recipes, assembler_recipes
@@ -91,7 +92,7 @@ class Game:
         self.player = Player(self.grid.CELL_SIZE)
 
         # World
-        self.world = World(self.player)
+        self.world = World(self.player, self.grid.CELL_SIZE)
 
         # Center camera on player
         self.camera.x = self.player.rect.centerx - self.screen_width // 2
@@ -104,12 +105,16 @@ class Game:
         
 
         # Systems
-        self.machine_interaction_system = MachineInteractionSystem(self)
+        
         self.build_system = BuildSystem(self)
         self.input_system = InputSystem(self)
         self.render_system = RenderSystem(self)
-        self.belts = BeltSystem(self.world, self.grid, self.player, self.screen, self.camera, self.screen_width, self.screen_height, self.ghost_belt_renderer)
-        self.machine_placer = MachinePlacer(self.world, self.player, self.grid, self.camera, self.screen_width, self.screen_height, self.screen, self.machine_ui, self)
+
+        self.belts = BeltSystem(self.world, self.grid, self.player, self.ghost_belt_renderer)
+        self.ghost_placer = GhostBeltPlacer(self.world, self.player, self.grid, self.belts, self.ghost_belt_renderer, self.camera, self.screen)
+
+        self.machine_placer = MachineSystem(self.world, self.player, self.grid, self.camera, self.screen_width, self.screen_height, self.screen, self.machine_ui, self)
+        self.machine_interaction_system = MachineInteractionSystem(self)
 
         
         # Recipes that can be used by player handcrafting
@@ -142,14 +147,6 @@ class Game:
                     self.machine_interaction_system.handle_click(event, self.just_placed_machine)
 
             self.update()
-            
-            self.screen.fill("#987171")
-
-            if self.build_mode is not None: self.grid.draw(self.screen, self.camera)
-
-            if self.build_mode == "building" and self.selected_machine_class is not None:
-                self.machine_placer.ghost_machine(self.selected_machine_class, self.build_mode, self.splitter_rotation_steps)
-                self.belts.ghost_conveyor_belt(self.selected_machine_class, self.placing_belt, self.selected_belt_type)
 
             self.render_system.draw(self.screen)
 
@@ -158,7 +155,7 @@ class Game:
     def update(self):
         delta_time = self.clock.tick(60) / 1000
         self.player.update(self.world.machines, delta_time)
-        self.camera.update(self.player, self.screen_width, self.screen_height)
+        self.camera.update(self.player)
 
         if self.crafting_ui.open:
             self.crafting_ui.update(delta_time)
