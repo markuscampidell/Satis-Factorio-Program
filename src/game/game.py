@@ -71,6 +71,7 @@ class Game:
         self.selected_belt_type = "basic"
         self.splitter_rotation_steps = 0
         self.build_mode = None
+        self.placing_belt = False
 
         # Options
         self.draw_grid = True
