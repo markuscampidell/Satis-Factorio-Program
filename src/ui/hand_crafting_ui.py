@@ -13,7 +13,7 @@ class HandCraftingUI:
         self.panel_side = panel_side
 
         self.width = 300
-        self.height = 800
+        self.height = 600
 
         self.sprite = py.Surface((self.width, self.height), py.SRCALPHA)
         py.draw.rect(self.sprite, (202, 200, 228, 220), self.sprite.get_rect(), border_radius=18)

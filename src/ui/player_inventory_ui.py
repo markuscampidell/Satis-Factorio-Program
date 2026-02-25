@@ -3,13 +3,13 @@ import pygame as py
 from constants.itemdata import get_item_by_id
 
 class PlayerInventoryUI:
-    SLOT_SIZE = 64
+    SLOT_SIZE = 48
     PADDING = 10
 
     def __init__(self, player, get_screen_size, panel_side="left"):
         self.player = player
         self.get_screen_size = get_screen_size
-        self.panel_side = panel_side  # "left" or "right"
+        self.panel_side = panel_side
         self.open = False
 
         self.width = self.player.inventory.width * self.SLOT_SIZE + self.PADDING * 2
@@ -92,11 +92,9 @@ class PlayerInventoryUI:
             self._hovered_item = hovered_item
             self._tooltip_visible = False
 
-        elif hovered_item:
-            self._tooltip_visible = True
+        elif hovered_item: self._tooltip_visible = True
 
-        else:
-            self._tooltip_visible = False
+        else: self._tooltip_visible = False
 
         if self._tooltip_visible and self._hovered_item:
             self._draw_tooltip(screen, self._hovered_item.name, (mx, my))

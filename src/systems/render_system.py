@@ -96,8 +96,8 @@ class RenderSystem:
     def _draw_texts(self, screen):
         game = self.game
         screen.blit(game.title_font_surface, (10, 10))
-        screen.blit(game.font.render(f"Player position: x:{game.player.rect.centerx} y:{game.player.rect.centery}", True, "#000000"), (10, 50))
-        screen.blit(game.font.render(f"FPS: {int(game.clock.get_fps())}", True, "#000000"), (10, 90))
+        screen.blit(game.font.render(f"Player position: x:{game.player.rect.centerx} y:{game.player.rect.centery}", True, "#000000"), (10, 35))
+        screen.blit(game.font.render(f"FPS: {int(game.clock.get_fps())}", True, "#000000"), (10, 60))
 
     def _highlight_hovered_delete_target(self, screen):
         game = self.game

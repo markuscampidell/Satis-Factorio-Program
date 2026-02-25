@@ -47,14 +47,14 @@ class Game:
         self.create_starting_objects()
 
     def _init_window(self):
-        self.start_screen_width, self.start_screen_height = 1920, 1080
+        self.start_screen_width, self.start_screen_height = 1280, 720
         self.screen = py.display.set_mode((self.start_screen_width, self.start_screen_height), py.RESIZABLE)
         self.clock = py.time.Clock()
 
     def _init_graphics(self):
         for item in ITEMS: item.load_sprite()
 
-        self.font = py.font.SysFont("Arial", 32)
+        self.font = py.font.SysFont("Arial", 20)
         self.title_font_surface = self.font.render("Satis Factorio Program", True, "#000000")
 
         self.belt_sprite_manager = BeltSpriteManager()

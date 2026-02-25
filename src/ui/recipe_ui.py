@@ -28,8 +28,7 @@ class RecipeUI:
 
             panel_y = parent_rect.y + 40
             panel_rect = py.Rect(panel_x, panel_y, panel_width, panel_height)
-
-        # -------- PANEL SURFACE --------
+            
         panel = py.Surface((panel_rect.width, panel_rect.height), py.SRCALPHA)
         py.draw.rect(panel, (202, 200, 228, 220), panel.get_rect(), border_radius=18)
 

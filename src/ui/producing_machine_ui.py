@@ -6,8 +6,11 @@ from ui.recipe_ui import RecipeUI
 
 class ProducingMachineUI:
     """UI for displaying and interacting with a producing machine's recipes and inventory."""
+    SLOT_SIZE = 48
+    PADDING = 10
+    
     def __init__(self, screen_width, screen_height, world, camera, player, player_inventory_ui, screen, panel_side="right"):
-        self.sprite = py.Surface((800, 300), py.SRCALPHA)
+        self.sprite = py.Surface((500, 300), py.SRCALPHA)
         self.rect = self.sprite.get_rect(center=(screen_width // 2, screen_height // 2))
         # Draw rounded panel background
         py.draw.rect(self.sprite, "#CAC8E4", self.sprite.get_rect(), border_radius=18)
@@ -16,8 +19,8 @@ class ProducingMachineUI:
         self.selected_machine = None
         self.dragging = False
         self.drag_offset = (0, 0)
-        self.slot_size = 48
-        self.PADDING = 10
+        
+        
         self.slot_rects = []
         self.recipe_rects = []
         self.sprite.set_alpha(220)
@@ -110,7 +113,7 @@ class ProducingMachineUI:
     def _draw_progress_bar(self, screen):
         """Draws the processing progress bar."""
         machine = self.selected_machine
-        bar_width, bar_height = 400, 20
+        bar_width, bar_height = 300, 20
         bar_x = self.rect.centerx - bar_width // 2
         bar_y = self.rect.bottom - bar_height - 15
         bg_rect = py.Rect(bar_x, bar_y, bar_width, bar_height)
@@ -163,7 +166,7 @@ class ProducingMachineUI:
         self.slot_rects.clear()
         padding = 40
         input_y = self.rect.y + padding
-        output_y = self.rect.bottom - padding - self.slot_size
+        output_y = self.rect.bottom - padding - self.SLOT_SIZE
         input_x = output_x = self.rect.x + padding
         self._draw_input_slots(screen, input_x, input_y, self.selected_machine.inputs_per_minute())
         self._draw_output_slots(screen, output_x, output_y, self.selected_machine.output_inventories, self.selected_machine.outputs_per_minute())
@@ -174,7 +177,7 @@ class ProducingMachineUI:
         font = py.font.SysFont("Arial", 16)
         slot_spacing = 10
         for i, item_id in enumerate(inputs_per_min.keys()):
-            rect = py.Rect(x + i * (self.slot_size + slot_spacing), y, self.slot_size, self.slot_size)
+            rect = py.Rect(x + i * (self.SLOT_SIZE + slot_spacing), y, self.SLOT_SIZE, self.SLOT_SIZE)
             # Draw slot border only (no filled background)
             py.draw.rect(screen, "#AAAAAA", rect, 2)
             slot = self.selected_machine.input_inventories[item_id].slots[0][0] if self.selected_machine.input_inventories[item_id].slots[0] else None
@@ -189,7 +192,7 @@ class ProducingMachineUI:
         font = py.font.SysFont("Arial", 16)
         slot_spacing = 10
         for i, (item_id, inv) in enumerate(output_inventories.items()):
-            rect = py.Rect(x + i * (self.slot_size + slot_spacing), y, self.slot_size, self.slot_size)
+            rect = py.Rect(x + i * (self.SLOT_SIZE + slot_spacing), y, self.SLOT_SIZE, self.SLOT_SIZE)
             # Draw slot border only (no filled background)
             py.draw.rect(screen, "#AAAAAA", rect, 2)
             slot = inv.slots[0][0] if inv.slots[0] else None
@@ -233,7 +236,7 @@ class ProducingMachineUI:
         py.draw.rect(screen, "#AAAAAA", rect, 2)
         item = get_item_by_id(slot["item"]) if isinstance(slot["item"], str) else slot["item"]
         if item and hasattr(item, "sprite") and item.sprite:
-            img = py.transform.scale(item.sprite, (self.slot_size - 10, self.slot_size - 10))
+            img = py.transform.scale(item.sprite, (self.SLOT_SIZE - 10, self.SLOT_SIZE - 10))
             screen.blit(img, (rect.x + 5, rect.y + 5))
         amount = slot["amount"]
         amount_font = py.font.SysFont("Arial", 10)
