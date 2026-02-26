@@ -1,5 +1,5 @@
 class Camera:
-    def __init__(self, screen_width: float, screen_height: float, margin=400, smooth=0.05):
+    def __init__(self, screen_width: float, screen_height: float, margin=350, smooth=0.05):
         self.screen_width = screen_width      # total width of the window
         self.screen_height = screen_height    # total height of the window
         self.x = 0

@@ -24,15 +24,12 @@ class InputSystem:
 
         if event.key == py.K_ESCAPE:
             self.ui_manager.close_all_uis()
-            self.build_system.build_mode = None
-            self.reset_build_state()
-            self.build_system.selected_machine_class = None
+            self.build_system.reset_build_state()
             return
 
         if event.key == py.K_q:
             self.ui_manager.close_all_uis()
             if self.build_system.build_mode == "building":
-                self.build_system.build_mode = None
                 self.build_system.reset_build_state()
             else:
                 self.build_system.build_mode = "building"
@@ -74,7 +71,6 @@ class InputSystem:
             # Opening inventory cancels build
             if not self.player_inventory_ui.open:
                 self.build_system.reset_build_state()
-                self.build_system.build_mode = None
             self.ui_manager.toggle_ui("player_inventory")
             return
 
@@ -97,8 +93,8 @@ class InputSystem:
         if event.key == py.K_t:
             if self.build_system.build_mode == "building" and \
                self.build_system.selected_machine_class is BeltSegment and \
-               self.build_system.placing_belt:
-                self.build_system.belts.belt_first_axis_horizontal = not self.build_system.belts.belt_first_axis_horizontal
+               self.belt_system.placing_belt:
+                self.belt_system.belt_first_axis_horizontal = not self.belt_system.belt_first_axis_horizontal
 
         if self.build_system.build_mode in ("building", "deleting"):
             if event.key in (py.K_1, py.K_2, py.K_3, py.K_4):
@@ -124,15 +120,14 @@ class InputSystem:
     def handle_mouse(self, event):
         if event.type != py.MOUSEBUTTONDOWN: return
 
-        # Right click cancels build/delete
+        # Right click
         if event.button == 3:
             self.cancel_build_or_delete()
             self.build_system.reset_rotation()
             return
 
-        # Left click for world interactions
+        # Left click
         if event.button == 1:
-            # 1️⃣ Check UIs first (they get priority)
             if self.hand_crafting_ui.open:
                 self.hand_crafting_ui.handle_mouse(event)
                 return
@@ -144,10 +139,13 @@ class InputSystem:
     def cancel_build_or_delete(self):
         if self.belt_system.placing_belt:
             self.belt_system.placing_belt = False
+            self.belt_system.belt_first_axis_horizontal = True
             return
         
         if self.build_system.build_mode == "building":
             self.build_system.build_mode = None
+            self.belt_system.belt_first_axis_horizontal = True
+            
             self.build_system.reset_rotation()
             return
         

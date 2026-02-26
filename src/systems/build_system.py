@@ -144,6 +144,7 @@ class BuildSystem:
             self.build_mode = "deleting"
     
     def reset_build_state(self):
+        self.build_mode = None
         self.selected_machine_class = Smelter
         self.belts.placing_belt = False
         self.reset_rotation()
