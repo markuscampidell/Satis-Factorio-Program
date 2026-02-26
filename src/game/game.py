@@ -11,8 +11,8 @@ from constants.itemdata import ITEMS
 
 from ui.producing_machine_ui import ProducingMachineUI
 from ui.player_inventory_ui import PlayerInventoryUI
+from ui.ui_manager import UIManager
 
-from objects.machines.smelter import Smelter
 from objects.machines.splitter import Splitter
 from objects.machines.producing_machine import ProducingMachine
 
@@ -65,21 +65,10 @@ class Game:
         self.image_cache = {}
 
     def _init_build_state(self):
-        # Placement state
-        self.just_placed_machine = False
-        self.selected_machine_class = Smelter
-        self.selected_belt_type = "basic"
-        self.splitter_rotation_steps = 0
-        self.build_mode = None
-        self.placing_belt = False
-
         # Options
-        self.draw_grid = True
         self.show_items_player_inventory = False
         self.explain_recipe_machine = False
         self.explain_recipe_hand_crafting = True
-
-        self.hovered_delete_target = None
 
     def _init_overlays(self):
         self.overlay_none = py.Surface((self.start_screen_width, self.start_screen_height), py.SRCALPHA)
@@ -108,53 +97,29 @@ class Game:
         self.camera.y = self.player.rect.centery - self.camera.screen_height // 2
 
     def _init_ui(self):
-        self.player_inventory_ui = PlayerInventoryUI(
-            self.player, 
+        self.player_inventory_ui = PlayerInventoryUI(self.player, 
             get_screen_size=lambda: (self.camera.screen_width, self.camera.screen_height))
 
-        self.machine_ui = ProducingMachineUI(
-            self.camera.screen_width,
-            self.camera.screen_height,
-            self.world,
-            self.camera,
-            self.player,
-            self.player_inventory_ui,
-            self.screen)
+        self.machine_ui = ProducingMachineUI(self.camera, self.world, self.player, self.player_inventory_ui, self.screen)
 
-        self.crafting_ui = HandCraftingUI(
-            self.player,
+        self.hand_crafting_ui = HandCraftingUI(self.player,
             get_screen_size=lambda: (self.camera.screen_width, self.camera.screen_height))
+        
+        self.ui_manager = UIManager({"player_inventory": self.player_inventory_ui,
+                                     "machine": self.machine_ui,
+                                     "hand_crafting": self.hand_crafting_ui})
 
     def _init_systems(self):
-        self.build_system = BuildSystem(self)
-        self.input_system = InputSystem(self)
-        self.render_system = RenderSystem(self)
+        self.machine_system = MachineSystem(self.world, self.player, self.camera, self.grid, self.screen)
+        self.belt_system = BeltSystem(self.world, self.grid, self.player, self.ghost_belt_renderer)
+        self.build_system = BuildSystem(self.world, self.player, self.camera, self.grid, self.belt_system, self.machine_system, self.machine_ui, self.player_inventory_ui)
 
-        self.belts = BeltSystem(
-            self.world,
-            self.grid,
-            self.player,
-            self.ghost_belt_renderer)
+        self.input_system = InputSystem(self.build_system, self.ui_manager, self.hand_crafting_ui, self.machine_ui, self.player_inventory_ui, self.belt_system, self.machine_system)
 
-        self.ghost_placer = GhostBeltPlacer(
-            self.world,
-            self.player,
-            self.grid,
-            self.belts,
-            self.ghost_belt_renderer,
-            self.camera,
-            self.screen)
+        self.ghost_placer = GhostBeltPlacer(self.world, self.player, self.grid, self.belt_system, self.ghost_belt_renderer, self.camera, self.screen)
+        self.render_system = RenderSystem(self.world, self.player, self.camera, self.grid, self.build_system, self.belt_sprite_manager, self.machine_ui, self.player_inventory_ui, self.hand_crafting_ui, self.machine_system, self.ghost_placer, self.belt_system)
 
-        self.machine_placer = MachineSystem(
-            self.world,
-            self.player,
-            self.grid,
-            self.camera,
-            self.screen,
-            self.machine_ui,
-            self)
-
-        self.machine_interaction_system = MachineInteractionSystem(self)
+        self.machine_interaction_system = MachineInteractionSystem(self.world, self.build_system, self.machine_ui, self.camera)
 
     def _init_recipes(self):
         self.player.handcrafting.recipes = (smelter_recipes + assembler_recipes)
@@ -177,7 +142,7 @@ class Game:
                     self._update_screen_size(event.w, event.h)
 
                 if event.type == py.MOUSEBUTTONUP and event.button == 1: 
-                    self.just_placed_machine = False
+                    self.machine_system.just_placed_machine = False
                 
                 self._handle_event(event)
 
@@ -193,17 +158,17 @@ class Game:
 
         self.build_system.handle_placement(event)
 
-        self.machine_ui.handle_event(event, self.just_placed_machine, self.build_mode == "building",)
+        self.machine_ui.handle_event(event, self.machine_system.just_placed_machine, self.build_system.build_mode == "building",)
 
-        self.machine_interaction_system.handle_click(event, self.just_placed_machine)
+        self.machine_interaction_system.handle_click(event, self.machine_system.just_placed_machine)
 
     def update(self):
         delta_time = self.clock.tick(60) / 1000
         self.player.update(self.world.machines, delta_time)
         self.camera.update(self.player)
 
-        if self.crafting_ui.open:
-            self.crafting_ui.update(delta_time)
+        if self.hand_crafting_ui.open:
+            self.hand_crafting_ui.update(delta_time)
 
         cell = self.grid.CELL_SIZE
         for segment in self.world.belt_segments:

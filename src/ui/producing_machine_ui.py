@@ -9,9 +9,9 @@ class ProducingMachineUI:
     SLOT_SIZE = 48
     PADDING = 10
     
-    def __init__(self, screen_width, screen_height, world, camera, player, player_inventory_ui, screen, panel_side="right"):
+    def __init__(self, camera, world, player, player_inventory_ui, screen, panel_side="right"):
         self.sprite = py.Surface((500, 300), py.SRCALPHA)
-        self.rect = self.sprite.get_rect(center=(screen_width // 2, screen_height // 2))
+        self.rect = self.sprite.get_rect(center=(camera.screen_width // 2, camera.screen_height // 2))
         # Draw rounded panel background
         py.draw.rect(self.sprite, "#CAC8E4", self.sprite.get_rect(), border_radius=18)
         self.font = py.font.SysFont("Arial", 24)

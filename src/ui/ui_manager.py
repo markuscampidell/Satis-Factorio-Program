@@ -1,14 +1,15 @@
 class UIManager:
-    def __init__(self, game):
-        self.game = game
+    def __init__(self, uis: dict[str, object]):
+        self.uis = uis
 
     def toggle_ui(self, ui_name: str):
-        ui = getattr(self.game, f"{ui_name}_ui")
-        ui.open = not ui.open
+        if ui_name in self.uis:
+            self.uis[ui_name].open = not self.uis[ui_name].open
 
     def close_ui(self, ui_name: str):
-        getattr(self.game, f"{ui_name}_ui").open = False
+        if ui_name in self.uis:
+            self.uis[ui_name].open = False
 
     def close_all_uis(self):
-        for ui_name in ("player_inventory", "machine", "crafting"):
-            getattr(self.game, f"{ui_name}_ui").open = False
+        for ui in self.uis.values():
+            ui.open = False

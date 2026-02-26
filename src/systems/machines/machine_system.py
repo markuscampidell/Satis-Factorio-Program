@@ -4,17 +4,16 @@ from objects.machines.splitter import Splitter
 from core.vector2 import Vector2
 
 class MachineSystem:
-    def __init__(self, world, player, grid, camera, screen, machine_ui, game=None, splitter_rotation_steps=0):
+    def __init__(self, world, player, camera, grid, screen):
         self.world = world
         self.player = player
-        self.grid = grid
         self.camera = camera
+        self.grid = grid
         self.screen = screen
-        self.machine_ui = machine_ui
-        self.game = game
-        self.splitter_rotation_steps = splitter_rotation_steps
+
         self.preview_machine = None
         self.just_placed_machine = False
+        self.splitter_rotation_steps = 0
 
     def place_machine(self, selected_machine_class):
         if selected_machine_class is None: return
@@ -31,10 +30,10 @@ class MachineSystem:
                              Vector2(-1, 0),
                              Vector2(0, -1)]
 
-            direction = direction_map[self.game.splitter_rotation_steps]
+            direction = direction_map[self.splitter_rotation_steps]
 
             machine = Splitter(pos=(snapped_x, snapped_y), direction=direction)
-            machine.rotation_angle = self.game.splitter_rotation_steps * 90
+            machine.rotation_angle = self.splitter_rotation_steps * 90
             machine.image = py.transform.rotate(machine.image_original, -machine.rotation_angle)
             machine.rect = machine.image.get_rect(center=(snapped_x, snapped_y))
 
@@ -57,7 +56,6 @@ class MachineSystem:
 
         self.preview_machine = None
         self.just_placed_machine = True
-        self.machine_ui.close()
 
     def delete_machine(self, mx, my):
         world_x = mx + self.camera.x

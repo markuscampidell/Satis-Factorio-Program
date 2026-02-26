@@ -17,6 +17,8 @@ class BeltSystem:
         self.belt_first_axis_horizontal = True
         self.beltX1 = 0
         self.beltY1 = 0
+        self.placing_belt = False
+        self.selected_belt_type = "basic"
         self.belt_placement_direction = Vector2(1, 0)
 
     def place_belt(self, world_x2, world_y2, belt_type="basic"):
@@ -125,10 +127,6 @@ class BeltSystem:
 
     
     def update_belt_incoming_direction(self, segments=None):
-        """
-        #Updates only the *incoming_direction* used for drawing curves.
-        #Does NOT change the actual movement direction of the belt.
-        """
         cell = self.grid.CELL_SIZE
         targets = segments or self.world.belt_segments
 

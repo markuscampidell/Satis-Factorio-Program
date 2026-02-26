@@ -3,67 +3,77 @@ import pygame as py
 
 from objects.machines.splitter import Splitter
 from objects.conveyors.belt_segment import BeltSegment
-
+from objects.machines.smelter import Smelter
 from core.vector2 import Vector2
 
 class BuildSystem:
-    def __init__(self, game):
-        self.game = game
+    def __init__(self, world, player, camera, grid, belts, machine_system, machine_ui, player_inventory_ui):
+        self.world = world
+        self.player = player
+        self.camera = camera
+        self.grid = grid
+        self.belts = belts
+        self.machine_system = machine_system
+        self.machine_ui = machine_ui
+        self.player_inventory_ui = player_inventory_ui
+
+        # Build state
+        self.build_mode = None
+        self.selected_machine_class = Smelter
+        self.hovered_delete_target = None
 
     def handle_placement(self, event):
-        game = self.game
-        if game.player_inventory_ui.open or game.machine_ui.open: return
+        if self.player_inventory_ui.open or self.machine_ui.open: return
         if event.type != py.MOUSEBUTTONDOWN or event.button != 1: return
 
         mx, my = event.pos
-        world_x = mx + game.camera.x
-        world_y = my + game.camera.y
+        world_x = mx + self.camera.x
+        world_y = my + self.camera.y
 
         # Delete mode
-        if game.build_mode == "deleting":
-            game.machine_placer.delete_machine(mx, my)
-            game.belts.delete_belt(
+        if self.build_mode == "deleting":
+            self.machine_system.delete_machine(mx, my)
+            self.belts.delete_belt(
                 mx, my,
                 delete_whole=bool(py.key.get_mods() & py.KMOD_SHIFT),
-                camera_x=game.camera.x,
-                camera_y=game.camera.y,
-                player_inventory=game.player.inventory
+                camera_x=self.camera.x,
+                camera_y=self.camera.y,
+                player_inventory=self.player.inventory
             )
             self.update_all_splitters_outputs()
             return
 
         # Belt placement
-        if game.build_mode == "building" and game.selected_machine_class is BeltSegment:
-            if not game.placing_belt:
+        if self.build_mode == "building" and self.selected_machine_class is BeltSegment:
+            if not self.belts.placing_belt:
                 if self._mouse_over_ui(mx, my):
                     return
-                game.placing_belt = True
-                game.belts.beltX1 = world_x
-                game.belts.beltY1 = world_y
+                self.belts.placing_belt = True
+                self.belts.beltX1 = world_x
+                self.belts.beltY1 = world_y
                 return
             else:
                 if self._mouse_over_ui(mx, my):
                     return
-                game.belts.place_belt(world_x, world_y, game.selected_belt_type)
+                self.belts.place_belt(world_x, world_y, self.belts.selected_belt_type)
                 self.update_all_splitters_outputs()
-                game.placing_belt = False
+                self.belts.placing_belt = False
                 return
 
         # Machine placement
-        if game.build_mode == "building" and game.selected_machine_class is not None:
-            game.machine_placer.place_machine(game.selected_machine_class)
-            if hasattr(game, 'preview_splitter'):
-                game.preview_splitter = None
+        if self.build_mode == "building" and self.selected_machine_class is not None:
+            self.machine_system.place_machine(self.selected_machine_class)
+            if hasattr(self, 'preview_splitter'):
+                self.preview_splitter = None
 
     def update_all_splitters_outputs(self):
-        game = self.game
-        cell = game.grid.CELL_SIZE
-        for machine in game.world.machines:
+        cell = self.grid.CELL_SIZE
+        for machine in self.world.machines:
             if isinstance(machine, Splitter):
                 output_belts = []
                 for direction in machine._get_relative_dirs():
                     next_rect = machine.rect.move(int(direction.x * cell), int(direction.y * cell))
-                    seg = game.world.belt_map.get((next_rect.x, next_rect.y))
+                    seg = self.world.belt_map.get((next_rect.x, next_rect.y))
                     output_belts.append(seg)
                 machine.output_belts = [b for b in output_belts if b]
                 if machine.output_belts:
@@ -72,28 +82,73 @@ class BuildSystem:
                     machine.current_output_index = 0
 
     def update_hovered_delete_target(self):
-        game = self.game
-        if game.build_mode != "deleting":
-            game.hovered_delete_target = None
+        if self.build_mode != "deleting":
+            self.hovered_delete_target = None
             return
 
         mx, my = py.mouse.get_pos()
-        world_x = mx + game.camera.x
-        world_y = my + game.camera.y
+        world_x = mx + self.camera.x
+        world_y = my + self.camera.y
 
         # Check machines (we'll improve this later)
-        for machine in game.world.machines:
+        for machine in self.world.machines:
             if machine.rect.collidepoint(world_x, world_y):
-                game.hovered_delete_target = machine
+                self.hovered_delete_target = machine
                 return
 
-        snapped_x, snapped_y = game.belts._snap_to_grid(world_x, world_y)
-        seg = game.world.belt_map.get((snapped_x, snapped_y))
+        snapped_x, snapped_y = self.belts._snap_to_grid(world_x, world_y)
+        seg = self.world.belt_map.get((snapped_x, snapped_y))
 
-        if seg: game.hovered_delete_target = seg
-        else: game.hovered_delete_target = None
+        if seg: self.hovered_delete_target = seg
+        else: self.hovered_delete_target = None
 
     def _mouse_over_ui(self, mx, my):
-        game = self.game
-        return ((game.machine_ui.open and game.machine_ui.rect.collidepoint(mx, my)) or
-                (game.player_inventory_ui.open and game.player_inventory_ui.rect.collidepoint(mx, my)))
+        return ((self.machine_ui.open and self.machine_ui.rect.collidepoint(mx, my)) or
+                (self.player_inventory_ui.open and self.player_inventory_ui.rect.collidepoint(mx, my)))
+    
+    def exit_build_mode(self):
+        self.build_mode = None
+        self.belts.placing_belt = False
+
+    def enter_build_mode(self):
+        self.build_mode = "building"
+        self.belts.placing_belt = False
+
+    def enter_delete_mode(self):
+        self.build_mode = "deleting"
+        self.belts.placing_belt = False
+
+    def select_machine(self, machine_class):
+        self.selected_machine_class = machine_class
+        self.machine_system.splitter_rotation_steps = 0
+        self.belts.placing_belt = False
+
+    def rotate_selected(self):
+        if self.selected_machine_class is Splitter:
+            self.machine_system.splitter_rotation_steps = (self.machine_system.splitter_rotation_steps + 1) % 4
+        elif self.selected_machine_class is BeltSegment:
+            x, y = self.belts.belt_placement_direction.x, self.belts.belt_placement_direction.y
+            self.belts.belt_placement_direction = Vector2(-y, x)
+
+    def toggle_build_mode(self):
+        if self.build_mode == "building":
+            self.build_mode = None
+        else:
+            self.build_mode = "building"
+            self.belts.placing_belt = False
+
+    def toggle_delete_mode(self):
+        if self.build_mode == "deleting":
+            self.build_mode = None
+        else:
+            self.build_mode = "deleting"
+    
+    def reset_build_state(self):
+        self.selected_machine_class = Smelter
+        self.belts.placing_belt = False
+        self.reset_rotation()
+        self.belts.belt_first_axis_horizontal = True
+    
+    def reset_rotation(self):
+        self.belts.belt_placement_direction = Vector2(1, 0)
+        self.machine_system.splitter_rotation_steps = 0

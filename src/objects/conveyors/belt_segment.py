@@ -48,7 +48,7 @@ class BeltSegment:
         elif self.item is None:
             self._pull_from_prev_machine(machines, cell_size)
 
-    def draw_item(self, screen, camera, cell_size): # ok
+    def draw_item(self, screen, camera, cell_size):
         if not self.item or self.item.sprite is None: return
 
         incoming = self.incoming_direction or self.direction
