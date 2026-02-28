@@ -1,6 +1,7 @@
+# systems.conveyors.belt_sprite_manager
 import pygame as py
 
-class BeltSpriteManager:
+class BeltSegmentSpriteManager:
     def __init__(self):
         self.straights = {}
         self.curves = {}
@@ -26,6 +27,8 @@ class BeltSpriteManager:
     def load_images(self):
         self.straights = {k: py.image.load(v).convert_alpha() for k, v in self.straight_paths.items()}
         self.curves = {k: py.image.load(v).convert_alpha() for k, v in self.curve_paths.items()}
+
+
 
     def get_straight(self, direction) -> py.Surface:
         key = (direction.x, direction.y)

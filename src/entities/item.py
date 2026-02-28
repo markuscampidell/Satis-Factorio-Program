@@ -1,16 +1,9 @@
+# entities.item
 import pygame as py
 import os
 
 class Item:
-    """
-    Example:
-    
-    Item = {item_id = "my_item",
-            name = "My Item",
-            stack_size = 100,
-            sprite_path = "assets/items/my_item.png"}
-    """
-    def __init__(self, item_id, name, stack_size=100, sprite_path=None):
+    def __init__(self, item_id:str, name:str, stack_size=100, sprite_path=None):
         self.item_id = item_id
         self.name = name
         self.stack_size = stack_size

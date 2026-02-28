@@ -1,5 +1,4 @@
-import pygame as py
-
+# objects.machines.producing_machine
 from constants.itemdata import get_item_by_id
 from entities.inventory import Inventory
 from objects.machines.machine import Machine
@@ -14,10 +13,9 @@ class ProducingMachine(Machine):
         self.process_timer = 0.0
         self.process_time = recipe.process_time if recipe else 1.0
 
-        if recipe:
-            self._reset_inventories(recipe)
+        if recipe: self._reset_inventories(recipe)
 
-    def update(self, dt):
+    def update(self, dt, cell_size=None, belt_map=None):
         if not self.processing and self.can_process():
             self.processing = True
             self.process_timer = 0.0
@@ -30,6 +28,15 @@ class ProducingMachine(Machine):
                     self.output_inventories[item_id].try_add_items(item_id, amount)
                 self.processing = False
                 self.process_timer = 0.0
+    
+    def can_process(self):
+        if not self.recipe: return False
+
+        for item_id, amount in self.recipe.inputs.items():
+            if self.input_inventories[item_id].get_amount(item_id) < amount: return False
+        for item_id, amount in self.recipe.outputs.items():
+            if not self.output_inventories[item_id].can_add_items(item_id, amount): return False
+        return True
 
 
 
@@ -58,15 +65,6 @@ class ProducingMachine(Machine):
 
 
 
-    def can_process(self):
-        if not self.recipe: return False
-
-        for item_id, amount in self.recipe.inputs.items():
-            if self.input_inventories[item_id].get_amount(item_id) < amount: return False
-        for item_id, amount in self.recipe.outputs.items():
-            if not self.output_inventories[item_id].can_add_items(item_id, amount): return False
-        return True
-    
     def transfer_processing_items_to_player(self, player_inventory):
         if not player_inventory: return
 
@@ -82,17 +80,7 @@ class ProducingMachine(Machine):
                     if slot:
                         player_inventory.try_add_items(slot["item"], slot["amount"])
 
-    def set_recipe(self, recipe, player_inventory=None):
-        if player_inventory is not None:
-            self.transfer_processing_items_to_player(player_inventory)
-
-        self.recipe = recipe
-        self.process_time = recipe.process_time
-        self.processing = False
-        self.process_timer = 0.0
-
-        self._reset_inventories(recipe)
-        
+    
 
     def push_output_items(self, peek=False):
         for item_id, inv in self.output_inventories.items():
@@ -112,6 +100,8 @@ class ProducingMachine(Machine):
                         return item_obj
         return None
     
+
+    
     def _reset_inventories(self, recipe):
         self.input_inventories = {}
         for item_id in recipe.inputs:
@@ -120,6 +110,17 @@ class ProducingMachine(Machine):
         self.output_inventories = {}
         for item_id in recipe.outputs:
             self.output_inventories[item_id] = Inventory(slot_width=1, slot_height=1)
+    
+    def set_recipe(self, recipe, player_inventory=None):
+        if player_inventory is not None:
+            self.transfer_processing_items_to_player(player_inventory)
+
+        self.recipe = recipe
+        self.process_time = recipe.process_time
+        self.processing = False
+        self.process_timer = 0.0
+
+        self._reset_inventories(recipe)
 
 
 

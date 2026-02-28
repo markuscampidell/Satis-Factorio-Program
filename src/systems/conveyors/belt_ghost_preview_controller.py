@@ -1,9 +1,10 @@
+# systems.conveyors.ghost_belt_drawer
 import pygame as py
 
 from objects.conveyors.belt_segment import BeltSegment
 from core.vector2 import Vector2
 
-class GhostBeltPlacer:
+class BeltGhostPreviewController:
     def __init__(self, world, player, grid, belt_system, ghost_renderer, camera, screen):
         self.world = world
         self.player = player
@@ -14,8 +15,7 @@ class GhostBeltPlacer:
         self.screen = screen
 
     def draw_ghost(self, selected_machine_class, placing_belt=False, selected_belt_type="basic"):
-        if selected_machine_class is not BeltSegment:
-            return
+        if selected_machine_class is not BeltSegment: return
 
         mx, my = py.mouse.get_pos()
         world_x, world_y = mx + self.camera.x, my + self.camera.y
@@ -27,23 +27,18 @@ class GhostBeltPlacer:
             temp_rect = py.Rect(snapped_x, snapped_y, self.grid.CELL_SIZE, self.grid.CELL_SIZE)
 
             if temp_rect.colliderect(camera_rect):
-                if self.world.is_rect_blocked(temp_rect):
-                    color_flag = "red"
-                elif self.player.inventory.has_enough_items(self.belt_system.BUILD_COSTS[selected_belt_type]):
-                    color_flag = "normal"
-                else:
-                    color_flag = "yellow"
+                if self.world.is_rect_blocked(temp_rect): color_flag = "red"
+                elif self.player.inventory.has_enough_items(self.belt_system.BUILD_COSTS[selected_belt_type]): color_flag = "normal"
+                else: color_flag = "yellow"
 
                 direction = (self.belt_system.belt_placement_direction or Vector2(1, 0)).snapped()
                 self.ghost_renderer.draw_single(self.screen, self.camera, snapped_x, snapped_y, direction, direction, color_flag)
             return
 
         # Dragging multiple belts
-        rects = self.belt_system._get_snapped_rects_for_drag(
-            self.belt_system.beltX1, self.belt_system.beltY1, world_x, world_y,
-            horizontal_first=self.belt_system.belt_first_axis_horizontal
-        )
+        rects = self.belt_system._get_snapped_rects_for_drag(self.belt_system.beltX1, self.belt_system.beltY1, world_x, world_y, horizontal_first=self.belt_system.belt_first_axis_horizontal)
         segments = self.belt_system._rects_to_segments(rects, belt_type=selected_belt_type)
+        self.belt_system.resolve_preview_connections(segments)
 
         any_blocked = any(self.world.is_rect_blocked(rect) for rect in rects)
         available = {item_id: self.player.inventory.get_amount(item_id) for item_id in self.belt_system.BUILD_COSTS[selected_belt_type]}

@@ -1,3 +1,4 @@
+# core.camera
 class Camera:
     def __init__(self, screen_width: float, screen_height: float, margin=350, smooth=0.05):
         self.screen_width = screen_width      # total width of the window

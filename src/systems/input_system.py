@@ -108,8 +108,8 @@ class InputSystem:
                 elif event.key == py.K_4:
                     self.build_system.selected_machine_class = Splitter
 
-                self.build_system.splitter_rotation_steps = 0
-                self.build_system.belts.belt_placement_direction = Vector2(1, 0)
+                self.machine_system.splitter_rotation_steps = 0
+                self.belt_system.belt_placement_direction = Vector2(1, 0)
 
                 if self.build_system.selected_machine_class is not BeltSegment:
                     self.build_system.placing_belt = False

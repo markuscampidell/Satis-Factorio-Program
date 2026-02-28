@@ -1,3 +1,4 @@
+# game.world
 class World:
     def __init__(self, player, cell_size):
         self.player = player

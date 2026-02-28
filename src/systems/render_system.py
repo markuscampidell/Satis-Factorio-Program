@@ -3,7 +3,7 @@ import pygame as py
 from objects.conveyors.belt_segment import BeltSegment
 
 class RenderSystem:
-    def __init__(self, world, player, camera, grid, build_system, belt_sprite_manager, machine_ui, player_invenotry_ui, hand_crafting_ui, machine_system, ghost_placer, belts):
+    def __init__(self, world, player, camera, grid, build_system, belt_sprite_manager, machine_ui, player_invenotry_ui, hand_crafting_ui, machine_system, ghost_belt_drawer, belts):
         self.world = world
         self.player = player
         self.camera = camera
@@ -14,67 +14,51 @@ class RenderSystem:
         self.player_inventory_ui = player_invenotry_ui
         self.hand_crafting_ui = hand_crafting_ui
         self.machine_system = machine_system
-        self.ghost_placer = ghost_placer
+        self.ghost_belt_drawer = ghost_belt_drawer
         self.belts = belts
+
+        self.update_overlay_surfaces(self.camera.screen_width, self.camera.screen_height)
 
         self.image_cache = {}
 
     def draw(self, screen):
-        screen.fill("#987171")  # background
+        screen.fill("#987171")
 
-        
         if self.build_system.build_mode is not None:
             self.grid.draw(screen, self.camera)
-        
-        # Ghost previews
-        # Ghost previews
-        if self.build_system.build_mode == "building" and self.build_system.selected_machine_class is not None:
-            # Machines
-            self.machine_system.ghost_machine(
-                self.build_system.selected_machine_class,
-                self.build_system.build_mode,
-                self.machine_system.splitter_rotation_steps   # from MachineSystem
-            )
-            # Belts
-            self.ghost_placer.draw_ghost(
-                self.build_system.selected_machine_class,
-                self.belts.placing_belt,                # from BeltSystem
-                self.belts.selected_belt_type          # from BeltSystem
-            )
 
-        # Draw belts and items
         self._draw_belts(screen)
         self._draw_items_on_belts(screen)
 
-        # Draw player
         self.player.draw(screen, self.camera)
 
-        # Draw machines in camera view
-        camera_rect = py.Rect(self.camera.x, self.camera.y, self.camera.screen_width, self.camera.screen_height)
+        # Machines (only visible ones)
+        camera_rect = py.Rect(self.camera.x,
+                              self.camera.y,
+                              self.camera.screen_width,
+                              self.camera.screen_height)
+
         for machine in self.world.machines:
             if machine.rect.colliderect(camera_rect):
                 machine.draw(screen, self.camera)
 
-        # Draw UIs
+        if (self.build_system.build_mode == "building" and self.build_system.selected_machine_class is not None):
+            self.machine_system.ghost_machine(self.build_system.selected_machine_class, self.build_system.build_mode, self.machine_system.splitter_rotation_steps)
+            self.ghost_belt_drawer.draw_ghost(self.build_system.selected_machine_class, self.belts.placing_belt, self.belts.selected_belt_type)
+
+        self._highlight_hovered_delete_target(screen)
+
+        if self.build_system.build_mode == "building":
+            screen.blit(self.overlay_build_place, (0, 0))
+        elif self.build_system.build_mode == "deleting":
+            screen.blit(self.overlay_delete, (0, 0))
+
         self.machine_ui.draw(screen)
         self.player_inventory_ui.draw(screen)
         self.hand_crafting_ui.draw(screen)
 
-        # Highlight objects if deleting
-        self._highlight_hovered_delete_target(screen)
-
-        """
-        # Overlay for build/delete
-        if self.build_system.build_mode == "building":
-            screen.blit(self.build_system.overlay_build_place, (0, 0))
-        elif self.build_system.build_mode == "deleting":
-            screen.blit(self.build_system.overlay_delete, (0, 0))
-        """
-            
-        # Cursor
         self._draw_cursor(screen)
 
-        # Text / debug info
         self._draw_texts(screen)
         
     def _draw_cursor(self, screen):
@@ -113,11 +97,10 @@ class RenderSystem:
                 seg.draw_item(screen, self.camera, cell_size=cell)
 
     def _draw_texts(self, screen):
-        """ i need to make a file debug_overlay
-        screen.blit(self.title_font_surface, (10, 10))
-        screen.blit(self.font.render(f"Player position: x:{self.player.rect.centerx} y:{self.player.rect.centery}", True, "#000000"), (10, 35))
-        screen.blit(self.font.render(f"FPS: {int(self.clock.get_fps())}", True, "#000000"), (10, 60))
-        """
+        #screen.blit(self.title_font_surface, (10, 10))
+        #screen.blit(self.font.render(f"Player position: x:{self.player.rect.centerx} y:{self.player.rect.centery}", True, "#000000"), (10, 35))
+        #screen.blit(self.font.render(f"FPS: {int(self.clock.get_fps())}", True, "#000000"), (10, 60))
+        pass
         
     def _highlight_hovered_delete_target(self, screen):
         if self.build_system.build_mode != "deleting" or self.build_system.hovered_delete_target is None: return
@@ -147,3 +130,10 @@ class RenderSystem:
                 image = self.belt_sprite_manager.get_curve(incoming, outgoing)
             self.image_cache[key] = image
         return self.image_cache[key]
+    
+    def update_overlay_surfaces(self, width, height):
+        self.overlay_build_place = py.Surface((width, height), py.SRCALPHA)
+        self.overlay_build_place.fill((255, 170, 80, 28))
+
+        self.overlay_delete = py.Surface((width, height), py.SRCALPHA)
+        self.overlay_delete.fill((255, 80, 80, 35))

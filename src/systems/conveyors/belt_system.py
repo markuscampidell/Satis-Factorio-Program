@@ -1,3 +1,4 @@
+# systems.conveyors.belt_system
 import pygame as py
 
 from core.vector2 import Vector2
@@ -59,8 +60,6 @@ class BeltSystem:
             for item_id, amount in self.BUILD_COSTS[seg.belt_type].items():
                 player_inventory.try_add_items(item_id, amount)
             self.world.remove_belt_segment(seg)
-
-
     
     def get_connected_belt_segments(self, start_seg):
         visited = set()
@@ -87,7 +86,6 @@ class BeltSystem:
                     stack.append(neighbor)
 
         return list(visited)
-
     
     def any_rect_blocked(self, rects):
         return any(self.world.is_rect_blocked(r) for r in rects)
@@ -123,41 +121,49 @@ class BeltSystem:
         if check_blocked:
             return segments, blocked
         return segments
-
-
     
     def update_belt_incoming_direction(self, segments=None):
-        cell = self.grid.CELL_SIZE
         targets = segments or self.world.belt_segments
 
         for seg in targets:
-            # Check neighbors in all 4 directions
-            left  = self.world.belt_map.get((seg.rect.x - cell, seg.rect.y))
-            right = self.world.belt_map.get((seg.rect.x + cell, seg.rect.y))
-            up    = self.world.belt_map.get((seg.rect.x, seg.rect.y - cell))
-            down  = self.world.belt_map.get((seg.rect.x, seg.rect.y + cell))
-
-            # Determine incoming visually
-            # If there is a neighbor whose outgoing points to this segment, use that
-            incoming = None
-            for neighbor in (left, right, up, down):
-                if neighbor:
-                    nx, ny = neighbor.rect.centerx, neighbor.rect.centery
-                    sx, sy = seg.rect.centerx, seg.rect.centery
-                    if (nx + neighbor.direction.x * cell == sx and
-                        ny + neighbor.direction.y * cell == sy):
-                        incoming = Vector2(seg.rect.x - neighbor.rect.x, seg.rect.y - neighbor.rect.y).snapped()
-                        break
-
-            if incoming:
-                seg.incoming_direction = incoming
-            else:
-                # No neighbor feeding this belt → straight sprite
-                seg.incoming_direction = seg.direction
-
-
-
+            seg.incoming_direction = self._calculate_incoming_for_segment(seg, self.world.belt_map)
     
+    def _calculate_incoming_for_segment(self, seg, lookup_map):
+        cell = self.grid.CELL_SIZE
+
+        # Neighbors in 4 directions
+        left  = lookup_map.get((seg.rect.x - cell, seg.rect.y))
+        right = lookup_map.get((seg.rect.x + cell, seg.rect.y))
+        up    = lookup_map.get((seg.rect.x, seg.rect.y - cell))
+        down  = lookup_map.get((seg.rect.x, seg.rect.y + cell))
+
+        for neighbor in (left, right, up, down):
+            if neighbor:
+                nx, ny = neighbor.rect.centerx, neighbor.rect.centery
+                sx, sy = seg.rect.centerx, seg.rect.centery
+
+                if (nx + neighbor.direction.x * cell == sx and
+                    ny + neighbor.direction.y * cell == sy):
+
+                    return Vector2(
+                        seg.rect.x - neighbor.rect.x,
+                        seg.rect.y - neighbor.rect.y
+                    ).snapped()
+
+        # Default: straight
+        return seg.direction
+    
+    def resolve_preview_connections(self, preview_segments):
+        # Create temporary lookup map
+        temp_map = self.world.belt_map.copy()
+
+        # Add preview segments to lookup
+        for seg in preview_segments:
+            temp_map[(seg.rect.x, seg.rect.y)] = seg
+
+        # Calculate incoming using combined map
+        for seg in preview_segments:
+            seg.incoming_direction = self._calculate_incoming_for_segment(seg, temp_map)
 
     def _get_snapped_rects_for_drag(self, start_x, start_y, end_x, end_y, horizontal_first=True):
         start_x, start_y = self._snap_to_grid(start_x, start_y)
@@ -176,59 +182,6 @@ class BeltSystem:
             for x in range(start_x + dx * cell, end_x + dx * cell, dx * cell): rects.append(py.Rect(x, end_y, cell, cell))
 
         return rects
-    
-
-    def ghost_conveyor_belt(self, selected_machine_class, placing_belt=False, selected_belt_type="basic"):
-        if selected_machine_class is not BeltSegment: return
-
-        mx, my = py.mouse.get_pos()
-        world_x, world_y = mx + self.camera.x, my + self.camera.y
-        camera_rect = py.Rect(self.camera.x, self.camera.y, self.screen_width, self.screen_height)
-
-        if not placing_belt:
-            snapped_x, snapped_y = self._snap_to_grid(world_x, world_y)
-            temp_rect = py.Rect(snapped_x, snapped_y, self.grid.CELL_SIZE, self.grid.CELL_SIZE)
-
-            if temp_rect.colliderect(camera_rect):
-                if self.world.is_rect_blocked(temp_rect): color_flag = "red"
-                elif self.player.inventory.has_enough_items(self.BUILD_COSTS[selected_belt_type]): color_flag = "normal"
-                else: color_flag = "yellow"
-
-                direction = (self.belt_placement_direction or Vector2(1, 0)).snapped()
-                self.ghost_belt_renderer.draw_single(self.screen, self.camera, snapped_x, snapped_y, direction, direction, color_flag)
-            return
-
-        rects = self._get_snapped_rects_for_drag(self.beltX1, self.beltY1, world_x, world_y, horizontal_first=self.belt_first_axis_horizontal)
-        segments = self._rects_to_segments(rects, belt_type=selected_belt_type)
-
-        any_blocked = any(self.world.is_rect_blocked(rect) for rect in rects)
-
-        available = {item_id: self.player.inventory.get_amount(item_id) for item_id in self.BUILD_COSTS[selected_belt_type]}
-
-        color_flags = []
-        for seg in segments:
-            if any_blocked:
-                color_flags.append("red")
-                continue
-            can_build = all(available[item_id] >= cost for item_id, cost in self.BUILD_COSTS[seg.belt_type].items())
-            if can_build:
-                color_flags.append("normal")
-                for item_id, cost in self.BUILD_COSTS[seg.belt_type].items():
-                    available[item_id] -= cost
-            else:
-                color_flags.append("yellow")
-
-        visible_segments = []
-        visible_flags = []
-
-        for seg, flag in zip(segments, color_flags):
-            if seg.rect.colliderect(camera_rect):
-                visible_segments.append(seg)
-                visible_flags.append(flag)
-
-        self.ghost_belt_renderer.draw_dragging(self.screen, self.camera, visible_segments, color_flags=visible_flags)
-
-    
 
     def _snap_to_grid(self, x, y):
             cell = self.grid.CELL_SIZE

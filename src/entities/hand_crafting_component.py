@@ -1,4 +1,4 @@
-# entities/hand_crafting_component.py
+# entities.hand_crafting_component
 from constants.recipes import smelter_recipes, assembler_recipes
 
 class HandcraftingComponent:

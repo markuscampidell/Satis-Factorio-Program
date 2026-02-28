@@ -1,3 +1,4 @@
+# entities.inventory
 from entities.item import Item
 
 class Inventory:

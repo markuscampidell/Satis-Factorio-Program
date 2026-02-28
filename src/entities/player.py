@@ -1,4 +1,6 @@
+# entities.player
 import pygame as py
+
 from entities.inventory import Inventory
 from core.vector2 import Vector2
 from entities.hand_crafting_component import HandcraftingComponent

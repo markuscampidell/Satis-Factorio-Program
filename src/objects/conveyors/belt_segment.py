@@ -1,3 +1,4 @@
+# objects.conveyors.belt_segment
 import pygame as py
 from game.grid import Grid
 from core.vector2 import Vector2

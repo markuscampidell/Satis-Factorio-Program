@@ -1,12 +1,11 @@
+# systems.conveyors.ghost_belt_renderer
 import pygame as py
 from core.vector2 import Vector2
 from game.grid import Grid
-from objects.conveyors.belt_segment import BeltSegment
-from systems.conveyors.beltspritemanager import BeltSpriteManager
-
 
 class GhostBeltRenderer:
-    def __init__(self, sprite_manager: BeltSpriteManager):
+    def __init__(self, sprite_manager, cell_size):
+        self.cell_size = cell_size
         self.sprite_manager = sprite_manager
         self.cache = {} # Cache for ghost belt images
 
@@ -15,7 +14,6 @@ class GhostBeltRenderer:
                                "yellow": self._make_overlay((255, 255, 0, 120)),}
 
     def draw_single(self, screen, camera, x, y, incoming: Vector2, outgoing: Vector2, color="normal"):
-        cell = Grid.CELL_SIZE
         incoming = Vector2(round(incoming.x), round(incoming.y))
         outgoing = Vector2(round(outgoing.x), round(outgoing.y))
 
@@ -28,7 +26,7 @@ class GhostBeltRenderer:
 
             if base_img is None: return
 
-            scaled = py.transform.scale(base_img, (cell, cell))
+            scaled = py.transform.scale(base_img, (self.cell_size, self.cell_size))
 
             ghost = scaled.copy()
             ghost.set_alpha(160)
@@ -41,22 +39,13 @@ class GhostBeltRenderer:
             screen.blit(self.color_overlays[color], (x - camera.x, y - camera.y))
 
     def draw_dragging(self, screen, camera, segments, color_flags=None):
-        cell = Grid.CELL_SIZE
-
         for i, seg in enumerate(segments):
-            outgoing = (seg.direction if seg.direction is not None else Vector2(1, 0))
+            outgoing = seg.direction or Vector2(1, 0)
+            incoming = seg.incoming_direction or outgoing
 
-            if i == 0: incoming = outgoing  # first segment is always straight
-            else:
-                prev_seg = segments[i - 1]
-                incoming = Vector2((seg.rect.x - prev_seg.rect.x) // cell, (seg.rect.y - prev_seg.rect.y) // cell)
-
-            color = (color_flags[i] if color_flags else "normal")
+            color = color_flags[i] if color_flags else "normal"
 
             self.draw_single(screen, camera, seg.rect.x, seg.rect.y, incoming, outgoing, color)
-
-    
-    
 
     def _make_overlay(self, color):
         cell = Grid.CELL_SIZE

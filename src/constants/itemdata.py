@@ -1,3 +1,4 @@
+# constants.itemdata
 from entities.item import Item
 
 raw_materials = []

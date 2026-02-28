@@ -1,10 +1,11 @@
+# objects.machines.machine
 import pygame as py
 
 from game.grid import Grid
 
 class Machine:
-    WIDTH = 1   # in grid cells
-    HEIGHT = 1  # in grid cells
+    WIDTH = 1
+    HEIGHT = 1
     
     SPRITE_PATH = None
     BUILD_COST = {}

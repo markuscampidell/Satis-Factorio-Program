@@ -1,4 +1,6 @@
-import pygame as py
+# objects.machines.splitter
+from pygame.transform import rotate
+
 from core.vector2 import Vector2
 from objects.machines.machine import Machine
 
@@ -9,14 +11,14 @@ class Splitter(Machine):
     BUILD_COST = {"iron_ingot": 4}
 
     def __init__(self, pos=None, direction=None):
-        super().__init__(pos)  # creates rect & image correctly
+        super().__init__(pos)
 
         self.direction = direction or Vector2(1, 0)
         self.current_item = None
         self.current_output_index = 0
         self.output_belts = []
 
-        self.image_original = self.image.copy()  # keep original for rotation
+        self.image_original = self.image.copy()
         self.rotation_angle = 0
 
         self.item_progress = 0.0
@@ -90,7 +92,7 @@ class Splitter(Machine):
     def rotate(self):
         self.direction = Vector2(-self.direction.y, self.direction.x)
         self.rotation_angle = (self.rotation_angle + 90) % 360
-        self.image = py.transform.rotate(self.image_original, -self.rotation_angle)
+        self.image = rotate(self.image_original, -self.rotation_angle)
         old_center = self.rect.center
         self.rect = self.image.get_rect(center=old_center)
 
