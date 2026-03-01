@@ -10,6 +10,7 @@ class Game:
         self.context = Initializer.init_game()
 
         self.context.player.inventory.try_add_items("iron_ingot", 500)
+        self.context.player.inventory.try_add_items("copper_ingot", 200)
         
     def run(self):
         while True:
@@ -22,7 +23,7 @@ class Game:
                     self.context.screen = py.display.set_mode((event.w, event.h), py.RESIZABLE)
                     self._update_screen_size(event.w, event.h)
                     self.context.grid.update_screen_size(event.w, event.h)
-                    self.context.render_system.update_overlay_surfaces(event.w, event.h)
+                    self.context.build_mode_renderer.update_overlay_surfaces(event.w, event.h)
 
                 if event.type == py.MOUSEBUTTONUP and event.button == 1: 
                     self.context.machine_system.just_placed_machine = False
@@ -32,6 +33,10 @@ class Game:
             self.update()
 
             self.context.render_system.draw(self.context.screen)
+            
+            self.context.screen.blit(self.context.title_font_surface, (10, 10))
+            self.context.screen.blit(self.context.font.render(f"Player position: x:{self.context.player.rect.centerx} y:{self.context.player.rect.centery}", True, "#000000"), (10, 35))
+            self.context.screen.blit(self.context.font.render(f"FPS: {int(self.context.clock.get_fps())}", True, "#000000"), (10, 60))
 
             py.display.flip()
 

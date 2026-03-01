@@ -1,3 +1,4 @@
+# ui.ui_manager
 class UIManager:
     def __init__(self, uis: dict[str, object]):
         self.uis = uis

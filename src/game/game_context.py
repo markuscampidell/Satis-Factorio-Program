@@ -26,7 +26,13 @@ class GameContext:
 
     build_system: any
     input_system: any
+
     render_system: any
+
+    world_renderer: any
+    ui_renderer: any
+    build_mode_renderer: any
+    cursor_renderer: any
 
     machine_system: any
     machine_ui: any

@@ -1,6 +1,5 @@
-# systems/input_system.py
+# systems.input_system
 import pygame as py
-from core.vector2 import Vector2
 
 from objects.machines.assembler import Assembler
 from objects.machines.smelter import Smelter
@@ -19,8 +18,7 @@ class InputSystem:
         self.machine_system = machine_system
 
     def handle_keys(self, event):
-        if event.type != py.KEYDOWN:
-            return
+        if event.type != py.KEYDOWN: return
 
         if event.key == py.K_ESCAPE:
             self.ui_manager.close_all_uis()
@@ -29,23 +27,13 @@ class InputSystem:
 
         if event.key == py.K_q:
             self.ui_manager.close_all_uis()
-            if self.build_system.build_mode == "building":
-                self.build_system.reset_build_state()
-            else:
-                self.build_system.build_mode = "building"
-                self.build_system.placing_belt = False
+            if self.build_system.build_mode == "building": self.build_system.reset_build_state()
+            else: self.build_system.enter_build_mode()
             return
 
         if event.key == py.K_x:
             self.ui_manager.close_all_uis()
-            self.build_system.reset_rotation()
-
-            self.build_system.placing_belt = False
-            if self.build_system.build_mode == "deleting":
-                self.build_system.build_mode = None
-            else: 
-                self.build_system.build_mode = "deleting"
-                
+            self.build_system.toggle_delete_mode()
             return
 
         if event.key == py.K_i:
@@ -58,17 +46,14 @@ class InputSystem:
             return
 
         if event.key == py.K_f:
-            # Opening crafting UI cancels build
             if not self.hand_crafting_ui.open:
                 self.build_system.reset_build_state()
-                self.build_system.build_mode = None
                 self.hand_crafting_ui.open = True
             else:
                 self.hand_crafting_ui.close()
             return
 
         if event.key == py.K_TAB:
-            # Opening inventory cancels build
             if not self.player_inventory_ui.open:
                 self.build_system.reset_build_state()
             self.ui_manager.toggle_ui("player_inventory")
@@ -79,43 +64,35 @@ class InputSystem:
                 self.hand_crafting_ui.auto_crafting = not self.hand_crafting_ui.auto_crafting
                 self.hand_crafting_ui.progress = 0.0
             return
-        
-        if self.player_inventory_ui.open or self.machine_ui.open:
-            return
+
+
+        if self.player_inventory_ui.open or self.machine_ui.open: return
+
 
         if event.key == py.K_r and self.build_system.build_mode == "building":
-            if self.build_system.selected_machine_class is Splitter:
-                self.machine_system.splitter_rotation_steps = (self.machine_system.splitter_rotation_steps + 1) % 4
-            elif self.build_system.selected_machine_class is BeltSegment:
-                x, y = self.build_system.belts.belt_placement_direction.x, self.build_system.belts.belt_placement_direction.y
-                self.build_system.belts.belt_placement_direction = Vector2(-y, x)
+            self.build_system.rotate_selected()
+            return
 
-        if event.key == py.K_t:
-            if self.build_system.build_mode == "building" and \
-               self.build_system.selected_machine_class is BeltSegment and \
-               self.belt_system.placing_belt:
-                self.belt_system.belt_first_axis_horizontal = not self.belt_system.belt_first_axis_horizontal
+        if (event.key == py.K_t
+            and self.build_system.build_mode == "building"
+            and self.build_system.selected_machine_class is BeltSegment
+            and self.belt_system.placing_belt):
+            self.belt_system.belt_first_axis_horizontal = not self.belt_system.belt_first_axis_horizontal
+            return
 
         if self.build_system.build_mode in ("building", "deleting"):
-            if event.key in (py.K_1, py.K_2, py.K_3, py.K_4):
-                if event.key == py.K_1:
-                    self.build_system.selected_machine_class = Smelter
-                elif event.key == py.K_2:
-                    self.build_system.selected_machine_class = Assembler
-                elif event.key == py.K_3:
-                    self.build_system.selected_machine_class = BeltSegment
-                    self.build_system.selected_belt_type = "basic"
-                elif event.key == py.K_4:
-                    self.build_system.selected_machine_class = Splitter
+            machine_map = {py.K_1: Smelter,
+                           py.K_2: Assembler,
+                           py.K_3: BeltSegment,
+                           py.K_4: Splitter,}
 
-                self.machine_system.splitter_rotation_steps = 0
-                self.belt_system.belt_placement_direction = Vector2(1, 0)
-
-                if self.build_system.selected_machine_class is not BeltSegment:
-                    self.build_system.placing_belt = False
+            if event.key in machine_map:
+                self.build_system.select_machine(machine_map[event.key])
 
                 if self.build_system.build_mode == "deleting":
-                    self.build_system.build_mode = "building"
+                    self.build_system.enter_build_mode()
+
+                return
 
     def handle_mouse(self, event):
         if event.type != py.MOUSEBUTTONDOWN: return
@@ -123,7 +100,6 @@ class InputSystem:
         # Right click
         if event.button == 3:
             self.cancel_build_or_delete()
-            self.build_system.reset_rotation()
             return
 
         # Left click
@@ -131,7 +107,7 @@ class InputSystem:
             if self.hand_crafting_ui.open:
                 self.hand_crafting_ui.handle_mouse(event)
                 return
-            
+
             if self.machine_ui.open:
                 self.machine_ui.handle_event(event, self.machine_system.just_placed_machine, self.build_system.build_mode == "building")
                 return
@@ -143,12 +119,9 @@ class InputSystem:
             return
         
         if self.build_system.build_mode == "building":
-            self.build_system.build_mode = None
-            self.belt_system.belt_first_axis_horizontal = True
-            
-            self.build_system.reset_rotation()
+            self.build_system.reset_build_state()
             return
         
         if self.build_system.build_mode == "deleting":
-            self.build_system.build_mode = "building"
+            self.build_system.enter_build_mode()
             return

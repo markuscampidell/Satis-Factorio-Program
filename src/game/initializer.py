@@ -26,7 +26,13 @@ from systems.machines.machine_system import MachineSystem
 from systems.machine_interaction_system import MachineInteractionSystem
 from systems.input_system import InputSystem
 from systems.build_system import BuildSystem
-from systems.render_system import RenderSystem
+
+from systems.rendering.render_system import RenderSystem
+from systems.rendering.world_renderer import WorldRenderer
+from systems.rendering.ui_renderer import UiRenderer
+from systems.rendering.build_mode_renderer import BuildModeRenderer
+from systems.rendering.cursor_renderer import CursorRenderer
+
 from systems.conveyors.belt_system import BeltSystem
 from systems.conveyors.belt_ghost_preview_controller import BeltGhostPreviewController
 
@@ -69,7 +75,12 @@ class Initializer:
         build_system = BuildSystem(world, player, camera, grid, belt_system, machine_system, machine_ui, player_inventory_ui)
         input_system = InputSystem(build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system)
         belt_ghost_preview_controller = BeltGhostPreviewController(world, player, grid, belt_system, ghost_belt_renderer, camera, screen)
-        render_system = RenderSystem(world, player, camera, grid, build_system, belt_sprite_manager, machine_ui, player_inventory_ui, hand_crafting_ui, machine_system, belt_ghost_preview_controller, belt_system)
+
+        world_renderer = WorldRenderer(world, camera, player, belt_sprite_manager, build_system, grid)
+        ui_renderer = UiRenderer(machine_ui, player_inventory_ui, hand_crafting_ui)
+        build_mode_renderer = BuildModeRenderer(build_system, machine_system, belt_ghost_preview_controller, belt_system, camera, grid)
+        cursor_renderer = CursorRenderer(build_system)
+        render_system = RenderSystem(world_renderer, ui_renderer, build_mode_renderer, cursor_renderer)
         machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera)
 
         player.handcrafting.recipes = smelter_recipes + assembler_recipes
@@ -97,7 +108,13 @@ class Initializer:
 
                            build_system=build_system,
                            input_system=input_system,
+
                            render_system=render_system,
+
+                           world_renderer=world_renderer,
+                           ui_renderer=ui_renderer,
+                           build_mode_renderer=build_mode_renderer,
+                           cursor_renderer=cursor_renderer,
 
                            machine_system=machine_system,
                            machine_ui=machine_ui,

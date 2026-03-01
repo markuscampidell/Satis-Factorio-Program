@@ -1,4 +1,4 @@
-# systems/build_system.py
+# systems.build_system
 import pygame as py
 
 from objects.machines.splitter import Splitter
@@ -7,12 +7,12 @@ from objects.machines.smelter import Smelter
 from core.vector2 import Vector2
 
 class BuildSystem:
-    def __init__(self, world, player, camera, grid, belts, machine_system, machine_ui, player_inventory_ui):
+    def __init__(self, world, player, camera, grid, belt_system, machine_system, machine_ui, player_inventory_ui):
         self.world = world
         self.player = player
         self.camera = camera
         self.grid = grid
-        self.belts = belts
+        self.belt_system = belt_system
         self.machine_system = machine_system
         self.machine_ui = machine_ui
         self.player_inventory_ui = player_inventory_ui
@@ -33,7 +33,7 @@ class BuildSystem:
         # Delete mode
         if self.build_mode == "deleting":
             self.machine_system.delete_machine(mx, my)
-            self.belts.delete_belt(
+            self.belt_system.delete_belt(
                 mx, my,
                 delete_whole=bool(py.key.get_mods() & py.KMOD_SHIFT),
                 camera_x=self.camera.x,
@@ -45,19 +45,19 @@ class BuildSystem:
 
         # Belt placement
         if self.build_mode == "building" and self.selected_machine_class is BeltSegment:
-            if not self.belts.placing_belt:
+            if not self.belt_system.placing_belt:
                 if self._mouse_over_ui(mx, my):
                     return
-                self.belts.placing_belt = True
-                self.belts.beltX1 = world_x
-                self.belts.beltY1 = world_y
+                self.belt_system.placing_belt = True
+                self.belt_system.beltX1 = world_x
+                self.belt_system.beltY1 = world_y
                 return
             else:
                 if self._mouse_over_ui(mx, my):
                     return
-                self.belts.place_belt(world_x, world_y, self.belts.selected_belt_type)
+                self.belt_system.place_belt(world_x, world_y, self.belt_system.selected_belt_type)
                 self.update_all_splitters_outputs()
-                self.belts.placing_belt = False
+                self.belt_system.placing_belt = False
                 return
 
         # Machine placement
@@ -90,13 +90,12 @@ class BuildSystem:
         world_x = mx + self.camera.x
         world_y = my + self.camera.y
 
-        # Check machines (we'll improve this later)
         for machine in self.world.machines:
             if machine.rect.collidepoint(world_x, world_y):
                 self.hovered_delete_target = machine
                 return
 
-        snapped_x, snapped_y = self.belts._snap_to_grid(world_x, world_y)
+        snapped_x, snapped_y = self.belt_system._snap_to_grid(world_x, world_y)
         seg = self.world.belt_map.get((snapped_x, snapped_y))
 
         if seg: self.hovered_delete_target = seg
@@ -108,34 +107,29 @@ class BuildSystem:
     
     def exit_build_mode(self):
         self.build_mode = None
-        self.belts.placing_belt = False
+        self.belt_system.placing_belt = False
 
     def enter_build_mode(self):
         self.build_mode = "building"
-        self.belts.placing_belt = False
+        self.belt_system.placing_belt = False
 
     def enter_delete_mode(self):
         self.build_mode = "deleting"
-        self.belts.placing_belt = False
-
-    def select_machine(self, machine_class):
-        self.selected_machine_class = machine_class
-        self.machine_system.splitter_rotation_steps = 0
-        self.belts.placing_belt = False
+        self.belt_system.placing_belt = False
 
     def rotate_selected(self):
         if self.selected_machine_class is Splitter:
             self.machine_system.splitter_rotation_steps = (self.machine_system.splitter_rotation_steps + 1) % 4
         elif self.selected_machine_class is BeltSegment:
-            x, y = self.belts.belt_placement_direction.x, self.belts.belt_placement_direction.y
-            self.belts.belt_placement_direction = Vector2(-y, x)
+            x, y = self.belt_system.belt_placement_direction.x, self.belt_system.belt_placement_direction.y
+            self.belt_system.belt_placement_direction = Vector2(-y, x)
 
     def toggle_build_mode(self):
         if self.build_mode == "building":
             self.build_mode = None
         else:
             self.build_mode = "building"
-            self.belts.placing_belt = False
+            self.belt_system.placing_belt = False
 
     def toggle_delete_mode(self):
         if self.build_mode == "deleting":
@@ -143,13 +137,21 @@ class BuildSystem:
         else:
             self.build_mode = "deleting"
     
+    def select_machine(self, machine_class):
+        self.selected_machine_class = machine_class
+        self.machine_system.splitter_rotation_steps = 0
+        self.belt_system.placing_belt = False
+
+        if self.build_mode != "building":
+            self.build_mode = "building"
+    
     def reset_build_state(self):
         self.build_mode = None
         self.selected_machine_class = Smelter
-        self.belts.placing_belt = False
+        self.belt_system.placing_belt = False
         self.reset_rotation()
-        self.belts.belt_first_axis_horizontal = True
+        self.belt_system.belt_first_axis_horizontal = True
     
     def reset_rotation(self):
-        self.belts.belt_placement_direction = Vector2(1, 0)
+        self.belt_system.belt_placement_direction = Vector2(1, 0)
         self.machine_system.splitter_rotation_steps = 0

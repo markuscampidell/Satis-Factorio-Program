@@ -1,3 +1,4 @@
+# systems.machine_interaction_system
 import pygame as py
 
 from objects.machines.producing_machine import ProducingMachine
@@ -10,10 +11,14 @@ class MachineInteractionSystem:
         self.camera = camera
 
     def handle_click(self, event, just_placed_machine):
-        if event.type != py.MOUSEBUTTONDOWN or event.button != 1: return
-        if just_placed_machine: return
-        if self.build_system.build_mode is not None: return
-        if self.machine_ui.open: return
+        if event.type != py.MOUSEBUTTONDOWN or event.button != 1: 
+            return
+        if just_placed_machine: 
+            return
+        if self.build_system.build_mode is not None: 
+            return
+        if self.machine_ui.open: 
+            return
 
         mx, my = event.pos
         machine = self.world.get_machine_at_screen_pos(mx, my, self.camera)

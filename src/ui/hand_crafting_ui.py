@@ -1,3 +1,4 @@
+# ui.hand_crafting_ui
 import pygame as py
 
 from ui.recipe_ui import RecipeUI
@@ -38,27 +39,22 @@ class HandCraftingUI:
         self.recipe_ui = RecipeUI()
 
     def draw(self, screen):
-        if not self.open: 
-            return
+        if not self.open: return
 
-        # Get current screen size
         w, h = self.get_screen_size()
 
         # Always stick to right side, vertically centered
-        self.rect.x = w - self.width - 20  # 20px padding from right edge
+        self.rect.x = w - self.width - 20
         self.rect.y = h // 2 - self.height // 2
 
-        # Draw the panel
         screen.blit(self.sprite, self.rect)
 
-        # Draw inner components
         self._draw_recipes(screen)
         self._draw_selected_recipe_panel(screen)
         self._draw_produce_button(screen)
         self._draw_progress_bar(screen)
         self._draw_cancel_button(screen)
 
-        # Update hover info
         self._update_hover(screen)
 
     def _draw_selected_recipe_panel(self, screen):

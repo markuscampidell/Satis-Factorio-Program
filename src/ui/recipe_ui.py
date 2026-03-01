@@ -1,3 +1,4 @@
+# ui.recipe_ui
 import pygame as py
 
 from constants.itemdata import get_item_by_id
@@ -8,12 +9,6 @@ class RecipeUI:
         self.small_font = py.font.SysFont("Arial", 16)
 
     def draw_recipe_panel(self, screen, recipe, parent_rect=None, panel_side="right", custom_rect=None):
-        """
-        Draws a panel explaining the recipe.
-        If custom_rect is provided, it draws inside that rect.
-        Otherwise it draws left/right of parent_rect.
-        """
-
         panel_width, panel_height = 320, 180
 
         if custom_rect:
