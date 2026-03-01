@@ -26,8 +26,7 @@ class HandCraftingUI:
         self.small_font = py.font.SysFont("Arial", 16)
 
         self.progress = 0.0
-        self.auto_crafting = False
-        self.single_craft_active = False
+        self.crafting_mode = None
 
         self.recipe_rects = []
         self.produce_button_rect = None
@@ -101,7 +100,7 @@ class HandCraftingUI:
         can_craft = recipe and self.player.handcrafting.inventory.has_enough_items(recipe.inputs)
 
         button_w, button_h = 180, 40
-        producing = self.auto_crafting or self.single_craft_active
+        producing = self.crafting_mode is not None
 
         if producing and can_craft:
             button_w = int(button_w * 0.95)
@@ -131,12 +130,25 @@ class HandCraftingUI:
         py.draw.rect(screen, (0, 230, 0), fill, border_radius=6)
 
     def _draw_cancel_button(self, screen):
-        cancel_w, cancel_h = 80, 20
+        # Base size
+        normal_w, normal_h = 80, 20
+
+        if self.crafting_mode is None:
+            # Smaller and darker
+            cancel_w = int(normal_w * 0.9)
+            cancel_h = int(normal_h * 0.9)
+            color = (120, 0, 0)
+        else:
+            # Normal size and color
+            cancel_w = normal_w
+            cancel_h = normal_h
+            color = (200, 0, 0)
+
         cancel_x = self.rect.centerx - cancel_w // 2
         cancel_y = self.rect.bottom - 30
 
         self.cancel_button_rect = py.Rect(cancel_x, cancel_y, cancel_w, cancel_h)
-        py.draw.rect(screen, (200, 0, 0), self.cancel_button_rect, border_radius=8)
+        py.draw.rect(screen, color, self.cancel_button_rect, border_radius=8)
 
         text = self.font.render("Cancel", True, "#FFFFFF")
         screen.blit(text, text.get_rect(center=self.cancel_button_rect.center))
@@ -168,15 +180,13 @@ class HandCraftingUI:
             if self.produce_button_rect.collidepoint(pos):
                 recipe = self.player.handcrafting.get_selected_recipe()
                 if recipe and self.player.handcrafting.inventory.has_enough_items(recipe.inputs):
-                    self.single_craft_active = True
-                    self.auto_crafting = False
+                    self.crafting_mode = "single"
                     self.progress = 0.0
                 return
 
             # Cancel
             if self.cancel_button_rect and self.cancel_button_rect.collidepoint(pos):
-                self.auto_crafting = False
-                self.single_craft_active = False
+                self.crafting_mode = None
                 self.progress = 0.0
                 return
 
@@ -184,8 +194,8 @@ class HandCraftingUI:
             for i, (rect, recipe) in enumerate(self.recipe_rects):
                 if rect.collidepoint(pos):
                     self.player.handcrafting.selected_recipe_index = i
-                    self.auto_crafting = False
-                    self.single_craft_active = False
+                    self.crafting_mode = None
+                    self.progress = 0.0
                     self.progress = 0.0
                     return
                 
@@ -199,13 +209,12 @@ class HandCraftingUI:
 
         can_craft = self.player.handcrafting.inventory.has_enough_items(recipe.inputs)
         process_time = getattr(recipe, "process_time", 1)
-        producing = self.auto_crafting or self.single_craft_active
+        producing = self.crafting_mode is not None
 
         if not producing: return
 
         if not can_craft:
-            self.auto_crafting = False
-            self.single_craft_active = False
+            self.crafting_mode = None
             self.progress = 0.0
             return
 
@@ -215,11 +224,10 @@ class HandCraftingUI:
             self.player.handcrafting.try_craft_selected()
             self.progress = 0.0
 
-            if self.single_craft_active:
-                self.single_craft_active = False
+            if self.crafting_mode == "single":
+                self.crafting_mode = None
 
     def close(self):
         self.open = False
-        self.auto_crafting = False
-        self.single_craft_active = False
+        self.crafting_mode = None
         self.progress = 0.0

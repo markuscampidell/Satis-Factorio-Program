@@ -81,7 +81,7 @@ class Initializer:
         build_mode_renderer = BuildModeRenderer(build_system, machine_system, belt_ghost_preview_controller, belt_system, camera, grid)
         cursor_renderer = CursorRenderer(build_system)
         render_system = RenderSystem(world_renderer, ui_renderer, build_mode_renderer, cursor_renderer)
-        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera)
+        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, grid)
 
         player.handcrafting.recipes = smelter_recipes + assembler_recipes
 

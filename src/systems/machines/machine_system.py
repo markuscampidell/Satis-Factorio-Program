@@ -17,163 +17,152 @@ class MachineSystem:
         self.just_placed_machine = False
         self.splitter_rotation_steps = 0
 
+    # -----------------------------
+    # Place machine
+    # -----------------------------
     def place_machine(self, selected_machine_class):
-        if selected_machine_class is None: return
-        (snapped_x, snapped_y), blocked = self.get_machine_placement_preview(selected_machine_class)
-        if blocked: return
+        if selected_machine_class is None:
+            return
 
+        # Snap mouse to grid
+        mx, my = py.mouse.get_pos()
+        grid_x, grid_y = self.world.snap_to_tile(mx + self.camera.x, my + self.camera.y)
+
+        width, height = selected_machine_class.WIDTH, selected_machine_class.HEIGHT
+        top_left_x = grid_x - width // 2
+        top_left_y = grid_y - height // 2
+
+        # Check inventory
         cost = selected_machine_class.BUILD_COST
-        if not self.player.inventory.has_enough_items(cost): return
-        self.player.inventory.try_remove_items(cost)
+        if not self.player.inventory.has_enough_items(cost):
+            return
 
+        # Create machine instance
         if selected_machine_class.__name__ == "Splitter":
-            direction_map = [Vector2(1, 0),
-                             Vector2(0, 1),
-                             Vector2(-1, 0),
-                             Vector2(0, -1)]
-
+            direction_map = [Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0), Vector2(0, -1)]
             direction = direction_map[self.splitter_rotation_steps]
-
-            machine = Splitter(pos=(snapped_x, snapped_y), direction=direction)
+            machine = Splitter(grid_pos=(top_left_x, top_left_y), direction=direction)
             machine.rotation_angle = self.splitter_rotation_steps * 90
             machine.image = py.transform.rotate(machine.image_original, -machine.rotation_angle)
-            machine.rect = machine.image.get_rect(center=(snapped_x, snapped_y))
 
-            cell_size = self.grid.CELL_SIZE
+            # Compute output belts
             machine.output_belts = []
-
             for dir_vec in machine._get_relative_dirs():
-                next_rect = machine.rect.move(int(dir_vec.x * cell_size),
-                                              int(dir_vec.y * cell_size))
-                seg = self.world.belt_map.get((next_rect.x, next_rect.y))
+                next_cell = (top_left_x + dir_vec.x, top_left_y + dir_vec.y)
+                seg = self.world.get_belt_segment_at(next_cell[0]*self.grid.CELL_SIZE,
+                                                     next_cell[1]*self.grid.CELL_SIZE)
                 if seg:
                     machine.output_belts.append(seg)
-
             machine.current_output_index %= max(len(machine.output_belts), 1)
-
         else:
-            machine = selected_machine_class(pos=(snapped_x, snapped_y))
+            machine = selected_machine_class(grid_pos=(top_left_x, top_left_y))
 
+        # Check for blocked tiles (machines, belts, or player)
+        blocked = any(self.world.is_cell_blocked(cell) or self.world.is_blocked_by_player(cell)
+                      for cell in getattr(machine, "occupied_cells", []))
+        if blocked:
+            return
+
+        # Remove items and add machine
+        self.player.inventory.try_remove_items(cost)
         self.world.add_machine(machine)
-
         self.preview_machine = None
         self.just_placed_machine = True
 
+    # -----------------------------
+    # Delete machine
+    # -----------------------------
     def delete_machine(self, mx, my):
-        world_x = mx + self.camera.x
-        world_y = my + self.camera.y
+        grid_x, grid_y = self.world.snap_to_tile(mx + self.camera.x, my + self.camera.y)
 
         for machine in list(self.world.machines):
-            if machine.rect.collidepoint(world_x, world_y):
+            if (grid_x, grid_y) in getattr(machine, "occupied_cells", []):
                 if hasattr(machine, "transfer_processing_items_to_player"):
                     machine.transfer_processing_items_to_player(self.player.inventory)
 
-                if machine.__class__.__name__ == "Splitter":
-                    if getattr(machine, "current_item", None):
-                        self.player.inventory.try_add_items(machine.current_item, 1)
-                        machine.current_item = None
+                if machine.__class__.__name__ == "Splitter" and getattr(machine, "current_item", None):
+                    self.player.inventory.try_add_items(machine.current_item, 1)
+                    machine.current_item = None
 
+                # Refund cost
                 for item_id, amount in machine.BUILD_COST.items():
                     self.player.inventory.try_add_items(item_id, amount)
 
                 self.world.remove_machine(machine)
                 return
 
+    # -----------------------------
+    # Placement preview
+    # -----------------------------
     def get_machine_placement_preview(self, selected_machine_class):
         mx, my = py.mouse.get_pos()
-        world_x, world_y = mx + self.camera.x, my + self.camera.y
+        grid_x, grid_y = self.world.snap_to_tile(mx + self.camera.x, my + self.camera.y)
 
-        cell = self.grid.CELL_SIZE
-        width_cells = selected_machine_class.WIDTH
-        height_cells = selected_machine_class.HEIGHT
+        width, height = selected_machine_class.WIDTH, selected_machine_class.HEIGHT
+        top_left_x = grid_x - width // 2
+        top_left_y = grid_y - height // 2
 
-        pixel_width = width_cells * cell
-        pixel_height = height_cells * cell
+        temp_machine = selected_machine_class(grid_pos=(top_left_x, top_left_y))
 
-        # Determine top-left grid position
-        if width_cells % 2 == 0:
-            snapped_tl_x = (world_x // cell) * cell
-        else:
-            center_cell_x = world_x // cell
-            snapped_tl_x = (center_cell_x - width_cells // 2) * cell
+        blocked = any(self.world.is_cell_blocked(cell) or self.world.is_blocked_by_player(cell)
+                      for cell in getattr(temp_machine, "occupied_cells", []))
 
-        if height_cells % 2 == 0:
-            snapped_tl_y = (world_y // cell) * cell
-        else:
-            center_cell_y = world_y // cell
-            snapped_tl_y = (center_cell_y - height_cells // 2) * cell
+        return (top_left_x, top_left_y), blocked
 
-        snapped_x = snapped_tl_x + pixel_width // 2
-        snapped_y = snapped_tl_y + pixel_height // 2
-
-        temp_machine_rect = py.Rect(0, 0, pixel_width, pixel_height)
-        temp_machine_rect.center = (snapped_x, snapped_y)
-
-        blocked = False
-
-        if self.player.rect.colliderect(temp_machine_rect):
-            blocked = True
-
-        for machine in self.world.machines:
-            if machine.rect.colliderect(temp_machine_rect):
-                blocked = True
-                break
-
-        if not blocked:
-            for seg in self.world.belt_segments:
-                if seg.rect.colliderect(temp_machine_rect):
-                    blocked = True
-                    break
-
-        return (snapped_x, snapped_y), blocked
-    
+    # -----------------------------
+    # Ghost machine rendering
+    # -----------------------------
     def ghost_machine(self, selected_machine_class=None, build_mode=None, rotation_steps=0):
-        if selected_machine_class is None or build_mode != 'building': return
-        if selected_machine_class is BeltSegment: return
+        if selected_machine_class is None or build_mode != 'building':
+            return
+        if selected_machine_class is BeltSegment:
+            return
 
-        (snapped_x, snapped_y), blocked = self.get_machine_placement_preview(selected_machine_class)
+        mx, my = py.mouse.get_pos()
+        grid_x, grid_y = self.world.snap_to_tile(mx + self.camera.x, my + self.camera.y)
 
-        cell = self.grid.CELL_SIZE
-        width_cells = selected_machine_class.WIDTH
-        height_cells = selected_machine_class.HEIGHT
+        width, height = selected_machine_class.WIDTH, selected_machine_class.HEIGHT
+        top_left_x = grid_x - width // 2
+        top_left_y = grid_y - height // 2
 
-        pixel_width = width_cells * cell
-        pixel_height = height_cells * cell
+        # Tile-based blocked check
+        temp_machine = selected_machine_class(grid_pos=(top_left_x, top_left_y))
+        blocked = any(self.world.is_cell_blocked(cell) or self.world.is_blocked_by_player(cell)
+                      for cell in getattr(temp_machine, "occupied_cells", []))
 
-        # Create and cache ghost image if needed
-        cache_key = f"_ghost_image_{width_cells}x{height_cells}"
+        # Create ghost surface (cached)
+        pixel_width = width * self.grid.CELL_SIZE
+        pixel_height = height * self.grid.CELL_SIZE
+        cache_key = f"_ghost_image_{width}x{height}"
 
         if not hasattr(selected_machine_class, cache_key):
             ghost = py.Surface((pixel_width, pixel_height), py.SRCALPHA)
-
             if selected_machine_class.SPRITE_PATH:
                 original = py.image.load(selected_machine_class.SPRITE_PATH).convert_alpha()
                 scaled = py.transform.scale(original, (pixel_width, pixel_height))
                 ghost.blit(scaled, (0, 0))
-
             setattr(selected_machine_class, cache_key, ghost)
 
         ghost = getattr(selected_machine_class, cache_key).copy()
 
-        if selected_machine_class is Splitter:
+        if selected_machine_class.__name__ == "Splitter":
             ghost = py.transform.rotate(ghost, -90 * rotation_steps)
 
         ghost.set_alpha(120)
 
+        # Overlay for blocked tiles (machines, belts, player)
         if blocked:
             overlay = py.Surface(ghost.get_size(), py.SRCALPHA)
             overlay.fill((255, 0, 0, 120))
             ghost.blit(overlay, (0, 0))
 
+        # Overlay for missing resources
         if not self.player.inventory.has_enough_items(selected_machine_class.BUILD_COST):
             overlay = py.Surface(ghost.get_size(), py.SRCALPHA)
             overlay.fill((255, 255, 0, 120))
             ghost.blit(overlay, (0, 0))
 
-        # Draw if inside camera
-        ghost_rect = ghost.get_rect(center=(snapped_x, snapped_y))
-
-        camera_rect = py.Rect(self.camera.x, self.camera.y, self.camera.screen_width, self.camera.screen_height)
-
-        if ghost_rect.colliderect(camera_rect):
-            self.screen.blit(ghost, (ghost_rect.x - self.camera.x, ghost_rect.y - self.camera.y))
+        # Draw at pixel position for camera
+        pixel_x = top_left_x * self.grid.CELL_SIZE
+        pixel_y = top_left_y * self.grid.CELL_SIZE
+        self.screen.blit(ghost, (pixel_x - self.camera.x, pixel_y - self.camera.y))

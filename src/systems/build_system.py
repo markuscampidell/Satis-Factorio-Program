@@ -49,8 +49,8 @@ class BuildSystem:
                 if self._mouse_over_ui(mx, my):
                     return
                 self.belt_system.placing_belt = True
-                self.belt_system.beltX1 = world_x
-                self.belt_system.beltY1 = world_y
+                # FIX: store tile indices, not pixels
+                self.belt_system.beltX1, self.belt_system.beltY1 = self.world.snap_to_tile(world_x, world_y)
                 return
             else:
                 if self._mouse_over_ui(mx, my):
@@ -86,20 +86,23 @@ class BuildSystem:
             self.hovered_delete_target = None
             return
 
+        # Mouse grid coordinates
         mx, my = py.mouse.get_pos()
-        world_x = mx + self.camera.x
-        world_y = my + self.camera.y
+        grid_x = (mx + self.camera.x) // self.grid.CELL_SIZE
+        grid_y = (my + self.camera.y) // self.grid.CELL_SIZE
 
+        # Check machines by tile
+        self.hovered_delete_target = None
         for machine in self.world.machines:
-            if machine.rect.collidepoint(world_x, world_y):
-                self.hovered_delete_target = machine
-                return
+            for cell in getattr(machine, "occupied_cells", []):
+                if cell == (grid_x, grid_y):
+                    self.hovered_delete_target = machine
+                    return
 
-        snapped_x, snapped_y = self.belt_system._snap_to_grid(world_x, world_y)
-        seg = self.world.belt_map.get((snapped_x, snapped_y))
-
-        if seg: self.hovered_delete_target = seg
-        else: self.hovered_delete_target = None
+        # Check belts by tile
+        seg = self.world.belt_map.get((grid_x, grid_y))
+        if seg:
+            self.hovered_delete_target = seg
 
     def _mouse_over_ui(self, mx, my):
         return ((self.machine_ui.open and self.machine_ui.rect.collidepoint(mx, my)) or

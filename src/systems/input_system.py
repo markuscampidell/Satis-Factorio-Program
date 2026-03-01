@@ -61,8 +61,14 @@ class InputSystem:
 
         if self.hand_crafting_ui.open:
             if event.key == py.K_SPACE:
-                self.hand_crafting_ui.auto_crafting = not self.hand_crafting_ui.auto_crafting
-                self.hand_crafting_ui.progress = 0.0
+                ui = self.hand_crafting_ui
+
+                if ui.crafting_mode == "auto":
+                    ui.crafting_mode = "none"
+                else:
+                    ui.crafting_mode = "auto"
+
+                ui.progress = 0.0
             return
 
 

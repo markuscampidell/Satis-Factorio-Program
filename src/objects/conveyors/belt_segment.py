@@ -6,61 +6,72 @@ from objects.machines.producing_machine import ProducingMachine
 from objects.machines.splitter import Splitter
 
 class BeltSegment:
-    def __init__(self, rect: py.Rect, direction: Vector2, incoming_direction: Vector2, belt_type="basic"):
-        self.rect = rect
-        self.direction = direction if direction else Vector2(1, 0)
+    def __init__(self, grid_pos, direction: Vector2, incoming_direction: Vector2, belt_type="basic"):
+        self.grid_pos = grid_pos  # tile coordinates (x, y)
+        self.direction = direction or Vector2(1, 0)
         self.incoming_direction = incoming_direction
         self.belt_type = belt_type
 
+        # For drawing only
+        self.rect = py.Rect(grid_pos[0] * Grid.CELL_SIZE,
+                                grid_pos[1] * Grid.CELL_SIZE,
+                                Grid.CELL_SIZE,
+                                Grid.CELL_SIZE)
+
+        # Items on this segment
         self.item = None
         self.item_progress = 0.0
         self.items_per_minute = self._get_items_per_minute_for_type()
-        self.speed = (self.items_per_minute / 60) * Grid.CELL_SIZE  # pixels per second
+        self.speed = (self.items_per_minute / 60)  # tiles per second (use tiles, not pixels)
 
-    def _get_items_per_minute_for_type(self):
-        if self.belt_type == "basic": return 120
-        if self.belt_type == "fast": return 240
-        if self.belt_type == "express": return 480
+    def update(self, belt_map, machines, dt):
+        if not self.item:
+            self._pull_from_prev_machine(machines)
+            return
 
-    def update(self, belt_map, machines, cell_size, dt):
-        if self.item:
-            self.item_progress += self.speed * dt / cell_size
-            if self.item_progress >= 1.0:
-                next_rect = self.rect.move(int(self.direction.x * cell_size), int(self.direction.y * cell_size)) # move self.rect one tile in the direction of the segment
-                next_segment = belt_map.get(next_rect.topleft)
-                moved = False
+        # Move item along the belt in tile units
+        self.item_progress += self.speed * dt
+        if self.item_progress >= 1.0:
+            next_pos = (self.grid_pos[0] + self.direction.x,
+                        self.grid_pos[1] + self.direction.y)
 
-                if next_segment and next_segment.item is None:
-                    if not (next_segment.direction.x == -self.direction.x and next_segment.direction.y == -self.direction.y): # prevent moving into a belt going the opposite direction
-                        next_segment.item = self.item
-                        next_segment.item_progress = 0.0
-                        self._clear_item()
-                        moved = True
+            next_segment = belt_map.get(next_pos)
+            moved = False
 
-                if not moved:
-                    for machine in machines:
-                        if machine.rect.colliderect(next_rect):
-                            if self._try_insert_into_machine(machine):
-                                moved = True
-                                break
-                if not moved:
-                    self.item_progress = 1.0 # stop at end of belt until it can move forward
+            # Move to next belt
+            if next_segment and next_segment.item is None:
+                if not (next_segment.direction.x == -self.direction.x and
+                        next_segment.direction.y == -self.direction.y):
+                    next_segment.item = self.item
+                    next_segment.item_progress = 0.0
+                    self._clear_item()
+                    moved = True
 
-        elif self.item is None:
-            self._pull_from_prev_machine(machines, cell_size)
+            # Move into machine
+            if not moved:
+                for machine in machines:
+                    if next_pos in getattr(machine, "occupied_cells", []):
+                        if self._try_insert_into_machine(machine):
+                            moved = True
+                            break
 
-    def draw_item(self, screen, camera, cell_size):
-        if not self.item or self.item.sprite is None: return
+            if not moved:
+                self.item_progress = 1.0  # stop until it can move
 
-        incoming = self.incoming_direction or self.direction
-        center_x = self.rect.x + cell_size // 2
-        center_y = self.rect.y + cell_size // 2
-        prev_center_x = center_x - incoming.x * cell_size
-        prev_center_y = center_y - incoming.y * cell_size
-        draw_x = prev_center_x + (center_x - prev_center_x) * self.item_progress
-        draw_y = prev_center_y + (center_y - prev_center_y) * self.item_progress
+    def draw_item(self, screen, camera):
+        if not self.item or not self.item.sprite: 
+            return
 
-        size = int(cell_size * 0.5)
+        # Draw interpolation based on item_progress
+        start_x = self.grid_pos[0] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2
+        start_y = self.grid_pos[1] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2
+        end_x = start_x + self.direction.x * Grid.CELL_SIZE
+        end_y = start_y + self.direction.y * Grid.CELL_SIZE
+
+        draw_x = start_x + (end_x - start_x) * self.item_progress
+        draw_y = start_y + (end_y - start_y) * self.item_progress
+
+        size = int(Grid.CELL_SIZE * 0.5)
         sprite = py.transform.scale(self.item.sprite, (size, size))
         screen.blit(sprite, (draw_x - camera.x - size // 2, draw_y - camera.y - size // 2))
 
@@ -73,16 +84,17 @@ class BeltSegment:
         self.item = None
         self.item_progress = 0.0
 
-    def _pull_from_prev_machine(self, machines, cell_size):
-        prev_rect = self.rect.move(-int(self.direction.x * cell_size), -int(self.direction.y * cell_size))
+    def _pull_from_prev_machine(self, machines):
+        prev_pos = (self.grid_pos[0] - self.direction.x,
+                    self.grid_pos[1] - self.direction.y)
         for machine in machines:
-            if isinstance(machine, ProducingMachine) and machine.rect.colliderect(prev_rect):
+            if isinstance(machine, ProducingMachine) and prev_pos in getattr(machine, "occupied_cells", []):
                 next_item = machine.push_output_items(peek=True)
                 if next_item:
                     self.item = machine.push_output_items(peek=False)
                     self.item_progress = 0.0
                     self.incoming_direction = self.direction
-                break  # Only pull from the first matching machine
+                break
 
     def _try_insert_into_machine(self, machine):
         if isinstance(machine, Splitter):
@@ -98,3 +110,13 @@ class BeltSegment:
                         self._clear_item()
                     return added
         return False
+    
+    def _get_items_per_minute_for_type(self):
+        if self.belt_type == "basic":
+            return 120
+        elif self.belt_type == "fast":
+            return 240
+        elif self.belt_type == "express":
+            return 480
+        else:
+            return 120  # default

@@ -57,13 +57,12 @@ class Game:
 
         if self.context.hand_crafting_ui.open:
             self.context.hand_crafting_ui.update(delta_time)
-
-        cell = self.context.grid.CELL_SIZE
+            
         for segment in self.context.world.belt_segments:
-            segment.update(self.context.world.belt_map, self.context.world.machines, cell, delta_time)
+            segment.update(self.context.world.belt_map, self.context.world.machines, delta_time)
 
         for machine in self.context.world.machines:
-            machine.update(delta_time, self.context.grid.CELL_SIZE, self.context.world.belt_map)
+            machine.update(delta_time, self.context.world.belt_map)
 
         self.context.build_system.update_hovered_delete_target()
     

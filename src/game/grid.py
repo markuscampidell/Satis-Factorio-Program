@@ -33,3 +33,6 @@ class Grid:
     def update_screen_size(self, width, height):
         self.screen_width = width
         self.screen_height = height
+    
+    def world_to_grid(self, world_x, world_y):
+        return world_x // self.CELL_SIZE, world_y // self.CELL_SIZE

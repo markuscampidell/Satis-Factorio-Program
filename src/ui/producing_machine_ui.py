@@ -169,8 +169,8 @@ class ProducingMachineUI:
         input_y = self.rect.y + padding
         output_y = self.rect.bottom - padding - self.SLOT_SIZE
         input_x = output_x = self.rect.x + padding
-        self._draw_input_slots(screen, input_x, input_y, self.selected_machine.inputs_per_minute())
-        self._draw_output_slots(screen, output_x, output_y, self.selected_machine.output_inventories, self.selected_machine.outputs_per_minute())
+        self._draw_input_slots(screen, input_x, input_y, self.selected_machine.recipe.inputs_per_minute())
+        self._draw_output_slots(screen, output_x, output_y, self.selected_machine.output_inventories, self.selected_machine.recipe.outputs_per_minute())
         self._draw_processing_arrow(screen)
 
     def _draw_input_slots(self, screen, x, y, inputs_per_min):

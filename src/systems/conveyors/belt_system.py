@@ -1,14 +1,15 @@
 # systems.conveyors.belt_system
 import pygame as py
-
 from core.vector2 import Vector2
 from objects.conveyors.belt_segment import BeltSegment
 
 class BeltSystem:
-    BUILD_COSTS = {"basic": {"iron_ingot": 2},
-                   "fast": {"iron_ingot": 5, "copper_ingot": 1},
-                   "express": {"iron_ingot": 10, "copper_ingot": 5}}
-    
+    BUILD_COSTS = {
+        "basic": {"iron_ingot": 2},
+        "fast": {"iron_ingot": 5, "copper_ingot": 1},
+        "express": {"iron_ingot": 10, "copper_ingot": 5}
+    }
+
     def __init__(self, world, grid, player, ghost_belt_renderer):
         self.world = world
         self.grid = grid
@@ -22,167 +23,168 @@ class BeltSystem:
         self.selected_belt_type = "basic"
         self.belt_placement_direction = Vector2(1, 0)
 
+    # -----------------------------
+    # Place belt
+    # -----------------------------
     def place_belt(self, world_x2, world_y2, belt_type="basic"):
-        start_x, start_y = self._snap_to_grid(self.beltX1, self.beltY1)
-        end_x, end_y = self._snap_to_grid(world_x2, world_y2)
+        start_tile = (self.beltX1, self.beltY1)
+        end_tile = self.world.snap_to_tile(world_x2, world_y2)
 
-        rects = self._get_snapped_rects_for_drag(start_x, start_y, end_x, end_y, horizontal_first=self.belt_first_axis_horizontal)
-        segments, blocked = self._rects_to_segments(rects, belt_type=belt_type, check_blocked=True)
-        if blocked: return
+        tiles = self._get_tiles_for_drag(start_tile, end_tile, horizontal_first=self.belt_first_axis_horizontal)
+        segments = self._tiles_to_segments(tiles, belt_type=belt_type)
 
+        # Check if any tile is blocked by machines, belts, or player
+        if any(self.world.is_cell_blocked(seg.grid_pos) or self.world.is_blocked_by_player(seg.grid_pos)
+               for seg in segments):
+            return  # Can't build here
+
+        # Calculate total cost
         total_cost = {}
         build_cost = self.BUILD_COSTS[belt_type]
         for seg in segments:
             for item_id, amount in build_cost.items():
                 total_cost[item_id] = total_cost.get(item_id, 0) + amount
 
-        if not self.player.inventory.has_enough_items(total_cost): return
+        if not self.player.inventory.has_enough_items(total_cost):
+            return
         self.player.inventory.try_remove_items(total_cost)
 
+        # Add segments to world
         for seg in segments:
             self.world.add_belt_segment(seg)
 
         self.update_belt_incoming_direction(segments)
-    
-    def delete_belt(self, mx, my, delete_whole=False, camera_x=0, camera_y=0, player_inventory=None): # ok
-        world_x = mx + camera_x
-        world_y = my + camera_y
+
+    # -----------------------------
+    # Delete belt
+    # -----------------------------
+    def delete_belt(self, mx, my, delete_whole=False, camera_x=0, camera_y=0, player_inventory=None):
+        world_x, world_y = mx + camera_x, my + camera_y
         shift_held = py.key.get_mods() & py.KMOD_SHIFT
 
         target_seg = self.world.get_belt_segment_at(world_x, world_y)
-        if not target_seg: return
+        if not target_seg:
+            return
 
-        if delete_whole or shift_held: to_delete = self.get_connected_belt_segments(target_seg)
-        else: to_delete = [target_seg]
+        to_delete = self.get_connected_belt_segments(target_seg) if (delete_whole or shift_held) else [target_seg]
 
         for seg in to_delete:
             seg.refund_item_on_segment(self.player.inventory)
             for item_id, amount in self.BUILD_COSTS[seg.belt_type].items():
                 player_inventory.try_add_items(item_id, amount)
             self.world.remove_belt_segment(seg)
-    
+
+    # -----------------------------
+    # Connected belts
+    # -----------------------------
     def get_connected_belt_segments(self, start_seg):
         visited = set()
         stack = [start_seg]
-        cell = self.grid.CELL_SIZE
 
         while stack:
             seg = stack.pop()
-            if seg in visited: continue
+            if seg in visited:
+                continue
             visited.add(seg)
+            x, y = seg.grid_pos
 
-            neighbors_coords = [(seg.rect.x + cell, seg.rect.y),
-                                (seg.rect.x - cell, seg.rect.y),
-                                (seg.rect.x, seg.rect.y + cell),
-                                (seg.rect.x, seg.rect.y - cell)]
+            neighbors_coords = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+
             for nx, ny in neighbors_coords:
-                neighbor = self.world.belt_map.get((nx, ny))
-                if not neighbor or neighbor in visited: continue
+                neighbor = self.world.get_belt_segment_at(nx * self.grid.CELL_SIZE,
+                                                          ny * self.grid.CELL_SIZE)
+                if not neighbor or neighbor in visited:
+                    continue
 
-                if ((seg.rect.centerx + seg.direction.x * cell == neighbor.rect.centerx and
-                    seg.rect.centery + seg.direction.y * cell == neighbor.rect.centery) or
-                    (neighbor.rect.centerx + neighbor.direction.x * cell == seg.rect.centerx and
-                    neighbor.rect.centery + neighbor.direction.y * cell == seg.rect.centery)):
+                # Forward connection
+                if (x + seg.direction.x, y + seg.direction.y) == neighbor.grid_pos:
+                    stack.append(neighbor)
+                # Backward connection
+                if (nx + neighbor.direction.x, ny + neighbor.direction.y) == seg.grid_pos:
                     stack.append(neighbor)
 
         return list(visited)
-    
-    def any_rect_blocked(self, rects):
-        return any(self.world.is_rect_blocked(r) for r in rects)
 
-    def _rects_to_segments(self, rects, belt_type="basic", check_blocked=False):
+    # -----------------------------
+    # Convert tiles → BeltSegments
+    # -----------------------------
+    def _tiles_to_segments(self, tiles, belt_type="basic"):
         segments = []
-        blocked = False
-        cell = self.grid.CELL_SIZE
 
-        for i, r in enumerate(rects):
-            if check_blocked and self.world.is_rect_blocked(r):
-                blocked = True
-
-            # Outgoing direction
-            if len(rects) == 1:
+        for i, tile in enumerate(tiles):
+            if len(tiles) == 1:
                 direction = self.belt_placement_direction
             else:
-                if i < len(rects) - 1:
-                    nxt = rects[i + 1]
-                    direction = Vector2((nxt.x - r.x) // cell, (nxt.y - r.y) // cell)
+                if i < len(tiles) - 1:
+                    nx, ny = tiles[i + 1]
+                    x, y = tile
+                    direction = Vector2(nx - x, ny - y)
                 else:
-                    prev = rects[i - 1]
-                    direction = Vector2((r.x - prev.x) // cell, (r.y - prev.y) // cell)
+                    px, py = tiles[i - 1]
+                    x, y = tile
+                    direction = Vector2(x - px, y - py)
 
-            # Incoming direction
             incoming = None
             if i > 0:
-                prev = rects[i - 1]
-                incoming = Vector2((r.x - prev.x) // cell, (r.y - prev.y) // cell)
+                px, py = tiles[i - 1]
+                x, y = tile
+                incoming = Vector2(x - px, y - py)
 
-            segments.append(BeltSegment(r, direction, incoming, belt_type=belt_type))
+            segments.append(BeltSegment(tile, direction, incoming, belt_type=belt_type))
 
-        if check_blocked:
-            return segments, blocked
         return segments
-    
+
+    # -----------------------------
+    # Update incoming directions
+    # -----------------------------
     def update_belt_incoming_direction(self, segments=None):
         targets = segments or self.world.belt_segments
-
         for seg in targets:
             seg.incoming_direction = self._calculate_incoming_for_segment(seg, self.world.belt_map)
-    
+
     def _calculate_incoming_for_segment(self, seg, lookup_map):
-        cell = self.grid.CELL_SIZE
+        x, y = seg.grid_pos
+        neighbors = [lookup_map.get((x - 1, y)), lookup_map.get((x + 1, y)),
+                     lookup_map.get((x, y - 1)), lookup_map.get((x, y + 1))]
 
-        # Neighbors in 4 directions
-        left  = lookup_map.get((seg.rect.x - cell, seg.rect.y))
-        right = lookup_map.get((seg.rect.x + cell, seg.rect.y))
-        up    = lookup_map.get((seg.rect.x, seg.rect.y - cell))
-        down  = lookup_map.get((seg.rect.x, seg.rect.y + cell))
+        for neighbor in neighbors:
+            if not neighbor:
+                continue
+            nx, ny = neighbor.grid_pos
+            if (nx + neighbor.direction.x, ny + neighbor.direction.y) == (x, y):
+                return Vector2(x - nx, y - ny)
 
-        for neighbor in (left, right, up, down):
-            if neighbor:
-                nx, ny = neighbor.rect.centerx, neighbor.rect.centery
-                sx, sy = seg.rect.centerx, seg.rect.centery
-
-                if (nx + neighbor.direction.x * cell == sx and
-                    ny + neighbor.direction.y * cell == sy):
-
-                    return Vector2(
-                        seg.rect.x - neighbor.rect.x,
-                        seg.rect.y - neighbor.rect.y
-                    ).snapped()
-
-        # Default: straight
         return seg.direction
-    
+
+    # -----------------------------
+    # Ghost preview connections
+    # -----------------------------
     def resolve_preview_connections(self, preview_segments):
-        # Create temporary lookup map
         temp_map = self.world.belt_map.copy()
-
-        # Add preview segments to lookup
         for seg in preview_segments:
-            temp_map[(seg.rect.x, seg.rect.y)] = seg
-
-        # Calculate incoming using combined map
+            temp_map[seg.grid_pos] = seg
         for seg in preview_segments:
             seg.incoming_direction = self._calculate_incoming_for_segment(seg, temp_map)
 
-    def _get_snapped_rects_for_drag(self, start_x, start_y, end_x, end_y, horizontal_first=True):
-        start_x, start_y = self._snap_to_grid(start_x, start_y)
-        end_x, end_y = self._snap_to_grid(end_x, end_y)
-        cell = self.grid.CELL_SIZE
-
-        rects = []
-        dx = 1 if end_x >= start_x else -1
-        dy = 1 if end_y >= start_y else -1
+    # -----------------------------
+    # Get tiles for drag path
+    # -----------------------------
+    def _get_tiles_for_drag(self, start_tile, end_tile, horizontal_first=True):
+        x1, y1 = start_tile
+        x2, y2 = end_tile
+        tiles = []
+        dx = 1 if x2 >= x1 else -1
+        dy = 1 if y2 >= y1 else -1
 
         if horizontal_first:
-            for x in range(start_x, end_x + dx * cell, dx * cell): rects.append(py.Rect(x, start_y, cell, cell))
-            for y in range(start_y + dy * cell, end_y + dy * cell, dy * cell): rects.append(py.Rect(end_x, y, cell, cell))
+            for x in range(x1, x2 + dx, dx):
+                tiles.append((x, y1))
+            for y in range(y1 + dy, y2 + dy, dy):
+                tiles.append((x2, y))
         else:
-            for y in range(start_y, end_y + dy * cell, dy * cell): rects.append(py.Rect(start_x, y, cell, cell))
-            for x in range(start_x + dx * cell, end_x + dx * cell, dx * cell): rects.append(py.Rect(x, end_y, cell, cell))
+            for y in range(y1, y2 + dy, dy):
+                tiles.append((x1, y))
+            for x in range(x1 + dx, x2 + dx, dx):
+                tiles.append((x, y2))
 
-        return rects
-
-    def _snap_to_grid(self, x, y):
-            cell = self.grid.CELL_SIZE
-            return (int(x // cell) * cell, int(y // cell) * cell)
+        return tiles

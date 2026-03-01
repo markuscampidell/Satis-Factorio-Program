@@ -10,6 +10,7 @@ class BuildModeRenderer:
         self.ghost_belt_drawer = ghost_belt_drawer
         self.belt_system = belt_system
         self.camera = camera
+        self.grid = grid
 
         self.update_overlay_surfaces(camera.screen_width, camera.screen_height)
 
@@ -25,7 +26,8 @@ class BuildModeRenderer:
             self.ghost_belt_drawer.draw_ghost(self.build_system.selected_machine_class, self.belt_system.placing_belt, self.belt_system.selected_belt_type)
 
     def _highlight_hovered_delete_target(self, screen):
-        if self.build_system.build_mode != "deleting" or self.build_system.hovered_delete_target is None: return
+        if self.build_system.build_mode != "deleting" or self.build_system.hovered_delete_target is None:
+            return
 
         alpha = 100
         color = (255, 0, 0)
@@ -37,7 +39,16 @@ class BuildModeRenderer:
             segments_to_highlight = [self.build_system.hovered_delete_target]
 
         for obj in segments_to_highlight:
-            if hasattr(obj, "rect"):
+            # Tile-based highlighting
+            if hasattr(obj, "occupied_cells"):
+                for grid_x, grid_y in obj.occupied_cells:
+                    pixel_x = grid_x * self.grid.CELL_SIZE
+                    pixel_y = grid_y * self.grid.CELL_SIZE
+                    overlay = py.Surface((self.grid.CELL_SIZE, self.grid.CELL_SIZE), py.SRCALPHA)
+                    overlay.fill((*color, alpha))
+                    screen.blit(overlay, (pixel_x - self.camera.x, pixel_y - self.camera.y))
+            # Fallback for older objects that still have rect
+            elif hasattr(obj, "rect") and obj.rect:
                 rect = obj.rect
                 overlay = py.Surface((rect.width, rect.height), py.SRCALPHA)
                 overlay.fill((*color, alpha))
