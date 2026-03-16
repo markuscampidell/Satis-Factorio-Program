@@ -10,6 +10,6 @@ class Assembler(ProducingMachine):
     WIDTH = 3
     HEIGHT = 3
 
-    def __init__(self, pos):
+    def __init__(self, grid_pos):
         self.recipes = assembler_recipes
-        super().__init__(pos, assembler_recipes[0])
+        super().__init__(grid_pos, assembler_recipes[0])

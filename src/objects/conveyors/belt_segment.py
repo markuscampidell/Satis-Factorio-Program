@@ -59,8 +59,7 @@ class BeltSegment:
                 self.item_progress = 1.0  # stop until it can move
 
     def draw_item(self, screen, camera):
-        if not self.item or not self.item.sprite: 
-            return
+        if not self.item or not self.item.sprite: return
 
         # Draw interpolation based on item_progress
         start_x = self.grid_pos[0] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2
