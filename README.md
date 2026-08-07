@@ -1,9 +1,11 @@
 This is a game about automation. (inspired by Satisfactory, Factorio and Dyson Sphere Program)
 
 Machines have inputs and outputs, when they have enough inputs, they produce
-Items can flow with belts into and out of machines and splitters.
+
+Items can go onto belts and into and out of machines.
 
 Keybinds:
+
   Q: Enter building
   x: Enter deleting
   Tab: open/close Player Inventory
