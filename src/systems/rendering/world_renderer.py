@@ -36,18 +36,11 @@ class WorldRenderer:
             gx, gy = seg.grid_pos
 
             if camera_left <= gx < camera_right and camera_top <= gy < camera_bottom:
-                incoming = (
-                    seg.incoming_directions[0]
-                    if seg.incoming_directions
-                    else -seg.direction
-                )
+                incoming_directions = (seg.incoming_directions if seg.incoming_directions else -seg.direction)
 
                 outgoing = seg.direction
 
-                image = self._get_belt_segment_image(
-                    incoming,
-                    outgoing
-                )
+                image = self._get_belt_segment_image(incoming_directions, outgoing)
 
                 screen.blit(
                     image,
@@ -79,15 +72,17 @@ class WorldRenderer:
                     machine.current_incoming_direction or machine.direction
                 )
     
-    def _get_belt_segment_image(self, incoming, outgoing):
-        key = (incoming.x, incoming.y, outgoing.x, outgoing.y)
-        if key not in self.image_cache:
-            if incoming.x == outgoing.x and incoming.y == outgoing.y:
-                image = self.belt_sprite_manager.get_straight(outgoing)
-            else:
-                image = self.belt_sprite_manager.get_curve(incoming, outgoing)
-            self.image_cache[key] = image
-        return self.image_cache[key]
+    def _get_belt_segment_image(self, incoming_directions, outgoing):
+        if len(incoming_directions) > 1:
+            # Multiple inputs: render as a straight belt
+            return self.belt_sprite_manager.get_straight(outgoing)
+
+        incoming = incoming_directions[0] if incoming_directions else outgoing
+
+        if incoming.x == outgoing.x and incoming.y == outgoing.y:
+            return self.belt_sprite_manager.get_straight(outgoing)
+
+        return self.belt_sprite_manager.get_curve(incoming, outgoing)
     
     def _draw_machines(self, screen):
         camera_left = self.camera.x // self.grid.CELL_SIZE

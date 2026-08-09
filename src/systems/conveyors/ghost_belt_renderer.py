@@ -13,46 +13,81 @@ class GhostBeltRenderer:
                                "orange": self._make_overlay((255, 165, 0, 120)),
                                "yellow": self._make_overlay((255, 255, 0, 120)),}
 
-    def draw_single(self, screen, camera, grid_pos, incoming: Vector2, outgoing: Vector2, color="normal"):
-        # Convert tile → pixel
+    def draw_single(self, screen, camera, grid_pos, incoming_directions, outgoing, color="normal"):
         tile_x, tile_y = grid_pos
         x = tile_x * self.cell_size
         y = tile_y * self.cell_size
 
-        incoming = Vector2(round(incoming.x), round(incoming.y))
-        outgoing = Vector2(round(outgoing.x), round(outgoing.y))
+        outgoing = Vector2(
+            round(outgoing.x),
+            round(outgoing.y)
+        )
 
-        if incoming == outgoing: key = ("straight", outgoing.x, outgoing.y)
-        else: key = ("curve", incoming.x, incoming.y, outgoing.x, outgoing.y)
+        # Multiple inputs = straight belt
+        if len(incoming_directions) > 1:
+            key = ("straight", outgoing.x, outgoing.y)
+
+        else:
+            incoming = (
+                incoming_directions[0]
+                if incoming_directions
+                else outgoing
+            )
+
+            incoming = Vector2(
+                round(incoming.x),
+                round(incoming.y)
+            )
+
+            if incoming == outgoing:
+                key = ("straight", outgoing.x, outgoing.y)
+            else:
+                key = (
+                    "curve",
+                    incoming.x,
+                    incoming.y,
+                    outgoing.x,
+                    outgoing.y
+                )
 
         if key not in self.cache:
-            if key[0] == "straight": base_img = self.sprite_manager.get_straight(outgoing)
-            else: base_img = self.sprite_manager.get_curve(incoming, outgoing)
+            if key[0] == "straight":
+                base_img = self.sprite_manager.get_straight(outgoing)
+            else:
+                base_img = self.sprite_manager.get_curve(
+                    Vector2(key[1], key[2]),
+                    Vector2(key[3], key[4])
+                )
 
-            if base_img is None: return
+            if base_img is None:
+                return
 
-            scaled = py.transform.scale(base_img, (self.cell_size, self.cell_size))
+            scaled = py.transform.scale(
+                base_img,
+                (self.cell_size, self.cell_size)
+            )
+
             ghost = scaled.copy()
             ghost.set_alpha(160)
 
             self.cache[key] = ghost
 
-        screen.blit(self.cache[key], (x - camera.x, y - camera.y))
+        screen.blit(
+            self.cache[key],
+            (x - camera.x, y - camera.y)
+        )
 
         if color in self.color_overlays:
-            screen.blit(self.color_overlays[color], (x - camera.x, y - camera.y))
+            screen.blit(
+                self.color_overlays[color],
+                (x - camera.x, y - camera.y)
+            )
+
+    
 
     def draw_dragging(self, screen, camera, segments, color_flags=None):
         for i, seg in enumerate(segments):
             outgoing = seg.direction or Vector2(1, 0)
-
-            # Use the first valid incoming direction for the preview.
-            # Topology calculation fills this list.
-            incoming = (
-                seg.incoming_directions[0]
-                if seg.incoming_directions
-                else -outgoing
-            )
 
             color = color_flags[i] if color_flags else "normal"
 
@@ -60,9 +95,20 @@ class GhostBeltRenderer:
                 screen,
                 camera,
                 seg.grid_pos,
-                incoming,
+                seg.incoming_directions,
                 outgoing,
                 color
+            )
+
+    def draw_affected_segments(self, screen, camera, segments):
+        for seg, incoming_directions in segments:
+            self.draw_single(
+                screen,
+                camera,
+                seg.grid_pos,
+                incoming_directions,
+                seg.direction,
+                "normal"
             )
 
     def _make_overlay(self, color):

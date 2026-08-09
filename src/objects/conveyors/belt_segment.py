@@ -94,11 +94,13 @@ class BeltSegment:
 
 
     def request_item(self, source_belt, item, incoming_direction):
-        # Belt already contains an item.
+        # Don't accept an item from an opposing belt.
+        if incoming_direction == -self.direction:
+            return False
+
         if self.item is not None:
             return False
 
-        # Don't let the same source request twice during one update.
         for request in self.input_requests:
             if request[0] is source_belt:
                 return False

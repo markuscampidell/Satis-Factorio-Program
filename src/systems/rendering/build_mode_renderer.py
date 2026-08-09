@@ -19,10 +19,12 @@ class BuildModeRenderer:
         surf = py.Surface((self.grid.CELL_SIZE, self.grid.CELL_SIZE), py.SRCALPHA)
         surf.fill(color)
         return surf
+    
     def draw(self, screen):
         self._draw_build_overlay(screen)
         self._draw_delete_overlay(screen)
         self._draw_ghost()
+        self._draw_delete_ghost()
         self._highlight_hovered_delete_target(screen)
         
     def _draw_ghost(self):
@@ -62,6 +64,31 @@ class BuildModeRenderer:
     def _draw_delete_overlay(self, screen):
         if self.build_system.build_mode == "deleting":
             screen.blit(self.overlay_delete, (0, 0))
+
+    def _draw_delete_ghost(self):
+        if (
+            self.build_system.build_mode != "deleting"
+            or self.build_system.hovered_delete_target is None
+        ):
+            return
+
+        target = self.build_system.hovered_delete_target
+
+        if not isinstance(target, BeltSegment):
+            return
+
+        shift_held = py.key.get_mods() & py.KMOD_SHIFT
+
+        if shift_held:
+            segments_to_delete = (
+                self.belt_system.get_connected_belt_segments(target)
+            )
+        else:
+            segments_to_delete = [target]
+
+        self.ghost_belt_drawer.draw_delete_ghost(
+            segments_to_delete
+        )
     
     def update_overlay_surfaces(self, width, height):
         self.overlay_build_place = py.Surface((width, height), py.SRCALPHA)
