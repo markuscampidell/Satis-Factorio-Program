@@ -34,6 +34,7 @@ class Splitter(Machine):
 
         # Item handling
         self.current_item = None
+
         self.current_output_index = 0
         self.output_belts = []
         self.item_progress = 0.0
@@ -88,13 +89,15 @@ class Splitter(Machine):
 
             if seg and seg.item is None:
                 # Check if push direction matches belt segment
-                if seg.incoming_direction and seg.direction != seg.incoming_direction:
-                    acceptable = seg.incoming_direction == direction
-                else:
-                    acceptable = seg.direction == direction
+                acceptable = direction in seg.incoming_directions
 
                 if acceptable:
                     seg.item = self.current_item
+                    seg.item_progress = 0.0
+
+                    # The item enters this belt from the splitter direction
+                    seg.current_incoming_direction = direction
+
                     self.current_item = None
                     self.current_output_index = (self.current_output_index + 1) % num_dirs
                     return True
@@ -120,9 +123,11 @@ class Splitter(Machine):
     def receive_item(self, item, incoming_direction: Vector2 = None):
         if self.current_item is not None:
             return False
-        if incoming_direction and incoming_direction != self.direction:
-            return False
+
         self.current_item = item
+        self.current_incoming_direction = incoming_direction
+        self.item_progress = 0.0
+
         return True
 
     # ------------------------

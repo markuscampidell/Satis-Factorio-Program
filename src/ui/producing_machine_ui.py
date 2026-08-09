@@ -35,6 +35,8 @@ class ProducingMachineUI:
         self.recipe_ui = RecipeUI()
         self._hovered_recipe = None
         self._hover_panel_visible = False
+        self.font_small = py.font.SysFont("Arial", 16)
+        self.font_tiny = py.font.SysFont("Arial", 10)
 
     def handle_event(self, event, just_placed, placing_machine):
         """Handle mouse events for dragging, recipe selection, and closing UI."""
@@ -175,7 +177,6 @@ class ProducingMachineUI:
 
     def _draw_input_slots(self, screen, x, y, inputs_per_min):
         """Draws input slots with item sprites and rates."""
-        font = py.font.SysFont("Arial", 16)
         slot_spacing = 10
         for i, item_id in enumerate(inputs_per_min.keys()):
             rect = py.Rect(x + i * (self.SLOT_SIZE + slot_spacing), y, self.SLOT_SIZE, self.SLOT_SIZE)
@@ -184,13 +185,12 @@ class ProducingMachineUI:
             slot = self.selected_machine.input_inventories[item_id].slots[0][0] if self.selected_machine.input_inventories[item_id].slots[0] else None
             if slot:
                 self._draw_item_in_slot(screen, slot, rect)
-            text = font.render(f"{inputs_per_min[item_id]:.0f}/min", True, "#000000")
+            text = self.font_small.render(f"{inputs_per_min[item_id]:.0f}/min", True, "#000000")
             screen.blit(text, (rect.centerx - text.get_width() // 2, rect.y - 18))
             self.slot_rects.append(rect)
 
     def _draw_output_slots(self, screen, x, y, output_inventories, outputs_per_min):
         """Draws output slots with item sprites and rates."""
-        font = py.font.SysFont("Arial", 16)
         slot_spacing = 10
         for i, (item_id, inv) in enumerate(output_inventories.items()):
             rect = py.Rect(x + i * (self.SLOT_SIZE + slot_spacing), y, self.SLOT_SIZE, self.SLOT_SIZE)
@@ -199,7 +199,7 @@ class ProducingMachineUI:
             slot = inv.slots[0][0] if inv.slots[0] else None
             if slot:
                 self._draw_item_in_slot(screen, slot, rect)
-            text = font.render(f"{outputs_per_min.get(item_id, 0):.0f}/min", True, "#000000")
+            text = self.font_small.render(f"{outputs_per_min.get(item_id, 0):.0f}/min", True, "#000000")
             screen.blit(text, (rect.centerx - text.get_width() // 2, rect.y - 18))
             self.slot_rects.append(rect)
 
@@ -237,11 +237,12 @@ class ProducingMachineUI:
         py.draw.rect(screen, "#AAAAAA", rect, 2)
         item = get_item_by_id(slot["item"]) if isinstance(slot["item"], str) else slot["item"]
         if item and hasattr(item, "sprite") and item.sprite:
-            img = py.transform.scale(item.sprite, (self.SLOT_SIZE - 10, self.SLOT_SIZE - 10))
-            screen.blit(img, (rect.x + 5, rect.y + 5))
+            slot_size = self.SLOT_SIZE - 10
+            img = item.get_scaled_sprite(slot_size) if hasattr(item, 'get_scaled_sprite') else py.transform.scale(item.sprite, (slot_size, slot_size))
+            if img:
+                screen.blit(img, (rect.x + 5, rect.y + 5))
         amount = slot["amount"]
-        amount_font = py.font.SysFont("Arial", 10)
-        text = amount_font.render(str(amount), True, "#000000")
+        text = self.font_tiny.render(str(amount), True, "#000000")
         text_rect = text.get_rect(bottomright=(rect.right - 5, rect.bottom - 5))
         screen.blit(text, text_rect)
 

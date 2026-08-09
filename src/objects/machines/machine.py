@@ -27,10 +27,15 @@ class Machine:
             self.image = py.image.load(self.SPRITE_PATH).convert_alpha()
             self.image = py.transform.scale(self.image, (self.rect.width, self.rect.height))
 
-    @property
-    def occupied_cells(self):
+    def _compute_occupied_cells(self):
         return [
             (self.grid_pos[0] + dx, self.grid_pos[1] + dy)
             for dx in range(self.WIDTH)
             for dy in range(self.HEIGHT)
         ]
+
+    @property
+    def occupied_cells(self):
+        if not hasattr(self, '_occupied_cells') or self._occupied_cells is None:
+            self._occupied_cells = self._compute_occupied_cells()
+        return self._occupied_cells

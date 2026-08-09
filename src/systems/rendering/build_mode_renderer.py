@@ -12,8 +12,13 @@ class BuildModeRenderer:
         self.camera = camera
         self.grid = grid
 
+        self.delete_overlay_tile = self._make_tile_overlay((255, 0, 0, 100))
         self.update_overlay_surfaces(camera.screen_width, camera.screen_height)
 
+    def _make_tile_overlay(self, color):
+        surf = py.Surface((self.grid.CELL_SIZE, self.grid.CELL_SIZE), py.SRCALPHA)
+        surf.fill(color)
+        return surf
     def draw(self, screen):
         self._draw_build_overlay(screen)
         self._draw_delete_overlay(screen)
@@ -29,8 +34,6 @@ class BuildModeRenderer:
         if self.build_system.build_mode != "deleting" or self.build_system.hovered_delete_target is None:
             return
 
-        alpha = 100
-        color = (255, 0, 0)
         shift_held = py.key.get_mods() & py.KMOD_SHIFT
 
         if isinstance(self.build_system.hovered_delete_target, BeltSegment) and shift_held:
@@ -44,14 +47,12 @@ class BuildModeRenderer:
                 for grid_x, grid_y in obj.occupied_cells:
                     pixel_x = grid_x * self.grid.CELL_SIZE
                     pixel_y = grid_y * self.grid.CELL_SIZE
-                    overlay = py.Surface((self.grid.CELL_SIZE, self.grid.CELL_SIZE), py.SRCALPHA)
-                    overlay.fill((*color, alpha))
-                    screen.blit(overlay, (pixel_x - self.camera.x, pixel_y - self.camera.y))
+                    screen.blit(self.delete_overlay_tile, (pixel_x - self.camera.x, pixel_y - self.camera.y))
             # Fallback for older objects that still have rect
             elif hasattr(obj, "rect") and obj.rect:
                 rect = obj.rect
                 overlay = py.Surface((rect.width, rect.height), py.SRCALPHA)
-                overlay.fill((*color, alpha))
+                overlay.fill((255, 0, 0, 100))
                 screen.blit(overlay, (rect.x - self.camera.x, rect.y - self.camera.y))
     
     def _draw_build_overlay(self, screen):

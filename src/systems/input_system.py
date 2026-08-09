@@ -64,7 +64,7 @@ class InputSystem:
                 ui = self.hand_crafting_ui
 
                 if ui.crafting_mode == "auto":
-                    ui.crafting_mode = "none"
+                    ui.crafting_mode = None
                 else:
                     ui.crafting_mode = "auto"
 

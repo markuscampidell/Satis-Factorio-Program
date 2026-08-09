@@ -26,6 +26,7 @@ class PlayerInventoryUI:
         self.rect = self.sprite.get_rect(x=x, centery=screen_h // 2)
 
         self.font_small = py.font.SysFont("Arial", 14)
+        self.font_tooltip = py.font.SysFont("Arial", 16)
 
         # Hover
         self.slot_rects = []
@@ -69,8 +70,10 @@ class PlayerInventoryUI:
                     item = get_item_by_id(item_id)
 
                     if item and item.sprite:
-                        img = py.transform.scale(item.sprite, (self.SLOT_SIZE - 10, self.SLOT_SIZE - 10))
-                        screen.blit(img, (slot_rect.x + 5, slot_rect.y + 5))
+                        slot_size = self.SLOT_SIZE - 10
+                        img = item.get_scaled_sprite(slot_size) if hasattr(item, 'get_scaled_sprite') else py.transform.scale(item.sprite, (slot_size, slot_size))
+                        if img:
+                            screen.blit(img, (slot_rect.x + 5, slot_rect.y + 5))
 
                     # Stack number
                     text = self.font_small.render(str(amount), True, "#000000")
@@ -101,10 +104,9 @@ class PlayerInventoryUI:
             self._draw_tooltip(screen, self._hovered_item.name, (mx, my))
 
     def _draw_tooltip(self, screen, text, pos):
-        font = py.font.SysFont("Arial", 16)
         padding = 8
 
-        text_surf = font.render(text, True, "#000000")
+        text_surf = self.font_tooltip.render(text, True, "#000000")
 
         width = text_surf.get_width() + padding * 2
         height = text_surf.get_height() + padding * 2

@@ -23,9 +23,6 @@ class BeltSystem:
         self.selected_belt_type = "basic"
         self.belt_placement_direction = Vector2(1, 0)
 
-    # -----------------------------
-    # Place belt
-    # -----------------------------
     def place_belt(self, world_x2, world_y2, belt_type="basic"):
         start_tile = (self.beltX1, self.beltY1)
         end_tile = self.world.snap_to_tile(world_x2, world_y2)
@@ -53,11 +50,8 @@ class BeltSystem:
         for seg in segments:
             self.world.add_belt_segment(seg)
 
-        self.update_belt_incoming_direction(segments)
+        self.update_belt_incoming_directions()
 
-    # -----------------------------
-    # Delete belt
-    # -----------------------------
     def delete_belt(self, mx, my, delete_whole=False, camera_x=0, camera_y=0, player_inventory=None):
         world_x, world_y = mx + camera_x, my + camera_y
         shift_held = py.key.get_mods() & py.KMOD_SHIFT
@@ -74,9 +68,6 @@ class BeltSystem:
                 player_inventory.try_add_items(item_id, amount)
             self.world.remove_belt_segment(seg)
 
-    # -----------------------------
-    # Connected belts
-    # -----------------------------
     def get_connected_belt_segments(self, start_seg):
         visited = set()
         stack = [start_seg]
@@ -104,10 +95,7 @@ class BeltSystem:
                     stack.append(neighbor)
 
         return list(visited)
-
-    # -----------------------------
-    # Convert tiles → BeltSegments
-    # -----------------------------
+    
     def _tiles_to_segments(self, tiles, belt_type="basic"):
         segments = []
 
@@ -124,47 +112,56 @@ class BeltSystem:
                     x, y = tile
                     direction = Vector2(x - px, y - py)
 
-            incoming = None
-            if i > 0:
-                px, py = tiles[i - 1]
-                x, y = tile
-                incoming = Vector2(x - px, y - py)
-
-            segments.append(BeltSegment(tile, direction, incoming, belt_type=belt_type))
+            segments.append(BeltSegment(tile, direction, [], belt_type=belt_type))
 
         return segments
 
-    # -----------------------------
-    # Update incoming directions
-    # -----------------------------
-    def update_belt_incoming_direction(self, segments=None):
+
+
+    def update_belt_incoming_directions(self, segments=None):
         targets = segments or self.world.belt_segments
+
         for seg in targets:
-            seg.incoming_direction = self._calculate_incoming_for_segment(seg, self.world.belt_map)
+            seg.incoming_directions = self._calculate_incoming_for_segment(
+                seg, self.world.belt_map
+            )
 
     def _calculate_incoming_for_segment(self, seg, lookup_map):
         x, y = seg.grid_pos
-        neighbors = [lookup_map.get((x - 1, y)), lookup_map.get((x + 1, y)),
-                     lookup_map.get((x, y - 1)), lookup_map.get((x, y + 1))]
+
+        neighbors = [lookup_map.get((x - 1, y)),
+                     lookup_map.get((x + 1, y)),
+                     lookup_map.get((x, y - 1)),
+                     lookup_map.get((x, y + 1))]
+
+        incoming_directions = []
 
         for neighbor in neighbors:
             if not neighbor:
                 continue
+
             nx, ny = neighbor.grid_pos
+
+            # Check if this neighbor points into this segment
             if (nx + neighbor.direction.x, ny + neighbor.direction.y) == (x, y):
-                return Vector2(x - nx, y - ny)
+                incoming_directions.append(Vector2(x - nx, y - ny))
 
-        return seg.direction
+        # Fallback for isolated belts
+        if not incoming_directions:
+            incoming_directions.append(seg.direction)
 
-    # -----------------------------
-    # Ghost preview connections
-    # -----------------------------
+        return incoming_directions
+    
     def resolve_preview_connections(self, preview_segments):
         temp_map = self.world.belt_map.copy()
+
         for seg in preview_segments:
             temp_map[seg.grid_pos] = seg
+
         for seg in preview_segments:
-            seg.incoming_direction = self._calculate_incoming_for_segment(seg, temp_map)
+            seg.incoming_directions = self._calculate_incoming_for_segment(
+                seg, temp_map
+            )
 
     # -----------------------------
     # Get tiles for drag path

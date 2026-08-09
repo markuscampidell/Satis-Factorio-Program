@@ -11,7 +11,8 @@ class Player:
         self.handcrafting = HandcraftingComponent(self.inventory)
 
         self.color = color
-        self.image = py.Surface((size, size))
+        padding = 4
+        self.image = py.Surface((size-padding, size-padding))
         self.image.fill(color)
         self.rect = self.image.get_rect()
         self.rect.centerx=0

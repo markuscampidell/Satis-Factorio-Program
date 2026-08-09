@@ -29,6 +29,7 @@ from systems.build_system import BuildSystem
 
 from systems.rendering.render_system import RenderSystem
 from systems.rendering.world_renderer import WorldRenderer
+from systems.rendering.item_renderer import ItemRenderer
 from systems.rendering.ui_renderer import UiRenderer
 from systems.rendering.build_mode_renderer import BuildModeRenderer
 from systems.rendering.cursor_renderer import CursorRenderer
@@ -76,7 +77,8 @@ class Initializer:
         input_system = InputSystem(build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system)
         belt_ghost_preview_controller = BeltGhostPreviewController(world, player, grid, belt_system, ghost_belt_renderer, camera, screen)
 
-        world_renderer = WorldRenderer(world, camera, player, belt_sprite_manager, build_system, grid)
+        item_renderer = ItemRenderer()
+        world_renderer = WorldRenderer(world, camera, player, belt_sprite_manager, item_renderer, build_system, grid)
         ui_renderer = UiRenderer(machine_ui, player_inventory_ui, hand_crafting_ui)
         build_mode_renderer = BuildModeRenderer(build_system, machine_system, belt_ghost_preview_controller, belt_system, camera, grid)
         cursor_renderer = CursorRenderer(build_system)

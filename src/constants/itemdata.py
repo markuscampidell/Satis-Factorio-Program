@@ -17,7 +17,7 @@ ingots.extend([iron_ingot, copper_ingot, steel])
 
 
 minerals = []
-concrete = Item("concrete", "Concrete", sprite_path="src/assets/sprites")
+concrete = Item("concrete", "Concrete", sprite_path="src/assets/sprites/items/minerals/concrete.png")
 minerals.extend([concrete])
 
 

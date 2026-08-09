@@ -202,11 +202,15 @@ class HandCraftingUI:
     def update(self, dt):
         if not self.open: return
 
+        if self.crafting_mode is None:
+            self.progress = 0.0
+            return
+
         recipe = self.player.handcrafting.get_selected_recipe()
         if not recipe:
             self.progress = 0.0
             return
-
+        
         can_craft = self.player.handcrafting.inventory.has_enough_items(recipe.inputs)
         process_time = getattr(recipe, "process_time", 1)
         producing = self.crafting_mode is not None

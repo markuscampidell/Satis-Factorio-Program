@@ -57,9 +57,12 @@ class Game:
 
         if self.context.hand_crafting_ui.open:
             self.context.hand_crafting_ui.update(delta_time)
-            
+
         for segment in self.context.world.belt_segments:
-            segment.update(self.context.world.belt_map, self.context.world.machines, delta_time)
+            segment.update(self.context.world.belt_map, self.context.world.machine_map, delta_time)
+
+        for segment in self.context.world.belt_segments:
+            segment.resolve_input_requests()
 
         for machine in self.context.world.machines:
             machine.update(delta_time, self.context.world.belt_map)

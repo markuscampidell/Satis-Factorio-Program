@@ -135,8 +135,9 @@ class ProducingMachine(Machine):
         width = self.WIDTH * self.cell_size
         height = self.HEIGHT * self.cell_size
 
-        scaled_image = py.transform.scale(self.image, (width, height))
-        screen.blit(scaled_image, (pixel_x, pixel_y))
+        # Image is already scaled to machine dimensions in Machine.__init__
+        if self.image:
+            screen.blit(self.image, (pixel_x, pixel_y))
 
         # Optional: draw outputs for clarity
         self._draw_recipe_outputs(screen, camera)

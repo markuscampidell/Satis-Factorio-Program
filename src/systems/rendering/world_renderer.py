@@ -1,12 +1,12 @@
 # systems.rendering.world_renderer
-import pygame as py
 
 class WorldRenderer:
-    def __init__(self, world, camera, player, belt_sprite_manager, build_system, grid):
+    def __init__(self, world, camera, player, belt_sprite_manager, item_renderer, build_system, grid):
         self.world = world
         self.camera = camera
         self.player = player
         self.belt_sprite_manager = belt_sprite_manager
+        self.item_renderer = item_renderer
         self.build_system = build_system
         self.grid = grid
 
@@ -16,7 +16,7 @@ class WorldRenderer:
         self._draw_grid(screen)
 
         self._draw_belt_segments(screen)
-        self._draw_items_on_belt_segments(screen)
+        self._draw_items(screen)
         self._draw_machines(screen)
         self.player.draw(screen, self.camera)
     
@@ -25,21 +25,8 @@ class WorldRenderer:
             self.grid.draw(screen, self.camera)
 
     def _draw_belt_segments(self, screen):
-        camera_left = self.camera.x // self.grid.CELL_SIZE
-        camera_top = self.camera.y // self.grid.CELL_SIZE
-        camera_right = (self.camera.x + self.camera.screen_width) // self.grid.CELL_SIZE + 1
-        camera_bottom = (self.camera.y + self.camera.screen_height) // self.grid.CELL_SIZE + 1
-
-        for seg in self.world.belt_segments:
-            gx, gy = seg.grid_pos  # assume you store belt grid positions
-            if camera_left <= gx < camera_right and camera_top <= gy < camera_bottom:
-                incoming = seg.incoming_direction or seg.direction
-                outgoing = seg.direction
-                image = self._get_belt_segment_image(incoming, outgoing)
-                screen.blit(image, (gx*self.grid.CELL_SIZE - self.camera.x, gy*self.grid.CELL_SIZE - self.camera.y))
-
-    def _draw_items_on_belt_segments(self, screen):
         cell_size = self.grid.CELL_SIZE
+
         camera_left = self.camera.x // cell_size
         camera_top = self.camera.y // cell_size
         camera_right = (self.camera.x + self.camera.screen_width) // cell_size + 1
@@ -47,8 +34,50 @@ class WorldRenderer:
 
         for seg in self.world.belt_segments:
             gx, gy = seg.grid_pos
+
             if camera_left <= gx < camera_right and camera_top <= gy < camera_bottom:
-                seg.draw_item(screen, self.camera)
+                incoming = (
+                    seg.incoming_directions[0]
+                    if seg.incoming_directions
+                    else -seg.direction
+                )
+
+                outgoing = seg.direction
+
+                image = self._get_belt_segment_image(
+                    incoming,
+                    outgoing
+                )
+
+                screen.blit(
+                    image,
+                    (
+                        gx * cell_size - self.camera.x,
+                        gy * cell_size - self.camera.y
+                    )
+                )
+    def _draw_items(self, screen):
+        for seg in self.world.belt_segments:
+            if seg.item:
+                self.item_renderer.draw_item(
+                    screen,
+                    self.camera,
+                    seg.item,
+                    seg.grid_pos,
+                    seg.item_progress,
+                    seg.current_incoming_direction or seg.direction
+                )
+
+        for machine in self.world.machines:
+            if hasattr(machine, "current_item") and machine.current_item:
+                self.item_renderer.draw_item(
+                    screen,
+                    self.camera,
+                    machine.current_item,
+                    machine.grid_pos,
+                    machine.item_progress,
+                    machine.current_incoming_direction or machine.direction
+                )
     
     def _get_belt_segment_image(self, incoming, outgoing):
         key = (incoming.x, incoming.y, outgoing.x, outgoing.y)

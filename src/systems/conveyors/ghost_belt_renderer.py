@@ -45,10 +45,25 @@ class GhostBeltRenderer:
     def draw_dragging(self, screen, camera, segments, color_flags=None):
         for i, seg in enumerate(segments):
             outgoing = seg.direction or Vector2(1, 0)
-            incoming = seg.incoming_direction or outgoing
+
+            # Use the first valid incoming direction for the preview.
+            # Topology calculation fills this list.
+            incoming = (
+                seg.incoming_directions[0]
+                if seg.incoming_directions
+                else -outgoing
+            )
+
             color = color_flags[i] if color_flags else "normal"
 
-            self.draw_single(screen, camera, seg.grid_pos, incoming, outgoing, color)
+            self.draw_single(
+                screen,
+                camera,
+                seg.grid_pos,
+                incoming,
+                outgoing,
+                color
+            )
 
     def _make_overlay(self, color):
         surface = py.Surface((self.cell_size, self.cell_size), py.SRCALPHA)
