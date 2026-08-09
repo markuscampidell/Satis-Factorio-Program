@@ -97,6 +97,9 @@ class InputSystem:
 
                 if self.build_system.build_mode == "deleting":
                     self.build_system.enter_build_mode()
+                
+                self.build_system.reset_rotation()
+                self.build_system.reset_belt_first_axis_horizontal()
 
                 return
 

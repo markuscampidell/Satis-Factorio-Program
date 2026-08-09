@@ -55,6 +55,25 @@ class BeltSegment:
             if not moved:
                 self.item_progress = 1.0  # stop until it can move
 
+<<<<<<< HEAD
+=======
+    def draw_item(self, screen, camera):
+        if not self.item or not self.item.sprite: return
+
+        # Draw interpolation based on item_progress
+        start_x = self.grid_pos[0] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2
+        start_y = self.grid_pos[1] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2
+        end_x = start_x + self.direction.x * Grid.CELL_SIZE
+        end_y = start_y + self.direction.y * Grid.CELL_SIZE
+
+        draw_x = start_x + (end_x - start_x) * self.item_progress
+        draw_y = start_y + (end_y - start_y) * self.item_progress
+
+        size = int(Grid.CELL_SIZE * 0.5)
+        sprite = py.transform.scale(self.item.sprite, (size, size))
+        screen.blit(sprite, (draw_x - camera.x - size // 2, draw_y - camera.y - size // 2))
+
+>>>>>>> 1bf17de26b4baac59bdd67e9a688576de1f9eb2e
     def refund_item_on_segment(self, player_inventory):
         if self.item:
             player_inventory.try_add_items(self.item.item_id, 1)

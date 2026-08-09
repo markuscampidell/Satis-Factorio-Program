@@ -153,8 +153,11 @@ class BuildSystem:
         self.selected_machine_class = Smelter
         self.belt_system.placing_belt = False
         self.reset_rotation()
-        self.belt_system.belt_first_axis_horizontal = True
+        self.reset_belt_first_axis_horizontal()
     
     def reset_rotation(self):
         self.belt_system.belt_placement_direction = Vector2(1, 0)
         self.machine_system.splitter_rotation_steps = 0
+    
+    def reset_belt_first_axis_horizontal(self):
+        self.belt_system.belt_first_axis_horizontal = True
