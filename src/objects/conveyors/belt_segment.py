@@ -20,6 +20,7 @@ class BeltSegment:
 
         # Items on this segment
         self.item = None
+        self.current_incoming_direction = None
         self.item_progress = 0.0
         self.input_requests = []
         self.current_input_index = 0
@@ -32,31 +33,38 @@ class BeltSegment:
             self._pull_from_prev_machine(machine_map)
             return
 
-        # Move item along the belt in tile units
         self.item_progress += self.speed * dt
+
         if self.item_progress >= 1.0:
-            next_pos = (self.grid_pos[0] + self.direction.x,
-                        self.grid_pos[1] + self.direction.y)
+            next_pos = (
+                self.grid_pos[0] + self.direction.x,
+                self.grid_pos[1] + self.direction.y
+            )
 
             next_segment = belt_map.get(next_pos)
             moved = False
 
-            # Move to next belt
+            # Request transfer to the next belt.
+            # The actual transfer happens later in resolve_input_requests().
             if next_segment:
-                if next_segment.request_item(self, self.item, self.direction):
+                if next_segment.request_item(
+                    self,
+                    self.item,
+                    self.direction
+                ):
                     moved = True
 
-            # Move into machine
+            # Try inserting into a machine.
             if not moved:
                 machine = machine_map.get(next_pos)
+
                 if machine and self._try_insert_into_machine(machine):
                     moved = True
 
             if not moved:
-                self.item_progress = 1.0  # stop until it can move
+                # Stay at the end of the belt until something accepts the item.
+                self.item_progress = 1.0
 
-<<<<<<< HEAD
-=======
     def draw_item(self, screen, camera):
         if not self.item or not self.item.sprite: return
 
@@ -73,23 +81,26 @@ class BeltSegment:
         sprite = py.transform.scale(self.item.sprite, (size, size))
         screen.blit(sprite, (draw_x - camera.x - size // 2, draw_y - camera.y - size // 2))
 
->>>>>>> 1bf17de26b4baac59bdd67e9a688576de1f9eb2e
     def refund_item_on_segment(self, player_inventory):
         if self.item:
             player_inventory.try_add_items(self.item.item_id, 1)
             self._clear_item()
+
 
     def _clear_item(self):
         self.item = None
         self.item_progress = 0.0
         self.current_incoming_direction = None
 
+
     def request_item(self, source_belt, item, incoming_direction):
+        # Belt already contains an item.
         if self.item is not None:
             return False
 
+        # Don't let the same source request twice during one update.
         for request in self.input_requests:
-            if request[0] == source_belt:
+            if request[0] is source_belt:
                 return False
 
         self.input_requests.append(
@@ -98,18 +109,6 @@ class BeltSegment:
 
         return True
 
-    def get_input_priority_order(self):
-        if not self.incoming_directions:
-            return []
-
-        count = len(self.incoming_directions)
-
-        return [
-            self.incoming_directions[
-                (self.current_input_index + i) % count
-            ]
-            for i in range(count)
-        ]
 
     def resolve_input_requests(self):
         if self.item is not None:
@@ -134,47 +133,63 @@ class BeltSegment:
 
         source, item, direction = chosen
 
-        # Put item onto this belt first
         self.item = item
         self.item_progress = 0.0
+
         self.current_incoming_direction = direction
 
-        # Only now remove from source
         source._clear_item()
 
         if len(self.incoming_directions) > 1:
             index = self.incoming_directions.index(direction)
-            self.current_input_index = (index + 1) % len(self.incoming_directions)
+            self.current_input_index = (
+                index + 1
+            ) % len(self.incoming_directions)
 
         self.input_requests.clear()
 
+
     def _pull_from_prev_machine(self, machine_map):
-        prev_pos = (self.grid_pos[0] - self.direction.x,
-                    self.grid_pos[1] - self.direction.y)
+        prev_pos = (
+            self.grid_pos[0] - self.direction.x,
+            self.grid_pos[1] - self.direction.y
+        )
+
         machine = machine_map.get(prev_pos)
+
         if isinstance(machine, ProducingMachine):
             next_item = machine.push_output_items(peek=True)
+
             if next_item:
                 self.item = machine.push_output_items(peek=False)
                 self.item_progress = 0.0
-                # Item comes from the machine behind the belt
-                self.current_incoming_direction = self.direction
+
 
     def _try_insert_into_machine(self, machine):
         if isinstance(machine, Splitter):
-            success = machine.receive_item(self.item, incoming_direction=self.direction)
-            if success: self._clear_item()
+            success = machine.receive_item(
+                self.item,
+                incoming_direction=self.direction
+            )
+
+            if success:
+                self._clear_item()
+
             return success
 
         elif isinstance(machine, ProducingMachine):
             for inv_item_id, inv in machine.input_inventories.items():
                 if self.item.item_id == inv_item_id:
                     added = inv.try_add_items(self.item, 1)
+
                     if added:
                         self._clear_item()
+
                     return added
+
         return False
-    
+
+
     def _get_items_per_minute_for_type(self):
         if self.belt_type == "basic":
             return 120
@@ -183,4 +198,4 @@ class BeltSegment:
         elif self.belt_type == "express":
             return 480
         else:
-            return 120  # default
+            return 120
