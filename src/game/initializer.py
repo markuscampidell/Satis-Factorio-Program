@@ -13,8 +13,10 @@ from constants.recipes import smelter_recipes, assembler_recipes
 
 # UI
 from ui.producing_machine_ui import ProducingMachineUI
+from ui.producing_machine_renderer import ProducingMachineRenderer
 from ui.player_inventory_ui import PlayerInventoryUI
 from ui.hand_crafting_ui import HandCraftingUI
+from ui.hand_crafting_renderer import HandCraftingRenderer
 from ui.ui_manager import UIManager
 
 # Graphics
@@ -33,6 +35,7 @@ from systems.rendering.item_renderer import ItemRenderer
 from systems.rendering.ui_renderer import UiRenderer
 from systems.rendering.build_mode_renderer import BuildModeRenderer
 from systems.rendering.cursor_renderer import CursorRenderer
+from systems.rendering.ghost_machine_renderer import GhostMachineRenderer
 
 from systems.conveyors.belt_system import BeltSystem
 from systems.conveyors.belt_ghost_preview_controller import BeltGhostPreviewController
@@ -64,13 +67,16 @@ class Initializer:
 
         player_inventory_ui = PlayerInventoryUI(player, get_screen_size=lambda: (camera.screen_width, camera.screen_height))
         machine_ui = ProducingMachineUI(camera, world, player, player_inventory_ui, screen)
+        machine_ui_renderer = ProducingMachineRenderer(machine_ui)
         hand_crafting_ui = HandCraftingUI(player, get_screen_size=lambda: (camera.screen_width, camera.screen_height))
+        hand_crafting_renderer = HandCraftingRenderer(hand_crafting_ui)
 
         ui_manager = UIManager({"player_inventory": player_inventory_ui,
                                 "machine": machine_ui,
                                 "hand_crafting": hand_crafting_ui})
 
-        machine_system = MachineSystem(world, player, camera, grid, screen)
+        machine_system = MachineSystem(world, player, camera, grid)
+        ghost_machine_renderer = GhostMachineRenderer(world, player, camera, grid, screen)
         belt_system = BeltSystem(world, grid, player, ghost_belt_renderer)
 
         build_system = BuildSystem(world, player, camera, grid, belt_system, machine_system, machine_ui, player_inventory_ui)
@@ -79,10 +85,15 @@ class Initializer:
 
         item_renderer = ItemRenderer()
         world_renderer = WorldRenderer(world, camera, player, belt_sprite_manager, item_renderer, build_system, grid)
-        ui_renderer = UiRenderer(machine_ui, player_inventory_ui, hand_crafting_ui)
-        build_mode_renderer = BuildModeRenderer(build_system, machine_system, belt_ghost_preview_controller, belt_system, camera, grid)
+        ui_renderer = UiRenderer(machine_ui_renderer, player_inventory_ui, hand_crafting_renderer)
+        build_mode_renderer = BuildModeRenderer(build_system, machine_system, ghost_machine_renderer, belt_ghost_preview_controller, belt_system, camera, grid)
         cursor_renderer = CursorRenderer(build_system)
-        render_system = RenderSystem(world_renderer, ui_renderer, build_mode_renderer, cursor_renderer)
+        render_system = RenderSystem(
+            world_renderer=world_renderer,
+            build_renderer=build_mode_renderer,
+            ui_renderer=ui_renderer,
+            cursor_renderer=cursor_renderer
+        )
         machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, grid)
 
         player.handcrafting.recipes = smelter_recipes + assembler_recipes
@@ -117,7 +128,10 @@ class Initializer:
                            ui_renderer=ui_renderer,
                            build_mode_renderer=build_mode_renderer,
                            cursor_renderer=cursor_renderer,
+                           ghost_machine_renderer=ghost_machine_renderer,
 
                            machine_system=machine_system,
                            machine_ui=machine_ui,
+                           machine_ui_renderer=machine_ui_renderer,
+                           hand_crafting_renderer=hand_crafting_renderer,
                            machine_interaction_system=machine_interaction_system)

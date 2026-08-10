@@ -33,7 +33,10 @@ class GameContext:
     ui_renderer: any
     build_mode_renderer: any
     cursor_renderer: any
+    ghost_machine_renderer: any
 
     machine_system: any
     machine_ui: any
+    machine_ui_renderer: any
+    hand_crafting_renderer: any
     machine_interaction_system: any

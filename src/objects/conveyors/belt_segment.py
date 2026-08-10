@@ -58,28 +58,12 @@ class BeltSegment:
             if not moved:
                 machine = machine_map.get(next_pos)
 
-                if machine and self._try_insert_into_machine(machine):
+                if machine and self._try_insert_into_machine(machine, self.grid_pos):
                     moved = True
 
             if not moved:
                 # Stay at the end of the belt until something accepts the item.
                 self.item_progress = 1.0
-
-    def draw_item(self, screen, camera):
-        if not self.item or not self.item.sprite: return
-
-        # Draw interpolation based on item_progress
-        start_x = self.grid_pos[0] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2
-        start_y = self.grid_pos[1] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2
-        end_x = start_x + self.direction.x * Grid.CELL_SIZE
-        end_y = start_y + self.direction.y * Grid.CELL_SIZE
-
-        draw_x = start_x + (end_x - start_x) * self.item_progress
-        draw_y = start_y + (end_y - start_y) * self.item_progress
-
-        size = int(Grid.CELL_SIZE * 0.5)
-        sprite = py.transform.scale(self.item.sprite, (size, size))
-        screen.blit(sprite, (draw_x - camera.x - size // 2, draw_y - camera.y - size // 2))
 
     def refund_item_on_segment(self, player_inventory):
         if self.item:
@@ -167,7 +151,7 @@ class BeltSegment:
                 self.item_progress = 0.0
 
 
-    def _try_insert_into_machine(self, machine):
+    def _try_insert_into_machine(self, machine, source_grid_pos):
         if isinstance(machine, Splitter):
             success = machine.receive_item(
                 self.item,
@@ -182,9 +166,11 @@ class BeltSegment:
         elif isinstance(machine, ProducingMachine):
             for inv_item_id, inv in machine.input_inventories.items():
                 if self.item.item_id == inv_item_id:
+                    item = self.item
                     added = inv.try_add_items(self.item, 1)
 
                     if added:
+                        machine.start_input_animation(item, source_grid_pos)
                         self._clear_item()
 
                     return added

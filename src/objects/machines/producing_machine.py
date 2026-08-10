@@ -8,6 +8,10 @@ from objects.machines.machine import Machine
 from game.grid import Grid
 
 class ProducingMachine(Machine):
+    # Visual speed (tiles/sec) items travel from the input edge to the
+    # machine center, matching a basic belt so it reads as "a belt inside".
+    INPUT_ANIM_TILES_PER_SEC = 2.0
+
     def __init__(self, grid_pos, recipe=None, cell_size=Grid.CELL_SIZE):
         super().__init__(grid_pos, cell_size)
         self.recipe = recipe
@@ -21,6 +25,10 @@ class ProducingMachine(Machine):
         # Tile-based output tracking
         self.output_belts = []
         self.current_output_index = 0
+
+        # Purely visual: items animating from the input edge to the
+        # machine center after they've already been added to the inventory.
+        self.input_animations = []
 
         if recipe:
             self._reset_inventories(recipe)
@@ -36,6 +44,38 @@ class ProducingMachine(Machine):
                 self._complete_process()
                 self.processing = False
                 self.process_timer = 0.0
+
+        self._update_input_animations(dt)
+
+    def start_input_animation(self, item, source_grid_pos):
+        """Play a visual-only animation of `item` moving from source_grid_pos
+        (the belt tile it came from, one tile before the machine's edge) to
+        the machine's center, matching the normal belt-to-belt transport
+        animation. Call this after the item has already been added to the
+        input inventory."""
+        entry_x = source_grid_pos[0] * self.cell_size + self.cell_size // 2
+        entry_y = source_grid_pos[1] * self.cell_size + self.cell_size // 2
+        target_x = self.grid_pos[0] * self.cell_size + (self.WIDTH * self.cell_size) // 2
+        target_y = self.grid_pos[1] * self.cell_size + (self.HEIGHT * self.cell_size) // 2
+
+        distance = ((target_x - entry_x) ** 2 + (target_y - entry_y) ** 2) ** 0.5
+        speed_pixels_per_sec = self.INPUT_ANIM_TILES_PER_SEC * self.cell_size
+        duration = max(distance / speed_pixels_per_sec, 0.001)
+
+        self.input_animations.append({
+            "item": item,
+            "start": (entry_x, entry_y),
+            "end": (target_x, target_y),
+            "progress": 0.0,
+            "duration": duration,
+        })
+
+    def _update_input_animations(self, dt):
+        if not self.input_animations:
+            return
+        for anim in self.input_animations:
+            anim["progress"] += dt / anim["duration"]
+        self.input_animations = [a for a in self.input_animations if a["progress"] < 1.0]
 
     def _complete_process(self):
         # Remove inputs

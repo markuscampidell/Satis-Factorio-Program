@@ -71,6 +71,16 @@ class WorldRenderer:
                     machine.item_progress,
                     machine.current_incoming_direction or machine.direction
                 )
+
+            for anim in getattr(machine, "input_animations", []):
+                self.item_renderer.draw_item_lerp(
+                    screen,
+                    self.camera,
+                    anim["item"],
+                    anim["start"],
+                    anim["end"],
+                    min(anim["progress"], 1.0)
+                )
     
     def _get_belt_segment_image(self, incoming_directions, outgoing):
         if len(incoming_directions) > 1:

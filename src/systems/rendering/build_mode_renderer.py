@@ -4,9 +4,10 @@ import pygame as py
 from objects.conveyors.belt_segment import BeltSegment
 
 class BuildModeRenderer:
-    def __init__(self, build_system, machine_system, ghost_belt_drawer, belt_system , camera, grid):
+    def __init__(self, build_system, machine_system, ghost_machine_renderer, ghost_belt_drawer, belt_system, camera, grid):
         self.build_system = build_system
         self.machine_system = machine_system
+        self.ghost_machine_renderer = ghost_machine_renderer
         self.ghost_belt_drawer = ghost_belt_drawer
         self.belt_system = belt_system
         self.camera = camera
@@ -29,7 +30,7 @@ class BuildModeRenderer:
         
     def _draw_ghost(self):
         if (self.build_system.build_mode == "building" and self.build_system.selected_machine_class is not None):
-            self.machine_system.ghost_machine(self.build_system.selected_machine_class, self.build_system.build_mode, self.machine_system.splitter_rotation_steps)
+            self.ghost_machine_renderer.draw(self.build_system.selected_machine_class, self.build_system.build_mode, self.machine_system.splitter_rotation_steps)
             self.ghost_belt_drawer.draw_ghost(self.build_system.selected_machine_class, self.belt_system.placing_belt, self.belt_system.selected_belt_type)
 
     def _highlight_hovered_delete_target(self, screen):

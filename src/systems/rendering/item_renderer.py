@@ -10,30 +10,26 @@ class ItemRenderer:
 
         incoming = incoming_direction
 
-        start_x = (
-            grid_pos[0] * Grid.CELL_SIZE
-            + Grid.CELL_SIZE // 2
-            - incoming.x * Grid.CELL_SIZE
+        start = (
+            grid_pos[0] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2 - incoming.x * Grid.CELL_SIZE,
+            grid_pos[1] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2 - incoming.y * Grid.CELL_SIZE,
         )
 
-        start_y = (
-            grid_pos[1] * Grid.CELL_SIZE
-            + Grid.CELL_SIZE // 2
-            - incoming.y * Grid.CELL_SIZE
+        end = (
+            grid_pos[0] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2,
+            grid_pos[1] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2,
         )
 
-        end_x = (
-            grid_pos[0] * Grid.CELL_SIZE
-            + Grid.CELL_SIZE // 2
-        )
+        self.draw_item_lerp(screen, camera, item, start, end, progress)
 
-        end_y = (
-            grid_pos[1] * Grid.CELL_SIZE
-            + Grid.CELL_SIZE // 2
-        )
+    def draw_item_lerp(self, screen, camera, item, start, end, progress):
+        """Draw `item` interpolated between pixel points `start` and `end`,
+        using the same sizing/scaling as the normal belt-item animation."""
+        if not item or not item.sprite:
+            return
 
-        x = start_x + (end_x - start_x) * progress
-        y = start_y + (end_y - start_y) * progress
+        x = start[0] + (end[0] - start[0]) * progress
+        y = start[1] + (end[1] - start[1]) * progress
 
         size = int(Grid.CELL_SIZE * 0.5)
 

@@ -1,11 +1,11 @@
 # systems.rendering.ui_renderer
 class UiRenderer:
-    def __init__(self, machine_ui, player_inventory_ui, hand_crafting_ui):
-        self.machine_ui = machine_ui
+    def __init__(self, machine_ui_renderer, player_inventory_ui, hand_crafting_renderer):
+        self.machine_ui_renderer = machine_ui_renderer
         self.player_inventory_ui = player_inventory_ui
-        self.hand_crafting_ui = hand_crafting_ui
+        self.hand_crafting_renderer = hand_crafting_renderer
 
     def draw(self, screen):
-        self.machine_ui.draw(screen)
+        self.machine_ui_renderer.draw(screen)
         self.player_inventory_ui.draw(screen)
-        self.hand_crafting_ui.draw(screen)
+        self.hand_crafting_renderer.draw(screen)
