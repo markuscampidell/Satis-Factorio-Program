@@ -23,43 +23,46 @@ class BeltSystem:
         self.selected_belt_type = "basic"
         self.belt_placement_direction = Vector2(1, 0)
 
-    def is_tile_blocked_for_placement(self, grid_pos, allow_replace_belts, allow_replace_machines=False):
-        """The player always blocks belt placement. A machine tile only
-        blocks if we're not allowed to replace machines (ctrl held). An
-        existing belt only blocks if we're not allowed to replace it
-        (shift or ctrl held)."""
+    def is_tile_blocked_for_placement(self, grid_pos, allow_replace):
+        """The player always blocks belt placement. A machine or existing
+        belt tile only blocks if we're not allowed to replace it (shift
+        held) - shift replaces everything, belts and machines alike."""
         if self.world.is_blocked_by_player(grid_pos):
             return True
-        if grid_pos in self.world.machine_map:
-            return not allow_replace_machines
-        return grid_pos in self.world.belt_map and not allow_replace_belts
+        return self.world.is_cell_blocked(grid_pos) and not allow_replace
 
     def get_placement_modifiers(self):
-        """Reads live modifier keys: ctrl replaces belts *and* machines,
-        shift alone replaces only belts."""
-        mods = py.key.get_mods()
-        allow_replace_machines = bool(mods & py.KMOD_CTRL)
-        allow_replace_belts = allow_replace_machines or bool(mods & py.KMOD_SHIFT)
-        return allow_replace_belts, allow_replace_machines
+        """Shift held means replace everything under the belt path -
+        existing belts and machines alike."""
+        return bool(py.key.get_mods() & py.KMOD_SHIFT)
+
+    @classmethod
+    def apply_refunds(cls, inventory, replaced_segments, replaced_machines):
+        """Try to add every refund (belt items+costs, machine contents) to
+        `inventory`. Returns False the instant something doesn't fit,
+        without adding anything further. Works the same against a scratch
+        clone (dry run) or the real inventory (commit)."""
+        for seg in replaced_segments:
+            if seg.item and not inventory.try_add_items(seg.item.item_id, 1):
+                return False
+            for item_id, amount in cls.BUILD_COSTS[seg.belt_type].items():
+                if not inventory.try_add_items(item_id, amount):
+                    return False
+
+        for machine in replaced_machines:
+            for item_id, amount in machine.get_refund_items().items():
+                if not inventory.try_add_items(item_id, amount):
+                    return False
+
+        return True
 
     def gather_replacements(self, segments, belt_type):
         """What placing `segments` (as `belt_type`) would replace: the
-        existing belts under the path, the distinct machines under the path
-        (deduped, since one machine can occupy several tiles), and the total
-        cost of the new belts. Used both to actually place them and to
-        preview whether placing them would succeed."""
-        replaced_segments = [
-            self.world.belt_map[seg.grid_pos]
-            for seg in segments
-            if seg.grid_pos in self.world.belt_map
-        ]
-
-        replaced_machines = list({
-            id(machine): machine
-            for seg in segments
-            for machine in [self.world.machine_map.get(seg.grid_pos)]
-            if machine is not None
-        }.values())
+        existing belts and machines under the path, and the total cost of
+        the new belts. Used both to actually place them and to preview
+        whether placing them would succeed."""
+        cells = [seg.grid_pos for seg in segments]
+        replaced_segments, replaced_machines = self.world.gather_occupants(cells)
 
         total_cost = {}
         build_cost = self.BUILD_COSTS[belt_type]
@@ -80,19 +83,8 @@ class BeltSystem:
         Split into a status rather than a plain bool so previews can show
         *why* it would fail (orange = no space, yellow = can't afford)."""
         scratch = self.player.inventory.clone()
-
-        for old_seg in replaced_segments:
-            if old_seg.item and not scratch.try_add_items(old_seg.item.item_id, 1):
-                return "no_space"
-            for item_id, amount in self.BUILD_COSTS[old_seg.belt_type].items():
-                if not scratch.try_add_items(item_id, amount):
-                    return "no_space"
-
-        for machine in replaced_machines:
-            for item_id, amount in machine.get_refund_items().items():
-                if not scratch.try_add_items(item_id, amount):
-                    return "no_space"
-
+        if not self.apply_refunds(scratch, replaced_segments, replaced_machines):
+            return "no_space"
         return "ok" if scratch.try_remove_items(total_cost) else "no_funds"
 
     def place_belt(self, world_x2, world_y2, belt_type="basic"):
@@ -102,10 +94,9 @@ class BeltSystem:
         tiles = self._get_tiles_for_drag(start_tile, end_tile, horizontal_first=self.belt_first_axis_horizontal)
         segments = self._tiles_to_segments(tiles, belt_type=belt_type)
 
-        allow_replace_belts, allow_replace_machines = self.get_placement_modifiers()
+        allow_replace = self.get_placement_modifiers()
 
-        if any(self.is_tile_blocked_for_placement(seg.grid_pos, allow_replace_belts, allow_replace_machines)
-               for seg in segments):
+        if any(self.is_tile_blocked_for_placement(seg.grid_pos, allow_replace) for seg in segments):
             return  # Can't build here
 
         replaced_segments, replaced_machines, total_cost = self.gather_replacements(segments, belt_type)
@@ -116,15 +107,11 @@ class BeltSystem:
             return
 
         # Simulation succeeded exactly as it will for real - apply it.
+        self.apply_refunds(self.player.inventory, replaced_segments, replaced_machines)
         for old_seg in replaced_segments:
-            old_seg.refund_item_on_segment(self.player.inventory)
-            for item_id, amount in self.BUILD_COSTS[old_seg.belt_type].items():
-                self.player.inventory.try_add_items(item_id, amount)
+            old_seg._clear_item()
             self.world.remove_belt_segment(old_seg)
-
         for machine in replaced_machines:
-            for item_id, amount in machine.get_refund_items().items():
-                self.player.inventory.try_add_items(item_id, amount)
             self.world.remove_machine(machine)
 
         self.player.inventory.try_remove_items(total_cost)
@@ -140,13 +127,7 @@ class BeltSystem:
         all of `segments` would refund (their build cost plus any item
         mid-transit on them)."""
         scratch = self.player.inventory.clone()
-        for seg in segments:
-            if seg.item and not scratch.try_add_items(seg.item.item_id, 1):
-                return False
-            for item_id, amount in self.BUILD_COSTS[seg.belt_type].items():
-                if not scratch.try_add_items(item_id, amount):
-                    return False
-        return True
+        return self.apply_refunds(scratch, segments, [])
 
     def delete_belt(self, mx, my, delete_whole=False, camera_x=0, camera_y=0, player_inventory=None):
         world_x, world_y = mx + camera_x, my + camera_y

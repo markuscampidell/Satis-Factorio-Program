@@ -45,7 +45,20 @@ class World:
     def get_belt_segment_at(self, world_x, world_y):
         tile = self.snap_to_tile(world_x, world_y)
         return self.belt_map.get(tile)
-    
+
+    def gather_occupants(self, cells):
+        """Distinct belt segments and machines occupying any of `cells`,
+        deduped (a multi-tile machine occupying several of `cells` is only
+        returned once)."""
+        segments = [self.belt_map[cell] for cell in cells if cell in self.belt_map]
+        machines = list({
+            id(machine): machine
+            for cell in cells
+            for machine in [self.machine_map.get(cell)]
+            if machine is not None
+        }.values())
+        return segments, machines
+
 
 
     def snap_to_tile(self, x, y):

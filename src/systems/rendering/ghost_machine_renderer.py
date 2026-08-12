@@ -2,10 +2,17 @@
 import pygame as py
 
 from objects.conveyors.belt_segment import BeltSegment
+from systems.conveyors.belt_system import BeltSystem
 
 
 class GhostMachineRenderer:
     """Draws the translucent placement preview for the currently selected machine class."""
+
+    OVERLAY_COLORS = {
+        "blocked": (255, 0, 0, 120),
+        "no_space": (255, 165, 0, 120),
+        "no_funds": (255, 255, 0, 120),
+    }
 
     def __init__(self, world, player, camera, grid, screen):
         self.world = world
@@ -27,10 +34,14 @@ class GhostMachineRenderer:
         top_left_x = grid_x - width // 2
         top_left_y = grid_y - height // 2
 
-        # Tile-based blocked check
-        temp_machine = selected_machine_class(grid_pos=(top_left_x, top_left_y))
-        blocked = any(self.world.is_cell_blocked(cell) or self.world.is_blocked_by_player(cell)
-                      for cell in getattr(temp_machine, "occupied_cells", []))
+        cells = [
+            (top_left_x + dx, top_left_y + dy)
+            for dx in range(width)
+            for dy in range(height)
+        ]
+
+        allow_replace = bool(py.key.get_mods() & py.KMOD_SHIFT)
+        status = self._check_status(cells, selected_machine_class.BUILD_COST, allow_replace)
 
         # Create ghost surface (cached)
         pixel_width = width * self.grid.CELL_SIZE
@@ -52,19 +63,33 @@ class GhostMachineRenderer:
 
         ghost.set_alpha(120)
 
-        # Overlay for blocked tiles (machines, belts, player)
-        if blocked:
+        if status in self.OVERLAY_COLORS:
             overlay = py.Surface(ghost.get_size(), py.SRCALPHA)
-            overlay.fill((255, 0, 0, 120))
-            ghost.blit(overlay, (0, 0))
-
-        # Overlay for missing resources
-        if not self.player.inventory.has_enough_items(selected_machine_class.BUILD_COST):
-            overlay = py.Surface(ghost.get_size(), py.SRCALPHA)
-            overlay.fill((255, 255, 0, 120))
+            overlay.fill(self.OVERLAY_COLORS[status])
             ghost.blit(overlay, (0, 0))
 
         # Draw at pixel position for camera
         pixel_x = top_left_x * self.grid.CELL_SIZE
         pixel_y = top_left_y * self.grid.CELL_SIZE
         self.screen.blit(ghost, (pixel_x - self.camera.x, pixel_y - self.camera.y))
+
+    def _check_status(self, cells, cost, allow_replace):
+        """Returns "blocked", "no_space", "no_funds", or "ok" - the same
+        rule MachineSystem.place_machine enforces: the player always
+        blocks; a belt/machine tile blocks unless shift is held; and if
+        not blocked, replacing whatever's there (if anything) has to
+        actually fit and the net cost has to be affordable."""
+        if any(self.world.is_blocked_by_player(cell) for cell in cells):
+            return "blocked"
+        if not allow_replace and any(self.world.is_cell_blocked(cell) for cell in cells):
+            return "blocked"
+
+        replaced_segments, replaced_machines = self.world.gather_occupants(cells)
+
+        scratch = self.player.inventory.clone()
+        if not BeltSystem.apply_refunds(scratch, replaced_segments, replaced_machines):
+            return "no_space"
+        if not scratch.try_remove_items(cost):
+            return "no_funds"
+
+        return "ok"

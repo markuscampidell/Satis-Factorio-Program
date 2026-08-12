@@ -36,11 +36,11 @@ class BeltGhostPreviewController:
         mouse_tile = self.world.snap_to_tile(world_x, world_y)
         start_tile = (self.belt_system.beltX1, self.belt_system.beltY1)
 
-        allow_replace_belts, allow_replace_machines = self.belt_system.get_placement_modifiers()
+        allow_replace = self.belt_system.get_placement_modifiers()
 
         # Single belt
         if not placing_belt:
-            if self.belt_system.is_tile_blocked_for_placement(mouse_tile, allow_replace_belts, allow_replace_machines):
+            if self.belt_system.is_tile_blocked_for_placement(mouse_tile, allow_replace):
                     color_flag = "red"
 
             elif self.player.inventory.has_enough_items(self.belt_system.BUILD_COSTS[selected_belt_type]):
@@ -67,14 +67,14 @@ class BeltGhostPreviewController:
 
         # Check blocking
         any_blocked = any(
-            self.belt_system.is_tile_blocked_for_placement(seg.grid_pos, allow_replace_belts, allow_replace_machines)
+            self.belt_system.is_tile_blocked_for_placement(seg.grid_pos, allow_replace)
             for seg in segments
         )
 
         if any_blocked:
             color_flags = ["red"] * len(segments)
 
-        elif allow_replace_belts or allow_replace_machines:
+        elif allow_replace:
             # Replacing belts/machines is all-or-nothing (BeltSystem.place_belt
             # dry-runs the whole thing before touching anything) - so show the
             # whole drag in one color reflecting why it would fail, rather than
