@@ -8,6 +8,13 @@ class Inventory:
         self.height = slot_height
         self.slots = [[None for _ in range(slot_width)] for _ in range(slot_height)] # creates a 2D list of None values representing empty slots
 
+    def clone(self):
+        """A disposable copy for dry-running a sequence of add/remove
+        operations before committing them to the real inventory."""
+        copy = Inventory(self.width, self.height)
+        copy.slots = [[dict(slot) if slot else None for slot in row] for row in self.slots]
+        return copy
+
     def try_add_items(self, item, amount):
         if isinstance(item, Item): item_id = item.item_id
         else: item_id = item

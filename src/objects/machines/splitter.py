@@ -130,6 +130,13 @@ class Splitter(Machine):
 
         return True
 
+    def get_refund_items(self):
+        refund = super().get_refund_items()
+        if self.current_item:
+            item_id = self.current_item.item_id if hasattr(self.current_item, "item_id") else self.current_item
+            refund[item_id] = refund.get(item_id, 0) + 1
+        return refund
+
     # ------------------------
     # Rotate the splitter
     # ------------------------

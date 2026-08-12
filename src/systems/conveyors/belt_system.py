@@ -23,6 +23,25 @@ class BeltSystem:
         self.selected_belt_type = "basic"
         self.belt_placement_direction = Vector2(1, 0)
 
+    def is_tile_blocked_for_placement(self, grid_pos, allow_replace_belts, allow_replace_machines=False):
+        """The player always blocks belt placement. A machine tile only
+        blocks if we're not allowed to replace machines (ctrl held). An
+        existing belt only blocks if we're not allowed to replace it
+        (shift or ctrl held)."""
+        if self.world.is_blocked_by_player(grid_pos):
+            return True
+        if grid_pos in self.world.machine_map:
+            return not allow_replace_machines
+        return grid_pos in self.world.belt_map and not allow_replace_belts
+
+    def get_placement_modifiers(self):
+        """Reads live modifier keys: ctrl replaces belts *and* machines,
+        shift alone replaces only belts."""
+        mods = py.key.get_mods()
+        allow_replace_machines = bool(mods & py.KMOD_CTRL)
+        allow_replace_belts = allow_replace_machines or bool(mods & py.KMOD_SHIFT)
+        return allow_replace_belts, allow_replace_machines
+
     def place_belt(self, world_x2, world_y2, belt_type="basic"):
         start_tile = (self.beltX1, self.beltY1)
         end_tile = self.world.snap_to_tile(world_x2, world_y2)
@@ -30,20 +49,69 @@ class BeltSystem:
         tiles = self._get_tiles_for_drag(start_tile, end_tile, horizontal_first=self.belt_first_axis_horizontal)
         segments = self._tiles_to_segments(tiles, belt_type=belt_type)
 
-        # Check if any tile is blocked by machines, belts, or player
-        if any(self.world.is_cell_blocked(seg.grid_pos) or self.world.is_blocked_by_player(seg.grid_pos)
+        allow_replace_belts, allow_replace_machines = self.get_placement_modifiers()
+
+        if any(self.is_tile_blocked_for_placement(seg.grid_pos, allow_replace_belts, allow_replace_machines)
                for seg in segments):
             return  # Can't build here
 
-        # Calculate total cost
+        # Belts being replaced by this placement (existing tile, shift/ctrl held).
+        replaced_segments = [
+            self.world.belt_map[seg.grid_pos]
+            for seg in segments
+            if seg.grid_pos in self.world.belt_map
+        ]
+
+        # Machines being bulldozed by this placement (ctrl held). Dedupe by
+        # identity since one machine can occupy several tiles in the path.
+        replaced_machines = list({
+            id(machine): machine
+            for seg in segments
+            for machine in [self.world.machine_map.get(seg.grid_pos)]
+            if machine is not None
+        }.values())
+
+        # Total cost of the new belts being placed.
         total_cost = {}
         build_cost = self.BUILD_COSTS[belt_type]
         for seg in segments:
             for item_id, amount in build_cost.items():
                 total_cost[item_id] = total_cost.get(item_id, 0) + amount
 
-        if not self.player.inventory.has_enough_items(total_cost):
+        # Simulate the whole operation on a scratch copy of the inventory
+        # first: every refund (belt items, belt costs, machine costs,
+        # machine contents) has to actually fit, and the net cost has to be
+        # affordable, or nothing happens at all - no lost items, no partial
+        # placement.
+        scratch = self.player.inventory.clone()
+
+        for old_seg in replaced_segments:
+            if old_seg.item and not scratch.try_add_items(old_seg.item.item_id, 1):
+                return
+            for item_id, amount in self.BUILD_COSTS[old_seg.belt_type].items():
+                if not scratch.try_add_items(item_id, amount):
+                    return
+
+        for machine in replaced_machines:
+            for item_id, amount in machine.get_refund_items().items():
+                if not scratch.try_add_items(item_id, amount):
+                    return
+
+        if not scratch.try_remove_items(total_cost):
             return
+
+        # Simulation succeeded exactly as it will for real - apply it.
+        for old_seg in replaced_segments:
+            old_seg.refund_item_on_segment(self.player.inventory)
+            for item_id, amount in self.BUILD_COSTS[old_seg.belt_type].items():
+                self.player.inventory.try_add_items(item_id, amount)
+            self.world.remove_belt_segment(old_seg)
+
+        for machine in replaced_machines:
+            for item_id, amount in machine.get_refund_items().items():
+                self.player.inventory.try_add_items(item_id, amount)
+            self.world.remove_machine(machine)
+
         self.player.inventory.try_remove_items(total_cost)
 
         # Add segments to world

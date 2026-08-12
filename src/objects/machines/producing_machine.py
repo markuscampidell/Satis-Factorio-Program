@@ -101,7 +101,16 @@ class ProducingMachine(Machine):
     def _reset_inventories(self, recipe):
         self.input_inventories = {item_id: Inventory(slot_width=1, slot_height=1) for item_id in recipe.inputs}
         self.output_inventories = {item_id: Inventory(slot_width=1, slot_height=1) for item_id in recipe.outputs}
-    
+
+    def get_refund_items(self):
+        refund = super().get_refund_items()
+        for inv in list(self.input_inventories.values()) + list(self.output_inventories.values()):
+            for row in inv.slots:
+                for slot in row:
+                    if slot:
+                        refund[slot["item"]] = refund.get(slot["item"], 0) + slot["amount"]
+        return refund
+
     def set_recipe(self, recipe, player_inventory):
         # Inputs
         if hasattr(self, "input_inventories"):

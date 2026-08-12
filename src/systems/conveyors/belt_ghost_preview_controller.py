@@ -36,10 +36,11 @@ class BeltGhostPreviewController:
         mouse_tile = self.world.snap_to_tile(world_x, world_y)
         start_tile = (self.belt_system.beltX1, self.belt_system.beltY1)
 
+        allow_replace_belts, allow_replace_machines = self.belt_system.get_placement_modifiers()
+
         # Single belt
         if not placing_belt:
-            if (self.world.is_cell_blocked(mouse_tile)
-                or self.world.is_blocked_by_player(mouse_tile)):
+            if self.belt_system.is_tile_blocked_for_placement(mouse_tile, allow_replace_belts, allow_replace_machines):
                     color_flag = "red"
 
             elif self.player.inventory.has_enough_items(self.belt_system.BUILD_COSTS[selected_belt_type]):
@@ -65,22 +66,38 @@ class BeltGhostPreviewController:
         affected_segments = (self.belt_system.resolve_preview_connections(segments))
 
         # Check blocking
-        any_blocked = any(self.world.is_cell_blocked(seg.grid_pos)
-            or self.world.is_blocked_by_player(seg.grid_pos)
-            for seg in segments)
-        
-        # Calculate inventory colors
+        any_blocked = any(
+            self.belt_system.is_tile_blocked_for_placement(seg.grid_pos, allow_replace_belts, allow_replace_machines)
+            for seg in segments
+        )
+
+        # Calculate inventory colors. A tile that replaces an existing belt
+        # or machine refunds its cost/contents first, same as the real
+        # placement does. A multi-tile machine is only credited once, no
+        # matter how many tiles of the drag path it overlaps.
         available = {
             item_id: self.player.inventory.get_amount(item_id)
             for item_id in self.belt_system.BUILD_COSTS[selected_belt_type]
         }
 
         color_flags = []
+        credited_machine_ids = set()
 
         for seg in segments:
             if any_blocked:
                 color_flags.append("red")
                 continue
+
+            existing = self.world.belt_map.get(seg.grid_pos)
+            if existing is not None:
+                for item_id, cost in self.belt_system.BUILD_COSTS[existing.belt_type].items():
+                    available[item_id] = available.get(item_id, 0) + cost
+
+            existing_machine = self.world.machine_map.get(seg.grid_pos)
+            if existing_machine is not None and id(existing_machine) not in credited_machine_ids:
+                credited_machine_ids.add(id(existing_machine))
+                for item_id, amount in existing_machine.get_refund_items().items():
+                    available[item_id] = available.get(item_id, 0) + amount
 
             can_build = all(
                 available[item_id] >= cost

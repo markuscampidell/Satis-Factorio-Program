@@ -39,3 +39,9 @@ class Machine:
         if not hasattr(self, '_occupied_cells') or self._occupied_cells is None:
             self._occupied_cells = self._compute_occupied_cells()
         return self._occupied_cells
+
+    def get_refund_items(self):
+        """Items the player should get back if this machine is destroyed,
+        as an {item_id: amount} dict. Subclasses add whatever they hold on
+        top of the base build cost."""
+        return dict(self.BUILD_COST)

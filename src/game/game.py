@@ -9,7 +9,7 @@ class Game:
         py.init()
         self.context = Initializer.init_game()
 
-        self.context.player.inventory.try_add_items("iron_ingot", 500)
+        self.context.player.inventory.try_add_items("iron_ingot", 4300)
         self.context.player.inventory.try_add_items("copper_ingot", 200)
         
     def run(self):
