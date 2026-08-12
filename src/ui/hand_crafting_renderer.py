@@ -83,7 +83,8 @@ class HandCraftingRenderer:
     def _draw_produce_button(self, screen):
         ui = self.ui
         recipe = ui.player.handcrafting.get_selected_recipe()
-        can_craft = recipe and ui.player.handcrafting.inventory.has_enough_items(recipe.inputs)
+        status = ui.player.handcrafting.check_craft_status(recipe) if recipe else "no_inputs"
+        can_craft = status == "ok"
 
         button_w, button_h = 180, 40
         producing = ui.crafting_mode is not None
@@ -92,8 +93,14 @@ class HandCraftingRenderer:
             button_w = int(button_w * 0.95)
             button_h = int(button_h * 0.95)
             color = (0, 180, 0)
+        elif can_craft:
+            color = (0, 230, 0)
+        elif status == "no_space":
+            # Inputs are there, but the output wouldn't fit - matches the
+            # orange "not enough inventory space" indicator used elsewhere.
+            color = (255, 165, 0)
         else:
-            color = (0, 230, 0) if can_craft else (120, 120, 120)
+            color = (120, 120, 120)
 
         button_x = ui.rect.centerx - button_w // 2
         button_y = ui.rect.bottom - 120

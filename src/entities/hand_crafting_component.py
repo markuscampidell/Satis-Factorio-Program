@@ -14,11 +14,30 @@ class HandcraftingComponent:
             return None
         return self.recipes[self.selected_recipe_index]
 
+    def check_craft_status(self, recipe=None):
+        """Whether crafting `recipe` (the selected one by default) would
+        succeed right now, and if not, why:
+        - "no_inputs" if there's no recipe or not enough input items,
+        - "no_space" if the inputs are there but the outputs wouldn't fit
+          once they're removed (checked on a scratch copy, so space freed
+          up by consuming the inputs counts),
+        - "ok" if crafting it would succeed."""
+        recipe = recipe or self.get_selected_recipe()
+        if not recipe or not self.inventory.has_enough_items(recipe.inputs):
+            return "no_inputs"
+
+        scratch = self.inventory.clone()
+        scratch.try_remove_items(recipe.inputs)
+        for item_id, amount in recipe.outputs.items():
+            if not scratch.try_add_items(item_id, amount):
+                return "no_space"
+
+        return "ok"
+
     def try_craft_selected(self):
         recipe = self.get_selected_recipe()
-        if not recipe: return False
-
-        if not self.inventory.has_enough_items(recipe.inputs): return False
+        if self.check_craft_status(recipe) != "ok":
+            return False
 
         self.inventory.try_remove_items(recipe.inputs)
 

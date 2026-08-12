@@ -38,7 +38,7 @@ class HandCraftingUI:
             # Produce: only one craft
             if self.produce_button_rect.collidepoint(pos):
                 recipe = self.player.handcrafting.get_selected_recipe()
-                if recipe and self.player.handcrafting.inventory.has_enough_items(recipe.inputs):
+                if recipe and self.player.handcrafting.check_craft_status(recipe) == "ok":
                     self.crafting_mode = "single"
                     self.progress = 0.0
                 return
@@ -69,13 +69,11 @@ class HandCraftingUI:
             self.progress = 0.0
             return
 
-        can_craft = self.player.handcrafting.inventory.has_enough_items(recipe.inputs)
         process_time = getattr(recipe, "process_time", 1)
-        producing = self.crafting_mode is not None
 
-        if not producing: return
-
-        if not can_craft:
+        # Stops producing the moment inputs run out *or* the output
+        # wouldn't fit in the inventory, instead of losing items silently.
+        if self.player.handcrafting.check_craft_status(recipe) != "ok":
             self.crafting_mode = None
             self.progress = 0.0
             return
