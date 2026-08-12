@@ -71,54 +71,52 @@ class BeltGhostPreviewController:
             for seg in segments
         )
 
-        # Calculate inventory colors. A tile that replaces an existing belt
-        # or machine refunds its cost/contents first, same as the real
-        # placement does. A multi-tile machine is only credited once, no
-        # matter how many tiles of the drag path it overlaps.
-        available = {
-            item_id: self.player.inventory.get_amount(item_id)
-            for item_id in self.belt_system.BUILD_COSTS[selected_belt_type]
-        }
+        if any_blocked:
+            color_flags = ["red"] * len(segments)
 
-        color_flags = []
-        credited_machine_ids = set()
-
-        for seg in segments:
-            if any_blocked:
-                color_flags.append("red")
-                continue
-
-            existing = self.world.belt_map.get(seg.grid_pos)
-            if existing is not None:
-                for item_id, cost in self.belt_system.BUILD_COSTS[existing.belt_type].items():
-                    available[item_id] = available.get(item_id, 0) + cost
-
-            existing_machine = self.world.machine_map.get(seg.grid_pos)
-            if existing_machine is not None and id(existing_machine) not in credited_machine_ids:
-                credited_machine_ids.add(id(existing_machine))
-                for item_id, amount in existing_machine.get_refund_items().items():
-                    available[item_id] = available.get(item_id, 0) + amount
-
-            can_build = all(
-                available[item_id] >= cost
-                for item_id, cost
-                in self.belt_system.BUILD_COSTS[
-                    seg.belt_type
-                ].items()
+        elif allow_replace_belts or allow_replace_machines:
+            # Replacing belts/machines is all-or-nothing (BeltSystem.place_belt
+            # dry-runs the whole thing before touching anything) - so show the
+            # whole drag in one color reflecting why it would fail, rather than
+            # a per-tile mix that implies a partial placement could happen.
+            replaced_segments, replaced_machines, total_cost = self.belt_system.gather_replacements(
+                segments, selected_belt_type
             )
+            status = self.belt_system.check_placement_affordability(replaced_segments, replaced_machines, total_cost)
+            color = {"ok": "normal", "no_space": "orange", "no_funds": "yellow"}[status]
+            color_flags = [color] * len(segments)
 
-            if can_build:
-                color_flags.append("normal")
+        else:
+            # Fresh placement over empty tiles: show per-tile affordability
+            # as the player's inventory would be spent down segment by segment.
+            available = {
+                item_id: self.player.inventory.get_amount(item_id)
+                for item_id in self.belt_system.BUILD_COSTS[selected_belt_type]
+            }
 
-                for item_id, cost in (
-                    self.belt_system.BUILD_COSTS[
+            color_flags = []
+
+            for seg in segments:
+                can_build = all(
+                    available[item_id] >= cost
+                    for item_id, cost
+                    in self.belt_system.BUILD_COSTS[
                         seg.belt_type
                     ].items()
-                ):
-                    available[item_id] -= cost
+                )
 
-            else:
-                color_flags.append("yellow")
+                if can_build:
+                    color_flags.append("normal")
+
+                    for item_id, cost in (
+                        self.belt_system.BUILD_COSTS[
+                            seg.belt_type
+                        ].items()
+                    ):
+                        available[item_id] -= cost
+
+                else:
+                    color_flags.append("yellow")
 
         # ---------------------------------------------------------
         # Camera visibility

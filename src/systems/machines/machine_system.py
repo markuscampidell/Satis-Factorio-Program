@@ -64,20 +64,24 @@ class MachineSystem:
         self.preview_machine = None
         self.just_placed_machine = True
 
+    def can_afford_deletion(self, machine):
+        """True if the player's inventory has room for everything this
+        machine would refund (build cost plus whatever it's holding)."""
+        scratch = self.player.inventory.clone()
+        for item_id, amount in machine.get_refund_items().items():
+            if not scratch.try_add_items(item_id, amount):
+                return False
+        return True
+
     def delete_machine(self, mx, my):
         grid_x, grid_y = self.world.snap_to_tile(mx + self.camera.x, my + self.camera.y)
 
         for machine in list(self.world.machines):
             if (grid_x, grid_y) in getattr(machine, "occupied_cells", []):
-                if hasattr(machine, "transfer_processing_items_to_player"):
-                    machine.transfer_processing_items_to_player(self.player.inventory)
+                if not self.can_afford_deletion(machine):
+                    return  # Not enough inventory space to receive the refund
 
-                if machine.__class__.__name__ == "Splitter" and getattr(machine, "current_item", None):
-                    self.player.inventory.try_add_items(machine.current_item, 1)
-                    machine.current_item = None
-
-                # Refund cost
-                for item_id, amount in machine.BUILD_COST.items():
+                for item_id, amount in machine.get_refund_items().items():
                     self.player.inventory.try_add_items(item_id, amount)
 
                 self.world.remove_machine(machine)

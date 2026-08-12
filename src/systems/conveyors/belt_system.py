@@ -42,6 +42,59 @@ class BeltSystem:
         allow_replace_belts = allow_replace_machines or bool(mods & py.KMOD_SHIFT)
         return allow_replace_belts, allow_replace_machines
 
+    def gather_replacements(self, segments, belt_type):
+        """What placing `segments` (as `belt_type`) would replace: the
+        existing belts under the path, the distinct machines under the path
+        (deduped, since one machine can occupy several tiles), and the total
+        cost of the new belts. Used both to actually place them and to
+        preview whether placing them would succeed."""
+        replaced_segments = [
+            self.world.belt_map[seg.grid_pos]
+            for seg in segments
+            if seg.grid_pos in self.world.belt_map
+        ]
+
+        replaced_machines = list({
+            id(machine): machine
+            for seg in segments
+            for machine in [self.world.machine_map.get(seg.grid_pos)]
+            if machine is not None
+        }.values())
+
+        total_cost = {}
+        build_cost = self.BUILD_COSTS[belt_type]
+        for seg in segments:
+            for item_id, amount in build_cost.items():
+                total_cost[item_id] = total_cost.get(item_id, 0) + amount
+
+        return replaced_segments, replaced_machines, total_cost
+
+    def check_placement_affordability(self, replaced_segments, replaced_machines, total_cost):
+        """Dry-runs the refund+cost sequence on a scratch copy of the
+        inventory - the same all-or-nothing rule place_belt enforces for
+        real. Returns:
+        - "no_space" if a refund (belt items, belt costs, machine costs,
+          machine contents) wouldn't fit in the inventory,
+        - "no_funds" if everything fits but the net cost isn't affordable,
+        - "ok" if the placement would succeed.
+        Split into a status rather than a plain bool so previews can show
+        *why* it would fail (orange = no space, yellow = can't afford)."""
+        scratch = self.player.inventory.clone()
+
+        for old_seg in replaced_segments:
+            if old_seg.item and not scratch.try_add_items(old_seg.item.item_id, 1):
+                return "no_space"
+            for item_id, amount in self.BUILD_COSTS[old_seg.belt_type].items():
+                if not scratch.try_add_items(item_id, amount):
+                    return "no_space"
+
+        for machine in replaced_machines:
+            for item_id, amount in machine.get_refund_items().items():
+                if not scratch.try_add_items(item_id, amount):
+                    return "no_space"
+
+        return "ok" if scratch.try_remove_items(total_cost) else "no_funds"
+
     def place_belt(self, world_x2, world_y2, belt_type="basic"):
         start_tile = (self.beltX1, self.beltY1)
         end_tile = self.world.snap_to_tile(world_x2, world_y2)
@@ -55,49 +108,11 @@ class BeltSystem:
                for seg in segments):
             return  # Can't build here
 
-        # Belts being replaced by this placement (existing tile, shift/ctrl held).
-        replaced_segments = [
-            self.world.belt_map[seg.grid_pos]
-            for seg in segments
-            if seg.grid_pos in self.world.belt_map
-        ]
+        replaced_segments, replaced_machines, total_cost = self.gather_replacements(segments, belt_type)
 
-        # Machines being bulldozed by this placement (ctrl held). Dedupe by
-        # identity since one machine can occupy several tiles in the path.
-        replaced_machines = list({
-            id(machine): machine
-            for seg in segments
-            for machine in [self.world.machine_map.get(seg.grid_pos)]
-            if machine is not None
-        }.values())
-
-        # Total cost of the new belts being placed.
-        total_cost = {}
-        build_cost = self.BUILD_COSTS[belt_type]
-        for seg in segments:
-            for item_id, amount in build_cost.items():
-                total_cost[item_id] = total_cost.get(item_id, 0) + amount
-
-        # Simulate the whole operation on a scratch copy of the inventory
-        # first: every refund (belt items, belt costs, machine costs,
-        # machine contents) has to actually fit, and the net cost has to be
-        # affordable, or nothing happens at all - no lost items, no partial
-        # placement.
-        scratch = self.player.inventory.clone()
-
-        for old_seg in replaced_segments:
-            if old_seg.item and not scratch.try_add_items(old_seg.item.item_id, 1):
-                return
-            for item_id, amount in self.BUILD_COSTS[old_seg.belt_type].items():
-                if not scratch.try_add_items(item_id, amount):
-                    return
-
-        for machine in replaced_machines:
-            for item_id, amount in machine.get_refund_items().items():
-                if not scratch.try_add_items(item_id, amount):
-                    return
-
-        if not scratch.try_remove_items(total_cost):
+        # Simulate the whole operation first - no lost items, no partial
+        # placement if anything doesn't fit or isn't affordable.
+        if self.check_placement_affordability(replaced_segments, replaced_machines, total_cost) != "ok":
             return
 
         # Simulation succeeded exactly as it will for real - apply it.
@@ -120,6 +135,19 @@ class BeltSystem:
 
         self.update_belt_incoming_directions()
 
+    def can_afford_belt_deletion(self, segments):
+        """True if the player's inventory has room for everything deleting
+        all of `segments` would refund (their build cost plus any item
+        mid-transit on them)."""
+        scratch = self.player.inventory.clone()
+        for seg in segments:
+            if seg.item and not scratch.try_add_items(seg.item.item_id, 1):
+                return False
+            for item_id, amount in self.BUILD_COSTS[seg.belt_type].items():
+                if not scratch.try_add_items(item_id, amount):
+                    return False
+        return True
+
     def delete_belt(self, mx, my, delete_whole=False, camera_x=0, camera_y=0, player_inventory=None):
         world_x, world_y = mx + camera_x, my + camera_y
         shift_held = py.key.get_mods() & py.KMOD_SHIFT
@@ -129,6 +157,9 @@ class BeltSystem:
             return
 
         to_delete = self.get_connected_belt_segments(target_seg) if (delete_whole or shift_held) else [target_seg]
+
+        if not self.can_afford_belt_deletion(to_delete):
+            return  # Not enough inventory space to receive the refund
 
         for seg in to_delete:
             seg.refund_item_on_segment(self.player.inventory)

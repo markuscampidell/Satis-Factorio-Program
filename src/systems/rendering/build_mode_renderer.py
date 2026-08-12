@@ -14,6 +14,7 @@ class BuildModeRenderer:
         self.grid = grid
 
         self.delete_overlay_tile = self._make_tile_overlay((255, 0, 0, 100))
+        self.delete_blocked_overlay_tile = self._make_tile_overlay((255, 165, 0, 100))
         self.update_overlay_surfaces(camera.screen_width, camera.screen_height)
 
     def _make_tile_overlay(self, color):
@@ -39,10 +40,22 @@ class BuildModeRenderer:
 
         shift_held = py.key.get_mods() & py.KMOD_SHIFT
 
-        if isinstance(self.build_system.hovered_delete_target, BeltSegment) and shift_held:
-            segments_to_highlight = self.belt_system.get_connected_belt_segments(self.build_system.hovered_delete_target)
+        target = self.build_system.hovered_delete_target
+
+        if isinstance(target, BeltSegment) and shift_held:
+            segments_to_highlight = self.belt_system.get_connected_belt_segments(target)
         else:
-            segments_to_highlight = [self.build_system.hovered_delete_target]
+            segments_to_highlight = [target]
+
+        # Orange = targeted, but there isn't enough inventory space to
+        # receive the refund, so the click won't actually delete it.
+        if isinstance(target, BeltSegment):
+            can_delete = self.belt_system.can_afford_belt_deletion(segments_to_highlight)
+        else:
+            can_delete = self.machine_system.can_afford_deletion(target)
+
+        overlay_tile = self.delete_overlay_tile if can_delete else self.delete_blocked_overlay_tile
+        overlay_color = (255, 0, 0, 100) if can_delete else (255, 165, 0, 100)
 
         for obj in segments_to_highlight:
             # Tile-based highlighting
@@ -50,12 +63,12 @@ class BuildModeRenderer:
                 for grid_x, grid_y in obj.occupied_cells:
                     pixel_x = grid_x * self.grid.CELL_SIZE
                     pixel_y = grid_y * self.grid.CELL_SIZE
-                    screen.blit(self.delete_overlay_tile, (pixel_x - self.camera.x, pixel_y - self.camera.y))
+                    screen.blit(overlay_tile, (pixel_x - self.camera.x, pixel_y - self.camera.y))
             # Fallback for older objects that still have rect
             elif hasattr(obj, "rect") and obj.rect:
                 rect = obj.rect
                 overlay = py.Surface((rect.width, rect.height), py.SRCALPHA)
-                overlay.fill((255, 0, 0, 100))
+                overlay.fill(overlay_color)
                 screen.blit(overlay, (rect.x - self.camera.x, rect.y - self.camera.y))
     
     def _draw_build_overlay(self, screen):
