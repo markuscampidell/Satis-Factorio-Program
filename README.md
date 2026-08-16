@@ -1,22 +1,43 @@
 This is a game about automation. (inspired by Satisfactory, Factorio and Dyson Sphere Program)
 
-Machines have inputs and outputs, when they have enough inputs, they produce
+Machines have input items and output items. When they have enough input items of the selected recipe, they produce the corresponding output items in a specific amount of time.
 
-Items can go onto belts and into and out of machines.
+Items can be transported around the factory using belts and splitters.
+The items on belts can go into machines.
 
-Keybinds:
+KEYBINDS:
 
-  Q: Enter building
-  x: Enter deleting
+Build Modes:
+
+  Q: Enter building mode
+  
+  x: Enter deleting mode
+
+User Interfaces:
+  
   Tab: open/close Player Inventory
-  ESC: close/cancel every flag
+
+  F: open/close Handcrafting UI
+
+While building:
+
   Number Keys: Select Machines
-  R: Rotate Conveyorbelts or Splitters
-  T: change how you drag Conveyorbelts
 
-  Temporary for game development:
-    I: put input items into machines
+  R: Rotate Conveyorbelts or Splitters by 90 degrees (clockwise)
 
-You can click on machines to open them and change their recipe.
+  Shift + R: Rotate Conveyorbelts or Splitters by 90 degrees (counterclockwise)
+  
+  T: Flip direction of Conveyorbelts or Splitters by 180 degrees
 
-<img width="1907" height="1059" alt="image" src="https://github.com/user-attachments/assets/3cd8f8b7-10fb-48b8-a136-5368d7180c88" />
+Cancel:
+  
+  ESC: close/cancel every flag
+
+Temporary for game development:
+
+  I: put input items into machines
+  
+  
+You can click on machines to open their UI and change their selected recipe.
+
+<img width="2068" height="1167" alt="image" src="https://github.com/user-attachments/assets/672b7b14-fe5d-4670-8843-7c1a464b05d7" />
