@@ -124,6 +124,12 @@ class Splitter(Machine):
         if self.current_item is not None:
             return False
 
+        # Splitters only accept items pushed in from directly behind them
+        # (the one side that isn't one of the three outputs) - a belt
+        # feeding into the side or front shouldn't be able to insert.
+        if incoming_direction != self.direction:
+            return False
+
         self.current_item = item
         self.current_incoming_direction = incoming_direction
         self.item_progress = 0.0

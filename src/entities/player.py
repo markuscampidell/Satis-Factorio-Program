@@ -37,9 +37,13 @@ class Player:
             self.handle_collision_y(machines, dy)
 
     def handle_collision_x(self, machines, dx):
-        # Only check machines that are close enough to potentially collide
         for machine in machines:
-            if abs(machine.rect.centerx - self.rect.centerx) > 64:
+            # Only check machines close enough to potentially collide -
+            # computed from actual rect sizes, not a fixed guess, so it
+            # still works for machines bigger than the size this was
+            # originally tuned for.
+            max_dist = (machine.rect.width + self.rect.width) / 2
+            if abs(machine.rect.centerx - self.rect.centerx) > max_dist:
                 continue
             # Check for horizontal collision and resolve it
             if self.rect.colliderect(machine.rect):
@@ -49,9 +53,9 @@ class Player:
                     self.rect.left = machine.rect.right
 
     def handle_collision_y(self, machines, dy):
-        # Only check machines that are close enough to potentially collide
         for machine in machines:
-            if abs(machine.rect.centery - self.rect.centery) > 64:
+            max_dist = (machine.rect.height + self.rect.height) / 2
+            if abs(machine.rect.centery - self.rect.centery) > max_dist:
                 continue
             # Check for vertical collision and resolve it
             if self.rect.colliderect(machine.rect):

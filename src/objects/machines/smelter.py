@@ -1,9 +1,6 @@
 # objects.machines.smelter
-import pygame as py
-
 from objects.machines.producing_machine import ProducingMachine
 from constants.recipes import smelter_recipes
-from game.grid import Grid
 
 class Smelter(ProducingMachine):
     WIDTH = 3
