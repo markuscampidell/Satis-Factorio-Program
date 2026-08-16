@@ -16,7 +16,6 @@ class BeltSystem:
         self.player = player
         self.ghost_belt_renderer = ghost_belt_renderer
 
-        self.belt_first_axis_horizontal = True
         self.beltX1 = 0
         self.beltY1 = 0
         self.placing_belt = False
@@ -87,11 +86,46 @@ class BeltSystem:
             return "no_space"
         return "ok" if scratch.try_remove_items(total_cost) else "no_funds"
 
+    def get_drag_tiles(self, start_tile, end_tile):
+        """Path tiles for a drag from start_tile to end_tile, routed by the
+        current facing direction (belt_placement_direction): horizontal
+        facing routes horizontal-first, vertical facing routes
+        vertical-first.
+
+        Flow matches the facing direction along whichever axis the drag
+        actually moves along: e.g. facing Right always ends up flowing
+        rightward, whether you dragged left-to-right or right-to-left to
+        get there. But if the drag has *no* movement along the facing's
+        own axis at all (facing Up/Down while dragging a dead-straight
+        horizontal line, or facing Left/Right while dragging a
+        dead-straight vertical line), the facing has nothing to compare
+        against on that axis, so it's ignored and the belts just flow
+        start_tile -> end_tile - the natural, unsurprising result for a
+        straight drag regardless of which way you happen to be facing."""
+        x1, y1 = start_tile
+        x2, y2 = end_tile
+        direction = self.belt_placement_direction
+
+        horizontal_first = direction.x != 0
+        reversed_flow = False
+
+        if horizontal_first and x2 != x1:
+            drag_sign = 1 if x2 > x1 else -1
+            facing_sign = 1 if direction.x > 0 else -1
+            reversed_flow = drag_sign != facing_sign
+        elif not horizontal_first and y2 != y1:
+            drag_sign = 1 if y2 > y1 else -1
+            facing_sign = 1 if direction.y > 0 else -1
+            reversed_flow = drag_sign != facing_sign
+
+        tiles = self._get_tiles_for_drag(start_tile, end_tile, horizontal_first=horizontal_first)
+        return list(reversed(tiles)) if reversed_flow else tiles
+
     def place_belt(self, world_x2, world_y2, belt_type="basic"):
         start_tile = (self.beltX1, self.beltY1)
         end_tile = self.world.snap_to_tile(world_x2, world_y2)
 
-        tiles = self._get_tiles_for_drag(start_tile, end_tile, horizontal_first=self.belt_first_axis_horizontal)
+        tiles = self.get_drag_tiles(start_tile, end_tile)
         segments = self._tiles_to_segments(tiles, belt_type=belt_type)
 
         allow_replace = self.get_placement_modifiers()

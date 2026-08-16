@@ -76,14 +76,14 @@ class InputSystem:
 
 
         if event.key == py.K_r and self.build_system.build_mode == "building":
-            self.build_system.rotate_selected()
+            if py.key.get_mods() & py.KMOD_SHIFT:
+                self.build_system.rotate_selected(steps=-1)
+            else:
+                self.build_system.rotate_selected(steps=1)
             return
 
-        if (event.key == py.K_t
-            and self.build_system.build_mode == "building"
-            and self.build_system.selected_machine_class is BeltSegment
-            and self.belt_system.placing_belt):
-            self.belt_system.belt_first_axis_horizontal = not self.belt_system.belt_first_axis_horizontal
+        if event.key == py.K_t and self.build_system.build_mode == "building":
+            self.build_system.rotate_selected(steps=2)
             return
 
         if self.build_system.build_mode in ("building", "deleting"):
@@ -99,7 +99,6 @@ class InputSystem:
                     self.build_system.enter_build_mode()
                 
                 self.build_system.reset_rotation()
-                self.build_system.reset_belt_first_axis_horizontal()
 
                 return
 
@@ -124,7 +123,6 @@ class InputSystem:
     def cancel_build_or_delete(self):
         if self.belt_system.placing_belt:
             self.belt_system.placing_belt = False
-            self.belt_system.belt_first_axis_horizontal = True
             return
         
         if self.build_system.build_mode == "building":

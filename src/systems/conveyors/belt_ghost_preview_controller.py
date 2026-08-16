@@ -57,8 +57,7 @@ class BeltGhostPreviewController:
 
         # Multiple belt dragging
 
-        tiles = self.belt_system._get_tiles_for_drag(start_tile, mouse_tile,
-            horizontal_first=(self.belt_system.belt_first_axis_horizontal))
+        tiles = self.belt_system.get_drag_tiles(start_tile, mouse_tile)
 
         segments = self.belt_system._tiles_to_segments(tiles, belt_type=selected_belt_type)
 

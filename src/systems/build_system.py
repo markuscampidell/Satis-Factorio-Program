@@ -120,12 +120,19 @@ class BuildSystem:
         self.build_mode = "deleting"
         self.belt_system.placing_belt = False
 
-    def rotate_selected(self):
+    def rotate_selected(self, steps=1):
+        """Rotate whichever build target is selected (Splitter or belt
+        facing) by `steps` quarter-turns clockwise. Negative steps rotate
+        counter-clockwise (steps=-1 is one quarter-turn back); steps=2 is
+        a 180-degree flip - same rotation either way, just applied
+        multiple times."""
         if self.selected_machine_class is Splitter:
-            self.machine_system.splitter_rotation_steps = (self.machine_system.splitter_rotation_steps + 1) % 4
+            self.machine_system.splitter_rotation_steps = (self.machine_system.splitter_rotation_steps + steps) % 4
         elif self.selected_machine_class is BeltSegment:
-            x, y = self.belt_system.belt_placement_direction.x, self.belt_system.belt_placement_direction.y
-            self.belt_system.belt_placement_direction = Vector2(-y, x)
+            direction = self.belt_system.belt_placement_direction
+            for _ in range(steps % 4):
+                direction = Vector2(-direction.y, direction.x)
+            self.belt_system.belt_placement_direction = direction
 
     def toggle_build_mode(self):
         if self.build_mode == "building":
@@ -153,11 +160,7 @@ class BuildSystem:
         self.selected_machine_class = Smelter
         self.belt_system.placing_belt = False
         self.reset_rotation()
-        self.reset_belt_first_axis_horizontal()
-    
+
     def reset_rotation(self):
         self.belt_system.belt_placement_direction = Vector2(1, 0)
         self.machine_system.splitter_rotation_steps = 0
-    
-    def reset_belt_first_axis_horizontal(self):
-        self.belt_system.belt_first_axis_horizontal = True
