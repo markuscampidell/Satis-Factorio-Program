@@ -91,11 +91,13 @@ class Splitter(Machine):
             next_tile = (self.grid_pos[0] + int(direction.x), self.grid_pos[1] + int(direction.y))
             seg = belt_map.get(next_tile)
 
-            if seg and seg.item is None:
-                # Check if push direction matches belt segment
-                acceptable = direction in seg.incoming_directions
-
-                if acceptable:
+            if seg is not None:
+                # Accept any belt orientation except one facing directly
+                # back into us - forward or perpendicular (a belt turning
+                # right at the output tile) are both fine, so a 3-way
+                # split doesn't need extra tiles just to redirect the
+                # side outputs.
+                if seg.item is None and direction != -seg.direction:
                     seg.item = self.current_item
                     seg.item_progress = 0.0
 
@@ -105,7 +107,7 @@ class Splitter(Machine):
                     self.current_item = None
                     self.current_output_index = (self.current_output_index + 1) % num_dirs
                     return True
-            elif seg is None:
+            else:
                 machine = machine_map.get(next_tile)
 
                 accepted = False

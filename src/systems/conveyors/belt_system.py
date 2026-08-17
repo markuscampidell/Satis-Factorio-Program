@@ -308,6 +308,26 @@ class BeltSystem:
                 if push_direction == seg.direction and push_direction not in incoming_directions:
                     incoming_directions.append(push_direction)
 
+        # A splitter accepts any orientation except facing directly back
+        # into it (Splitter.push_item), so unlike a machine it can
+        # contribute a perpendicular direction too - same exclusion rule
+        # as belts feeding each other.
+        for splitter in self.world.machines:
+            get_relative_dirs = getattr(splitter, "_get_relative_dirs", None)
+            if get_relative_dirs is None:
+                continue
+
+            for push_direction in get_relative_dirs():
+                tile = (
+                    splitter.grid_pos[0] + int(push_direction.x),
+                    splitter.grid_pos[1] + int(push_direction.y)
+                )
+                if tile != (x, y):
+                    continue
+
+                if push_direction != -seg.direction and push_direction not in incoming_directions:
+                    incoming_directions.append(push_direction)
+
         # Fallback for isolated belts
         if not incoming_directions:
             incoming_directions.append(seg.direction)

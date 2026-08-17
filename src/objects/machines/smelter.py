@@ -4,7 +4,7 @@ from constants.recipes import smelter_recipes
 
 class Smelter(ProducingMachine):
     WIDTH = 3
-    HEIGHT = 3
+    HEIGHT = 2
     SPRITE_PATH = "src/assets/sprites/machines/smelter.png"
     BUILD_COST = {"iron_ingot": 2, "copper_ingot": 1}
 
