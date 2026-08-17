@@ -65,7 +65,7 @@ class Game:
             segment.resolve_input_requests()
 
         for machine in self.context.world.machines:
-            machine.update(delta_time, self.context.world.belt_map)
+            machine.update(delta_time, self.context.world.belt_map, self.context.world.machine_map)
 
         self.context.build_system.update_hovered_delete_target()
     

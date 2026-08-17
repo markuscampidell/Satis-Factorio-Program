@@ -41,6 +41,7 @@ class BuildSystem:
                 player_inventory=self.player.inventory
             )
             self.update_all_splitters_outputs()
+            self.belt_system.update_belt_incoming_directions()
             return
 
         # Belt placement
@@ -63,6 +64,7 @@ class BuildSystem:
         # Machine placement
         if self.build_mode == "building" and self.selected_machine_class is not None:
             self.machine_system.place_machine(self.selected_machine_class)
+            self.belt_system.update_belt_incoming_directions()
             if hasattr(self, 'preview_splitter'):
                 self.preview_splitter = None
 

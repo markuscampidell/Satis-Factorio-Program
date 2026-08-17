@@ -292,6 +292,22 @@ class BeltSystem:
                 if incoming_direction != -seg.direction:
                     incoming_directions.append(incoming_direction)
 
+        # A machine pushing into this segment only ever succeeds when the
+        # segment faces directly away from it (ProducingMachine.push_output
+        # requires an exact direction match) - so the only valid incoming
+        # entry a machine can contribute is the segment's own direction.
+        for machine in self.world.machines:
+            get_output_tiles = getattr(machine, "_get_output_tiles", None)
+            if get_output_tiles is None:
+                continue
+
+            for (dx, dy), push_direction in get_output_tiles():
+                if (machine.grid_pos[0] + dx, machine.grid_pos[1] + dy) != (x, y):
+                    continue
+
+                if push_direction == seg.direction and push_direction not in incoming_directions:
+                    incoming_directions.append(push_direction)
+
         # Fallback for isolated belts
         if not incoming_directions:
             incoming_directions.append(seg.direction)

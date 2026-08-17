@@ -2,6 +2,7 @@
 import pygame as py
 
 from constants.itemdata import get_item_by_id
+from core.vector2 import Vector2
 from entities.inventory import Inventory
 from objects.machines.machine import Machine
 
@@ -22,10 +23,6 @@ class ProducingMachine(Machine):
 
         self.cell_size = cell_size
 
-        # Tile-based output tracking
-        self.output_belts = []
-        self.current_output_index = 0
-
         # Purely visual: items animating from the input edge to the
         # machine center after they've already been added to the inventory.
         self.input_animations = []
@@ -33,7 +30,7 @@ class ProducingMachine(Machine):
         if recipe:
             self._reset_inventories(recipe)
 
-    def update(self, dt, belt_map=None):
+    def update(self, dt, belt_map=None, machine_map=None):
         if not self.processing and self.can_process():
             self.processing = True
             self.process_timer = 0.0
@@ -46,6 +43,76 @@ class ProducingMachine(Machine):
                 self.process_timer = 0.0
 
         self._update_input_animations(dt)
+        self.push_output(belt_map or {}, machine_map or {})
+
+    def push_output(self, belt_map, machine_map):
+        """Push one item from output inventories onto whatever's at an
+        output tile - a belt, a splitter, or another machine. Tries each
+        output direction in turn for the first available output item."""
+        for item_id, inv in self.output_inventories.items():
+            for row in inv.slots:
+                for i, slot in enumerate(row):
+                    if not (slot and slot["amount"] > 0):
+                        continue
+
+                    item_obj = get_item_by_id(slot["item"])
+
+                    for (dx, dy), push_direction in self._get_output_tiles():
+                        tile_pos = (self.grid_pos[0] + dx, self.grid_pos[1] + dy)
+
+                        if self._try_push_to_tile(item_obj, push_direction, tile_pos, belt_map, machine_map):
+                            slot["amount"] -= 1
+                            if slot["amount"] == 0:
+                                row[i] = None
+                            return True
+
+        return False
+
+    def _try_push_to_tile(self, item_obj, push_direction, tile_pos, belt_map, machine_map):
+        belt = belt_map.get(tile_pos)
+        if belt is not None:
+            # Only a belt facing directly away from us (same direction as
+            # the push) accepts - not perpendicular, not facing back in.
+            if belt.item is not None or belt.direction != push_direction:
+                return False
+
+            belt.item = item_obj
+            belt.item_progress = 0.0
+            belt.current_incoming_direction = push_direction
+            return True
+
+        machine = machine_map.get(tile_pos)
+        if machine is None:
+            return False
+
+        # Duck-typed dispatch (not isinstance) to avoid a circular import
+        # with Splitter, which already imports ProducingMachine. Splitter
+        # exposes receive_item, ProducingMachine exposes try_receive_item -
+        # whichever is there gets a shot with its own existing acceptance
+        # rules (direction match for a splitter, recipe-input match and
+        # space for a machine).
+        if hasattr(machine, "receive_item"):
+            return machine.receive_item(item_obj, incoming_direction=push_direction)
+        if hasattr(machine, "try_receive_item"):
+            return machine.try_receive_item(item_obj, self.grid_pos)
+
+        return False
+
+    def try_receive_item(self, item, source_grid_pos):
+        """Try to add `item` to whichever input inventory actually needs
+        it (matches the recipe input and has room). Triggers the visual
+        "item traveling in" animation on success. Single entry point used
+        by both belts and splitters feeding this machine, so both get
+        identical acceptance rules and the same animation."""
+        inv = self.input_inventories.get(item.item_id)
+        if inv is None:
+            return False
+
+        if not inv.try_add_items(item, 1):
+            return False
+
+        self.start_input_animation(item, source_grid_pos)
+        return True
 
     def start_input_animation(self, item, source_grid_pos):
         """Play a visual-only animation of `item` moving from source_grid_pos
@@ -136,45 +203,24 @@ class ProducingMachine(Machine):
 
         if recipe: self._reset_inventories(recipe)
 
-        self.current_output_index = 0
+    def _get_output_tiles(self):
+        """(tile_offset, direction) for every tile around the machine's
+        entire perimeter - it can push output out any side, not just one
+        fixed tile. tile_offset is relative to grid_pos (top-left
+        corner); direction is the unit vector pointing outward through
+        that tile."""
+        tiles = []
 
-    def update_outputs(self, belt_map):
-        """Tile-based update: find belts in output positions."""
-        belts = []
-        for dx, dy in self._get_output_dirs():
-            tile_pos = (self.grid_pos[0] + dx, self.grid_pos[1] + dy)
-            seg = belt_map.get(tile_pos)
-            if seg:
-                belts.append(seg)
-        self.output_belts = belts
-        if self.current_output_index >= len(self.output_belts):
-            self.current_output_index = 0
+        for dy in range(self.HEIGHT):
+            tiles.append(((self.WIDTH, dy), Vector2(1, 0)))    # right edge
+            tiles.append(((-1, dy), Vector2(-1, 0)))           # left edge
 
-    def _get_output_dirs(self):
-        """By default, output to the right tile. Override for multi-direction outputs."""
-        return [(1, 0)]  # simple: output to the right
+        for dx in range(self.WIDTH):
+            tiles.append(((dx, -1), Vector2(0, -1)))           # top edge
+            tiles.append(((dx, self.HEIGHT), Vector2(0, 1)))   # bottom edge
 
-    def push_output_item(self):
-        """Push one item from output inventories to the next belt (tile-based)."""
-        if not self.output_belts:
-            return False
+        return tiles
 
-        for item_id, inv in self.output_inventories.items():
-            for row in inv.slots:
-                for i, slot in enumerate(row):
-                    if slot and slot["amount"] > 0:
-                        item_obj = get_item_by_id(slot["item"])
-                        belt = self.output_belts[self.current_output_index % len(self.output_belts)]
-                        if belt.item is None:
-                            belt.item = item_obj
-                            belt.item_progress = 0.0
-                            slot["amount"] -= 1
-                            if slot["amount"] == 0:
-                                row[i] = None
-                            self.current_output_index += 1
-                            return True
-        return False
-    
     def draw(self, screen, camera):
         if not self.image:
             return
@@ -212,18 +258,3 @@ class ProducingMachine(Machine):
             y = center_y - img.get_height() // 2
             screen.blit(img, (x, y))
             x += img.get_width() + spacing
-
-    def push_output_items(self, peek=False):
-        """Return an item from output inventory (like before)"""
-        for item_id, inv in self.output_inventories.items():
-            for row in inv.slots:
-                for i, slot in enumerate(row):
-                    if slot and slot["amount"] > 0:
-                        item_obj = get_item_by_id(slot["item"])
-                        if peek:
-                            return item_obj
-                        slot["amount"] -= 1
-                        if slot["amount"] == 0:
-                            row[i] = None
-                        return item_obj
-        return None

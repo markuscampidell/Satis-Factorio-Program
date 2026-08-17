@@ -30,7 +30,6 @@ class BeltSegment:
 
     def update(self, belt_map, machine_map, dt):
         if not self.item:
-            self._pull_from_prev_machine(machine_map)
             return
 
         self.item_progress += self.speed * dt
@@ -135,22 +134,6 @@ class BeltSegment:
         self.input_requests.clear()
 
 
-    def _pull_from_prev_machine(self, machine_map):
-        prev_pos = (
-            self.grid_pos[0] - self.direction.x,
-            self.grid_pos[1] - self.direction.y
-        )
-
-        machine = machine_map.get(prev_pos)
-
-        if isinstance(machine, ProducingMachine):
-            next_item = machine.push_output_items(peek=True)
-
-            if next_item:
-                self.item = machine.push_output_items(peek=False)
-                self.item_progress = 0.0
-
-
     def _try_insert_into_machine(self, machine, source_grid_pos):
         if isinstance(machine, Splitter):
             success = machine.receive_item(
@@ -164,16 +147,12 @@ class BeltSegment:
             return success
 
         elif isinstance(machine, ProducingMachine):
-            for inv_item_id, inv in machine.input_inventories.items():
-                if self.item.item_id == inv_item_id:
-                    item = self.item
-                    added = inv.try_add_items(self.item, 1)
+            added = machine.try_receive_item(self.item, source_grid_pos)
 
-                    if added:
-                        machine.start_input_animation(item, source_grid_pos)
-                        self._clear_item()
+            if added:
+                self._clear_item()
 
-                    return added
+            return added
 
         return False
 

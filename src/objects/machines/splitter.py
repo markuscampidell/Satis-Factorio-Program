@@ -4,6 +4,7 @@ from pygame.transform import rotate
 
 from core.vector2 import Vector2
 from objects.machines.machine import Machine
+from objects.machines.producing_machine import ProducingMachine
 from game.grid import Grid
 
 class Splitter(Machine):
@@ -44,7 +45,7 @@ class Splitter(Machine):
     # ------------------------
     # Update per frame
     # ------------------------
-    def update(self, dt, belt_map):
+    def update(self, dt, belt_map, machine_map=None):
         if not self.current_item:
             self.item_progress = 0.0
             return
@@ -52,7 +53,7 @@ class Splitter(Machine):
         self.item_progress += self.speed * dt
 
         if self.item_progress >= 1.0:
-            moved = self.push_item(belt_map)
+            moved = self.push_item(belt_map, machine_map)
             if moved:
                 self.item_progress = 0.0
             else:
@@ -73,12 +74,15 @@ class Splitter(Machine):
             self.current_output_index = 0
 
     # ------------------------
-    # Push item to one of the output belts
+    # Push item to one of the output sides - a belt or a machine, doesn't
+    # matter. Whichever it is, the round robin always advances to the next
+    # side afterwards, whether the push succeeded or not.
     # ------------------------
-    def push_item(self, belt_map):
+    def push_item(self, belt_map, machine_map=None):
         if not self.current_item:
             return False
 
+        machine_map = machine_map or {}
         relative_dirs = self._get_relative_dirs()
         num_dirs = len(relative_dirs)
 
@@ -98,6 +102,23 @@ class Splitter(Machine):
                     # The item enters this belt from the splitter direction
                     seg.current_incoming_direction = direction
 
+                    self.current_item = None
+                    self.current_output_index = (self.current_output_index + 1) % num_dirs
+                    return True
+            elif seg is None:
+                machine = machine_map.get(next_tile)
+
+                accepted = False
+                if isinstance(machine, ProducingMachine):
+                    # Checks whether the machine's recipe actually needs
+                    # this item and has room for it.
+                    accepted = machine.try_receive_item(self.current_item, self.grid_pos)
+                elif isinstance(machine, Splitter):
+                    # Same rule as any other splitter input: only accepts
+                    # if it's facing directly away from us.
+                    accepted = machine.receive_item(self.current_item, incoming_direction=direction)
+
+                if accepted:
                     self.current_item = None
                     self.current_output_index = (self.current_output_index + 1) % num_dirs
                     return True
