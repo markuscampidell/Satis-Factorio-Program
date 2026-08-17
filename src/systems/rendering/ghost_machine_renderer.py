@@ -1,8 +1,28 @@
 # systems.rendering.ghost_machine_renderer
 import pygame as py
 
+from core.vector2 import Vector2
 from objects.conveyors.belt_segment import BeltSegment
 from systems.conveyors.belt_system import BeltSystem
+
+
+class _SplitterPreviewStub:
+    """Minimal stand-in for a Splitter - just grid_pos/direction and
+    _get_relative_dirs, enough for BeltSystem's duck-typed topology
+    checks. Avoids instantiating a real Splitter (which loads its sprite
+    from disk) purely to preview how it would affect nearby belts."""
+
+    def __init__(self, grid_pos, direction):
+        self.grid_pos = grid_pos
+        self.direction = direction
+
+    def _get_relative_dirs(self):
+        dx, dy = float(self.direction.x), float(self.direction.y)
+        return [
+            Vector2(-dy, dx),
+            Vector2(dx, dy),
+            Vector2(dy, -dx),
+        ]
 
 
 class GhostMachineRenderer:
@@ -14,12 +34,13 @@ class GhostMachineRenderer:
         "no_funds": (255, 255, 0, 120),
     }
 
-    def __init__(self, world, player, camera, grid, screen):
+    def __init__(self, world, player, camera, grid, screen, belt_ghost_preview_controller):
         self.world = world
         self.player = player
         self.camera = camera
         self.grid = grid
         self.screen = screen
+        self.belt_ghost_preview_controller = belt_ghost_preview_controller
 
     def draw(self, selected_machine_class=None, build_mode=None, rotation_steps=0):
         if selected_machine_class is None or build_mode != 'building':
@@ -68,10 +89,25 @@ class GhostMachineRenderer:
             overlay.fill(self.OVERLAY_COLORS[status])
             ghost.blit(overlay, (0, 0))
 
+        if selected_machine_class.__name__ == "Splitter" and status != "blocked":
+            self._draw_affected_belts((top_left_x, top_left_y), rotation_steps)
+
         # Draw at pixel position for camera
         pixel_x = top_left_x * self.grid.CELL_SIZE
         pixel_y = top_left_y * self.grid.CELL_SIZE
         self.screen.blit(ghost, (pixel_x - self.camera.x, pixel_y - self.camera.y))
+
+    def _draw_affected_belts(self, grid_pos, rotation_steps):
+        """Show how any existing neighboring belt's sprite would change if
+        a splitter were actually placed here facing this way."""
+        direction_map = [Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0), Vector2(0, -1)]
+        direction = direction_map[rotation_steps % 4]
+
+        temp_splitter = _SplitterPreviewStub(grid_pos, direction)
+        belt_system = self.belt_ghost_preview_controller.belt_system
+        affected_segments = belt_system.resolve_splitter_preview_connections(temp_splitter)
+
+        self.belt_ghost_preview_controller._draw_affected(affected_segments)
 
     def _check_status(self, cells, cost, allow_replace):
         """Returns "blocked", "no_space", "no_funds", or "ok" - the same

@@ -2,6 +2,7 @@
 import pygame as py
 
 from objects.conveyors.belt_segment import BeltSegment
+from objects.machines.splitter import Splitter
 
 class BuildModeRenderer:
     def __init__(self, build_system, machine_system, ghost_machine_renderer, ghost_belt_drawer, belt_system, camera, grid):
@@ -88,21 +89,21 @@ class BuildModeRenderer:
 
         target = self.build_system.hovered_delete_target
 
-        if not isinstance(target, BeltSegment):
-            return
+        if isinstance(target, BeltSegment):
+            shift_held = py.key.get_mods() & py.KMOD_SHIFT
 
-        shift_held = py.key.get_mods() & py.KMOD_SHIFT
+            if shift_held:
+                segments_to_delete = (
+                    self.belt_system.get_connected_belt_segments(target)
+                )
+            else:
+                segments_to_delete = [target]
 
-        if shift_held:
-            segments_to_delete = (
-                self.belt_system.get_connected_belt_segments(target)
+            self.ghost_belt_drawer.draw_delete_ghost(
+                segments_to_delete
             )
-        else:
-            segments_to_delete = [target]
-
-        self.ghost_belt_drawer.draw_delete_ghost(
-            segments_to_delete
-        )
+        elif isinstance(target, Splitter):
+            self.ghost_belt_drawer.draw_splitter_delete_ghost(target)
     
     def update_overlay_surfaces(self, width, height):
         self.overlay_build_place = py.Surface((width, height), py.SRCALPHA)

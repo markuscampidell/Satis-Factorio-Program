@@ -24,6 +24,32 @@ class BeltGhostPreviewController:
         self.camera = camera
         self.screen = screen
 
+    def _draw_affected(self, affected_segments, only_if_changed=True):
+        """Filter existing belts whose sprite would change by camera
+        visibility, then draw them - shared by the single-tile, dragging,
+        and delete preview paths (and by GhostMachineRenderer for the
+        splitter preview)."""
+        cam_tile_x1, cam_tile_y1 = self.world.snap_to_tile(self.camera.x, self.camera.y)
+        cam_tile_x2, cam_tile_y2 = self.world.snap_to_tile(
+            self.camera.x + self.camera.screen_width,
+            self.camera.y + self.camera.screen_height
+        )
+
+        visible_affected = []
+
+        for seg, incoming_directions in affected_segments:
+            x, y = seg.grid_pos
+
+            if not (cam_tile_x1 <= x <= cam_tile_x2 and cam_tile_y1 <= y <= cam_tile_y2):
+                continue
+
+            if only_if_changed and incoming_directions == seg.incoming_directions:
+                continue
+
+            visible_affected.append((seg, incoming_directions))
+
+        self.ghost_renderer.draw_affected_segments(self.screen, self.camera, visible_affected)
+
     def draw_ghost(self, selected_machine_class, placing_belt=False, selected_belt_type="basic"):
         if selected_machine_class is not BeltSegment:
             return
@@ -51,7 +77,19 @@ class BeltGhostPreviewController:
 
             direction = (self.belt_system.belt_placement_direction or Vector2(1, 0)).snapped()
 
-            self.ghost_renderer.draw_single(self.screen, self.camera, mouse_tile, [direction], direction, color_flag)
+            # Show how any existing neighboring belt's sprite would change
+            # if this ghost belt were actually placed here, and also give
+            # the ghost itself the same treatment - resolve_preview_connections
+            # already computes ghost_seg.incoming_directions accounting for
+            # real belts and splitters/machines feeding into it, so it can
+            # show a curve instead of always defaulting to straight.
+            ghost_seg = BeltSegment(mouse_tile, direction, [], belt_type=selected_belt_type)
+            affected_segments = self.belt_system.resolve_preview_connections([ghost_seg])
+            self._draw_affected(affected_segments)
+
+            self.ghost_renderer.draw_single(
+                self.screen, self.camera, mouse_tile, ghost_seg.incoming_directions, direction, color_flag
+            )
 
             return
 
@@ -148,28 +186,7 @@ class BeltGhostPreviewController:
         # Draw existing belts whose appearance would change
         # ---------------------------------------------------------
 
-        visible_affected = []
-
-        for seg, incoming_directions in affected_segments:
-            x, y = seg.grid_pos
-
-            if not (
-                cam_tile_x1 <= x <= cam_tile_x2
-                and cam_tile_y1 <= y <= cam_tile_y2
-            ):
-                continue
-
-            # Only draw it if the preview actually changes it.
-            if incoming_directions != seg.incoming_directions:
-                visible_affected.append(
-                    (seg, incoming_directions)
-                )
-
-        self.ghost_renderer.draw_affected_segments(
-            self.screen,
-            self.camera,
-            visible_affected
-        )
+        self._draw_affected(affected_segments)
 
         # ---------------------------------------------------------
         # Draw new ghost belts
@@ -183,38 +200,11 @@ class BeltGhostPreviewController:
         )
 
     def draw_delete_ghost(self, segments_to_delete):
-        affected_segments = (
-            self.belt_system.resolve_delete_preview_connections(
-                segments_to_delete
-            )
+        affected_segments = self.belt_system.resolve_delete_preview_connections(
+            segments_to_delete
         )
+        self._draw_affected(affected_segments, only_if_changed=False)
 
-        # Camera visibility
-        cam_tile_x1, cam_tile_y1 = self.world.snap_to_tile(
-            self.camera.x,
-            self.camera.y
-        )
-
-        cam_tile_x2, cam_tile_y2 = self.world.snap_to_tile(
-            self.camera.x + self.camera.screen_width,
-            self.camera.y + self.camera.screen_height
-        )
-
-        visible_affected = []
-
-        for seg, incoming_directions in affected_segments:
-            x, y = seg.grid_pos
-
-            if (
-                cam_tile_x1 <= x <= cam_tile_x2
-                and cam_tile_y1 <= y <= cam_tile_y2
-            ):
-                visible_affected.append(
-                    (seg, incoming_directions)
-                )
-
-        self.ghost_renderer.draw_affected_segments(
-            self.screen,
-            self.camera,
-            visible_affected
-        )
+    def draw_splitter_delete_ghost(self, splitter):
+        affected_segments = self.belt_system.resolve_splitter_delete_preview_connections(splitter)
+        self._draw_affected(affected_segments)

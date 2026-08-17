@@ -76,12 +76,12 @@ class Initializer:
                                 "hand_crafting": hand_crafting_ui})
 
         machine_system = MachineSystem(world, player, camera, grid)
-        ghost_machine_renderer = GhostMachineRenderer(world, player, camera, grid, screen)
         belt_system = BeltSystem(world, grid, player, ghost_belt_renderer)
+        belt_ghost_preview_controller = BeltGhostPreviewController(world, player, grid, belt_system, ghost_belt_renderer, camera, screen)
+        ghost_machine_renderer = GhostMachineRenderer(world, player, camera, grid, screen, belt_ghost_preview_controller)
 
         build_system = BuildSystem(world, player, camera, grid, belt_system, machine_system, machine_ui, player_inventory_ui)
         input_system = InputSystem(build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system)
-        belt_ghost_preview_controller = BeltGhostPreviewController(world, player, grid, belt_system, ghost_belt_renderer, camera, screen)
 
         item_renderer = ItemRenderer()
         world_renderer = WorldRenderer(world, camera, player, belt_sprite_manager, item_renderer, build_system, grid)

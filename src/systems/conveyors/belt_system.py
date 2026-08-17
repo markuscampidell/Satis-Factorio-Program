@@ -269,7 +269,7 @@ class BeltSystem:
                 seg, self.world.belt_map
             )
 
-    def _calculate_incoming_for_segment(self, seg, lookup_map):
+    def _calculate_incoming_for_segment(self, seg, lookup_map, extra_machines=None, exclude_machines=None):
         x, y = seg.grid_pos
 
         neighbors = [lookup_map.get((x - 1, y)),
@@ -292,11 +292,18 @@ class BeltSystem:
                 if incoming_direction != -seg.direction:
                     incoming_directions.append(incoming_direction)
 
+        # extra_machines lets a preview include a machine/splitter that
+        # isn't actually in the world yet (e.g. a hovered placement ghost).
+        # exclude_machines lets a preview act as if a real one were already
+        # gone (e.g. a hovered deletion target).
+        excluded = exclude_machines or []
+        all_machines = [m for m in self.world.machines if m not in excluded] + list(extra_machines or [])
+
         # A machine pushing into this segment only ever succeeds when the
         # segment faces directly away from it (ProducingMachine.push_output
         # requires an exact direction match) - so the only valid incoming
         # entry a machine can contribute is the segment's own direction.
-        for machine in self.world.machines:
+        for machine in all_machines:
             get_output_tiles = getattr(machine, "_get_output_tiles", None)
             if get_output_tiles is None:
                 continue
@@ -312,7 +319,7 @@ class BeltSystem:
         # into it (Splitter.push_item), so unlike a machine it can
         # contribute a perpendicular direction too - same exclusion rule
         # as belts feeding each other.
-        for splitter in self.world.machines:
+        for splitter in all_machines:
             get_relative_dirs = getattr(splitter, "_get_relative_dirs", None)
             if get_relative_dirs is None:
                 continue
@@ -372,6 +379,58 @@ class BeltSystem:
 
             incoming = self._calculate_incoming_for_segment(
                 seg, temp_map
+            )
+
+            affected_segments.append((seg, incoming))
+
+        return affected_segments
+
+    def _splitter_affected_belt_positions(self, splitter):
+        """Positions of real belts sitting on any of `splitter`'s 3 output
+        tiles - the ones whose sprite could possibly change if this
+        splitter (real or hypothetical) were added or removed."""
+        positions = set()
+
+        for push_direction in splitter._get_relative_dirs():
+            tile = (
+                splitter.grid_pos[0] + int(push_direction.x),
+                splitter.grid_pos[1] + int(push_direction.y)
+            )
+            if tile in self.world.belt_map:
+                positions.add(tile)
+
+        return positions
+
+    def resolve_splitter_preview_connections(self, temp_splitter):
+        """Existing belts whose sprite would change if `temp_splitter` (a
+        Splitter-like object exposing grid_pos/direction/_get_relative_dirs,
+        not yet actually in the world - e.g. a hovered placement ghost)
+        were placed. Same idea as resolve_preview_connections, but for a
+        hypothetical splitter instead of ghost belt segments."""
+        affected_segments = []
+
+        for pos in self._splitter_affected_belt_positions(temp_splitter):
+            seg = self.world.belt_map[pos]
+
+            incoming = self._calculate_incoming_for_segment(
+                seg, self.world.belt_map, extra_machines=[temp_splitter]
+            )
+
+            affected_segments.append((seg, incoming))
+
+        return affected_segments
+
+    def resolve_splitter_delete_preview_connections(self, splitter):
+        """Existing belts whose sprite would change if `splitter` (a real,
+        currently-placed Splitter) were deleted - the removal mirror of
+        resolve_splitter_preview_connections."""
+        affected_segments = []
+
+        for pos in self._splitter_affected_belt_positions(splitter):
+            seg = self.world.belt_map[pos]
+
+            incoming = self._calculate_incoming_for_segment(
+                seg, self.world.belt_map, exclude_machines=[splitter]
             )
 
             affected_segments.append((seg, incoming))
