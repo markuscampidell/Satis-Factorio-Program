@@ -5,14 +5,12 @@ from constants.itemdata import get_item_by_id
 from core.vector2 import Vector2
 from entities.inventory import Inventory
 from objects.machines.machine import Machine
+from objects.machines.machine_output_pusher import push_output
+from objects.machines.input_animator import InputAnimator
 
 from game.grid import Grid
 
 class ProducingMachine(Machine):
-    # Visual speed (tiles/sec) items travel from the input edge to the
-    # machine center, matching a basic belt so it reads as "a belt inside".
-    INPUT_ANIM_TILES_PER_SEC = 2.0
-
     def __init__(self, grid_pos, recipe=None, cell_size=Grid.CELL_SIZE):
         super().__init__(grid_pos, cell_size)
         self.recipe = recipe
@@ -25,12 +23,17 @@ class ProducingMachine(Machine):
 
         # Purely visual: items animating from the input edge to the
         # machine center after they've already been added to the inventory.
-        self.input_animations = []
+        self.input_animator = InputAnimator(cell_size)
 
         if recipe:
             self._reset_inventories(recipe)
 
     def update(self, dt, belt_map=None, machine_map=None):
+        self._update_processing(dt)
+        self.input_animator.update(dt)
+        push_output(self, belt_map or {}, machine_map or {})
+
+    def _update_processing(self, dt):
         if not self.processing and self.can_process():
             self.processing = True
             self.process_timer = 0.0
@@ -42,68 +45,14 @@ class ProducingMachine(Machine):
                 self.processing = False
                 self.process_timer = 0.0
 
-        self._update_input_animations(dt)
-        self.push_output(belt_map or {}, machine_map or {})
-
-    def push_output(self, belt_map, machine_map):
-        """Push one item from output inventories onto whatever's at an
-        output tile - a belt, a splitter, or another machine. Tries each
-        output direction in turn for the first available output item."""
-        for item_id, inv in self.output_inventories.items():
-            for row in inv.slots:
-                for i, slot in enumerate(row):
-                    if not (slot and slot["amount"] > 0):
-                        continue
-
-                    item_obj = get_item_by_id(slot["item"])
-
-                    for (dx, dy), push_direction in self._get_output_tiles():
-                        tile_pos = (self.grid_pos[0] + dx, self.grid_pos[1] + dy)
-
-                        if self._try_push_to_tile(item_obj, push_direction, tile_pos, belt_map, machine_map):
-                            slot["amount"] -= 1
-                            if slot["amount"] == 0:
-                                row[i] = None
-                            return True
-
-        return False
-
-    def _try_push_to_tile(self, item_obj, push_direction, tile_pos, belt_map, machine_map):
-        belt = belt_map.get(tile_pos)
-        if belt is not None:
-            # Only a belt facing directly away from us (same direction as
-            # the push) accepts - not perpendicular, not facing back in.
-            if belt.item is not None or belt.direction != push_direction:
-                return False
-
-            belt.item = item_obj
-            belt.item_progress = 0.0
-            belt.current_incoming_direction = push_direction
-            return True
-
-        machine = machine_map.get(tile_pos)
-        if machine is None:
-            return False
-
-        # Duck-typed dispatch (not isinstance) to avoid a circular import
-        # with Splitter, which already imports ProducingMachine. Splitter
-        # exposes receive_item, ProducingMachine exposes try_receive_item -
-        # whichever is there gets a shot with its own existing acceptance
-        # rules (direction match for a splitter, recipe-input match and
-        # space for a machine).
-        if hasattr(machine, "receive_item"):
-            return machine.receive_item(item_obj, incoming_direction=push_direction)
-        if hasattr(machine, "try_receive_item"):
-            return machine.try_receive_item(item_obj, self.grid_pos)
-
-        return False
-
-    def try_receive_item(self, item, source_grid_pos):
+    def try_receive_item(self, item, source_grid_pos, source_speed=None):
         """Try to add `item` to whichever input inventory actually needs
         it (matches the recipe input and has room). Triggers the visual
         "item traveling in" animation on success. Single entry point used
         by both belts and splitters feeding this machine, so both get
-        identical acceptance rules and the same animation."""
+        identical acceptance rules and the same animation. `source_speed`
+        is the feeding belt's tiles/sec, if there is one, so the animation
+        matches how fast that belt actually moves."""
         inv = self.input_inventories.get(item.item_id)
         if inv is None:
             return False
@@ -111,38 +60,8 @@ class ProducingMachine(Machine):
         if not inv.try_add_items(item, 1):
             return False
 
-        self.start_input_animation(item, source_grid_pos)
+        self.input_animator.start(item, source_grid_pos, self.grid_pos, self.WIDTH, self.HEIGHT, tiles_per_sec=source_speed)
         return True
-
-    def start_input_animation(self, item, source_grid_pos):
-        """Play a visual-only animation of `item` moving from source_grid_pos
-        (the belt tile it came from, one tile before the machine's edge) to
-        the machine's center, matching the normal belt-to-belt transport
-        animation. Call this after the item has already been added to the
-        input inventory."""
-        entry_x = source_grid_pos[0] * self.cell_size + self.cell_size // 2
-        entry_y = source_grid_pos[1] * self.cell_size + self.cell_size // 2
-        target_x = self.grid_pos[0] * self.cell_size + (self.WIDTH * self.cell_size) // 2
-        target_y = self.grid_pos[1] * self.cell_size + (self.HEIGHT * self.cell_size) // 2
-
-        distance = ((target_x - entry_x) ** 2 + (target_y - entry_y) ** 2) ** 0.5
-        speed_pixels_per_sec = self.INPUT_ANIM_TILES_PER_SEC * self.cell_size
-        duration = max(distance / speed_pixels_per_sec, 0.001)
-
-        self.input_animations.append({
-            "item": item,
-            "start": (entry_x, entry_y),
-            "end": (target_x, target_y),
-            "progress": 0.0,
-            "duration": duration,
-        })
-
-    def _update_input_animations(self, dt):
-        if not self.input_animations:
-            return
-        for anim in self.input_animations:
-            anim["progress"] += dt / anim["duration"]
-        self.input_animations = [a for a in self.input_animations if a["progress"] < 1.0]
 
     def _complete_process(self):
         # Remove inputs
@@ -203,23 +122,6 @@ class ProducingMachine(Machine):
 
         if recipe: self._reset_inventories(recipe)
 
-    def _get_output_tiles(self):
-        """(tile_offset, direction) for every tile around the machine's
-        entire perimeter - it can push output out any side, not just one
-        fixed tile. tile_offset is relative to grid_pos (top-left
-        corner); direction is the unit vector pointing outward through
-        that tile."""
-        tiles = []
-
-        for dy in range(self.HEIGHT):
-            tiles.append(((self.WIDTH, dy), Vector2(1, 0)))    # right edge
-            tiles.append(((-1, dy), Vector2(-1, 0)))           # left edge
-
-        for dx in range(self.WIDTH):
-            tiles.append(((dx, -1), Vector2(0, -1)))           # top edge
-            tiles.append(((dx, self.HEIGHT), Vector2(0, 1)))   # bottom edge
-
-        return tiles
 
     def draw(self, screen, camera):
         if not self.image:

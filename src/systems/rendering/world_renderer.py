@@ -70,7 +70,8 @@ class WorldRenderer:
                     machine.current_incoming_direction or machine.direction
                 )
 
-            for anim in getattr(machine, "input_animations", []):
+            input_animator = getattr(machine, "input_animator", None)
+            for anim in (input_animator.animations if input_animator else []):
                 self.item_renderer.draw_item_lerp(
                     screen,
                     self.camera,

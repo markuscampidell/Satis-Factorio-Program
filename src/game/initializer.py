@@ -13,7 +13,7 @@ from constants.recipes import smelter_recipes, assembler_recipes
 
 # UI
 from ui.producing_machine_ui import ProducingMachineUI
-from ui.producing_machine_renderer import ProducingMachineRenderer
+from ui.machine_ui_renderer import MachineUIRenderer
 from ui.player_inventory_ui import PlayerInventoryUI
 from ui.hand_crafting_ui import HandCraftingUI
 from ui.hand_crafting_renderer import HandCraftingRenderer
@@ -67,7 +67,7 @@ class Initializer:
 
         player_inventory_ui = PlayerInventoryUI(player, get_screen_size=lambda: (camera.screen_width, camera.screen_height))
         machine_ui = ProducingMachineUI(camera, world, player, player_inventory_ui, screen)
-        machine_ui_renderer = ProducingMachineRenderer(machine_ui)
+        machine_ui_renderer = MachineUIRenderer(machine_ui)
         hand_crafting_ui = HandCraftingUI(player, get_screen_size=lambda: (camera.screen_width, camera.screen_height))
         hand_crafting_renderer = HandCraftingRenderer(hand_crafting_ui)
 

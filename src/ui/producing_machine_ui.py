@@ -4,7 +4,7 @@ import pygame as py
 
 class ProducingMachineUI:
     """State and interaction (open/close, dragging, recipe/close clicks) for
-    a producing machine's panel. Drawing lives in ProducingMachineRenderer."""
+    a producing machine's panel. Drawing lives in MachineUIRenderer."""
 
     def __init__(self, camera, world, player, player_inventory_ui, screen, panel_side="right"):
         self.sprite = py.Surface((500, 300), py.SRCALPHA)

@@ -38,10 +38,6 @@ class Player:
 
     def handle_collision_x(self, machines, dx):
         for machine in machines:
-            # Only check machines close enough to potentially collide -
-            # computed from actual rect sizes, not a fixed guess, so it
-            # still works for machines bigger than the size this was
-            # originally tuned for.
             max_dist = (machine.rect.width + self.rect.width) / 2
             if abs(machine.rect.centerx - self.rect.centerx) > max_dist:
                 continue

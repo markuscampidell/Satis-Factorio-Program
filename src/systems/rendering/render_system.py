@@ -9,7 +9,7 @@ class RenderSystem:
     def draw(self, screen):
         screen.fill("#987171") # background color
 
-        self.world_renderer.draw(screen) # machines/beltsegments/splitters...
-        self.build_renderer.draw(screen) # overlays/ghost machines/ghost beltsegments...
-        self.ui_renderer.draw(screen) # player inventory/handcrafting...
-        self.cursor_renderer.draw(screen) # cursor circle
+        self.world_renderer.draw(screen)
+        self.build_renderer.draw(screen)
+        self.ui_renderer.draw(screen)
+        self.cursor_renderer.draw(screen)

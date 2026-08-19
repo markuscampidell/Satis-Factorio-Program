@@ -37,16 +37,6 @@ class MachineSystem:
             machine = Splitter(grid_pos=(top_left_x, top_left_y), direction=direction)
             machine.rotation_angle = self.splitter_rotation_steps * 90
             machine.image = py.transform.rotate(machine.image_original, -machine.rotation_angle)
-
-            # Compute output belts
-            machine.output_belts = []
-            for dir_vec in machine._get_relative_dirs():
-                next_cell = (top_left_x + dir_vec.x, top_left_y + dir_vec.y)
-                seg = self.world.get_belt_segment_at(next_cell[0]*self.grid.CELL_SIZE,
-                                                     next_cell[1]*self.grid.CELL_SIZE)
-                if seg:
-                    machine.output_belts.append(seg)
-            machine.current_output_index %= max(len(machine.output_belts), 1)
         else:
             machine = selected_machine_class(grid_pos=(top_left_x, top_left_y))
 

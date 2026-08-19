@@ -13,10 +13,7 @@ class BeltSegment:
         self.belt_type = belt_type
 
         # For drawing only
-        self.rect = py.Rect(grid_pos[0] * Grid.CELL_SIZE,
-                                grid_pos[1] * Grid.CELL_SIZE,
-                                Grid.CELL_SIZE,
-                                Grid.CELL_SIZE)
+        self.rect = py.Rect(grid_pos[0] * Grid.CELL_SIZE, grid_pos[1] * Grid.CELL_SIZE, Grid.CELL_SIZE, Grid.CELL_SIZE)
 
         # Items on this segment
         self.item = None
@@ -26,7 +23,7 @@ class BeltSegment:
         self.current_input_index = 0
 
         self.items_per_minute = self._get_items_per_minute_for_type()
-        self.speed = (self.items_per_minute / 60)  # tiles per second (use tiles, not pixels)
+        self.speed = (self.items_per_minute / 60)  # tiles per second
 
     def update(self, belt_map, machine_map, dt):
         if not self.item:
@@ -35,22 +32,15 @@ class BeltSegment:
         self.item_progress += self.speed * dt
 
         if self.item_progress >= 1.0:
-            next_pos = (
-                self.grid_pos[0] + self.direction.x,
-                self.grid_pos[1] + self.direction.y
-            )
+            next_pos = (self.grid_pos[0] + self.direction.x,
+                        self.grid_pos[1] + self.direction.y)
 
             next_segment = belt_map.get(next_pos)
             moved = False
 
             # Request transfer to the next belt.
-            # The actual transfer happens later in resolve_input_requests().
             if next_segment:
-                if next_segment.request_item(
-                    self,
-                    self.item,
-                    self.direction
-                ):
+                if next_segment.request_item(self, self.item, self.direction):
                     moved = True
 
             # Try inserting into a machine.
@@ -88,9 +78,7 @@ class BeltSegment:
             if request[0] is source_belt:
                 return False
 
-        self.input_requests.append(
-            (source_belt, item, incoming_direction)
-        )
+        self.input_requests.append((source_belt, item, incoming_direction))
 
         return True
 
@@ -138,7 +126,8 @@ class BeltSegment:
         if isinstance(machine, Splitter):
             success = machine.receive_item(
                 self.item,
-                incoming_direction=self.direction
+                incoming_direction=self.direction,
+                source_speed=self.speed
             )
 
             if success:
@@ -147,7 +136,7 @@ class BeltSegment:
             return success
 
         elif isinstance(machine, ProducingMachine):
-            added = machine.try_receive_item(self.item, source_grid_pos)
+            added = machine.try_receive_item(self.item, source_grid_pos, self.speed)
 
             if added:
                 self._clear_item()

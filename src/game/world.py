@@ -47,9 +47,8 @@ class World:
         return self.belt_map.get(tile)
 
     def gather_occupants(self, cells):
-        """Distinct belt segments and machines occupying any of `cells`,
-        deduped (a multi-tile machine occupying several of `cells` is only
-        returned once)."""
+        """Return all belt segments and machines found in the given cells.
+        Machines that cover multiple cells are only included once."""
         segments = [self.belt_map[cell] for cell in cells if cell in self.belt_map]
         machines = list({
             id(machine): machine
@@ -71,7 +70,6 @@ class World:
     
     def is_blocked_by_player(self, grid_pos):
         """Check if the given grid cell is currently occupied by the player."""
-        # Convert player's rect to the range of grid cells it covers
         left = int(self.player.rect.left // self.cell_size)
         right = int((self.player.rect.right - 1) // self.cell_size)
         top = int(self.player.rect.top // self.cell_size)

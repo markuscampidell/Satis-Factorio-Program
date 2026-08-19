@@ -13,6 +13,8 @@ class Splitter(Machine):
     SPRITE_PATH = "src/assets/sprites/machines/splitter.png"
     BUILD_COST = {"iron_ingot": 4}
 
+    DEFAULT_TILES_PER_SEC = 2.0
+
     def __init__(self, grid_pos=(0,0), direction=None, cell_size=Grid.CELL_SIZE):
         super().__init__(grid_pos, cell_size)
 
@@ -37,20 +39,15 @@ class Splitter(Machine):
         self.current_item = None
 
         self.current_output_index = 0
-        self.output_belts = []
         self.item_progress = 0.0
-        self.ITEMS_PER_MINUTE = 120
-        self.speed = self.ITEMS_PER_MINUTE / 60  # tiles per second
+        self.current_item_speed = self.DEFAULT_TILES_PER_SEC
 
-    # ------------------------
-    # Update per frame
-    # ------------------------
     def update(self, dt, belt_map, machine_map=None):
         if not self.current_item:
             self.item_progress = 0.0
             return
 
-        self.item_progress += self.speed * dt
+        self.item_progress += self.current_item_speed * dt
 
         if self.item_progress >= 1.0:
             moved = self.push_item(belt_map, machine_map)
@@ -59,25 +56,6 @@ class Splitter(Machine):
             else:
                 self.item_progress = 1.0
 
-    # ------------------------
-    # Update output belts
-    # ------------------------
-    def update_outputs(self, belt_map):
-        belts = []
-        for direction in self._get_relative_dirs():
-            next_tile = (self.grid_pos[0] + int(direction.x), self.grid_pos[1] + int(direction.y))
-            seg = belt_map.get(next_tile)
-            if seg:
-                belts.append(seg)
-        self.output_belts = belts
-        if self.current_output_index >= len(self.output_belts):
-            self.current_output_index = 0
-
-    # ------------------------
-    # Push item to one of the output sides - a belt or a machine, doesn't
-    # matter. Whichever it is, the round robin always advances to the next
-    # side afterwards, whether the push succeeded or not.
-    # ------------------------
     def push_item(self, belt_map, machine_map=None):
         if not self.current_item:
             return False
@@ -92,11 +70,6 @@ class Splitter(Machine):
             seg = belt_map.get(next_tile)
 
             if seg is not None:
-                # Accept any belt orientation except one facing directly
-                # back into us - forward or perpendicular (a belt turning
-                # right at the output tile) are both fine, so a 3-way
-                # split doesn't need extra tiles just to redirect the
-                # side outputs.
                 if seg.item is None and direction != -seg.direction:
                     seg.item = self.current_item
                     seg.item_progress = 0.0
@@ -112,13 +85,9 @@ class Splitter(Machine):
 
                 accepted = False
                 if isinstance(machine, ProducingMachine):
-                    # Checks whether the machine's recipe actually needs
-                    # this item and has room for it.
-                    accepted = machine.try_receive_item(self.current_item, self.grid_pos)
+                    accepted = machine.try_receive_item(self.current_item, self.grid_pos, self.current_item_speed)
                 elif isinstance(machine, Splitter):
-                    # Same rule as any other splitter input: only accepts
-                    # if it's facing directly away from us.
-                    accepted = machine.receive_item(self.current_item, incoming_direction=direction)
+                    accepted = machine.receive_item(self.current_item, incoming_direction=direction, source_speed=self.current_item_speed)
 
                 if accepted:
                     self.current_item = None
@@ -129,9 +98,6 @@ class Splitter(Machine):
 
         return False
 
-    # ------------------------
-    # Return directions relative to current rotation
-    # ------------------------
     def _get_relative_dirs(self):
         dx, dy = float(self.direction.x), float(self.direction.y)
         return [
@@ -140,22 +106,17 @@ class Splitter(Machine):
             Vector2(dy, -dx),  # right
         ]
 
-    # ------------------------
-    # Receive item from upstream
-    # ------------------------
-    def receive_item(self, item, incoming_direction: Vector2 = None):
+    def receive_item(self, item, incoming_direction: Vector2 = None, source_speed=None):
         if self.current_item is not None:
             return False
 
-        # Splitters only accept items pushed in from directly behind them
-        # (the one side that isn't one of the three outputs) - a belt
-        # feeding into the side or front shouldn't be able to insert.
         if incoming_direction != self.direction:
             return False
 
         self.current_item = item
         self.current_incoming_direction = incoming_direction
         self.item_progress = 0.0
+        self.current_item_speed = source_speed if source_speed is not None else self.DEFAULT_TILES_PER_SEC
 
         return True
 
@@ -166,9 +127,6 @@ class Splitter(Machine):
             refund[item_id] = refund.get(item_id, 0) + 1
         return refund
 
-    # ------------------------
-    # Rotate the splitter
-    # ------------------------
     def rotate(self):
         self.direction = Vector2(-self.direction.y, self.direction.x)
         self.rotation_angle = (self.rotation_angle + 90) % 360
@@ -176,9 +134,6 @@ class Splitter(Machine):
         old_center = self.rect.center
         self.rect = self.image.get_rect(center=old_center)
 
-    # ------------------------
-    # Draw splitter
-    # ------------------------
     def draw(self, screen, camera):
         draw_x = self.grid_pos[0] * self.cell_size - camera.x
         draw_y = self.grid_pos[1] * self.cell_size - camera.y

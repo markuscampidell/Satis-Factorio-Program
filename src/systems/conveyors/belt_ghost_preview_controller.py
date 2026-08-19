@@ -6,16 +6,7 @@ from core.vector2 import Vector2
 
 
 class BeltGhostPreviewController:
-    def __init__(
-        self,
-        world,
-        player,
-        grid,
-        belt_system,
-        ghost_renderer,
-        camera,
-        screen
-    ):
+    def __init__(self, world, player, grid, belt_system, ghost_renderer, camera, screen):
         self.world = world
         self.player = player
         self.grid = grid
@@ -77,19 +68,11 @@ class BeltGhostPreviewController:
 
             direction = (self.belt_system.belt_placement_direction or Vector2(1, 0)).snapped()
 
-            # Show how any existing neighboring belt's sprite would change
-            # if this ghost belt were actually placed here, and also give
-            # the ghost itself the same treatment - resolve_preview_connections
-            # already computes ghost_seg.incoming_directions accounting for
-            # real belts and splitters/machines feeding into it, so it can
-            # show a curve instead of always defaulting to straight.
             ghost_seg = BeltSegment(mouse_tile, direction, [], belt_type=selected_belt_type)
             affected_segments = self.belt_system.resolve_preview_connections([ghost_seg])
             self._draw_affected(affected_segments)
 
-            self.ghost_renderer.draw_single(
-                self.screen, self.camera, mouse_tile, ghost_seg.incoming_directions, direction, color_flag
-            )
+            self.ghost_renderer.draw_single(self.screen, self.camera, mouse_tile, ghost_seg.incoming_directions, direction, color_flag)
 
             return
 
@@ -112,10 +95,6 @@ class BeltGhostPreviewController:
             color_flags = ["red"] * len(segments)
 
         elif allow_replace:
-            # Replacing belts/machines is all-or-nothing (BeltSystem.place_belt
-            # dry-runs the whole thing before touching anything) - so show the
-            # whole drag in one color reflecting why it would fail, rather than
-            # a per-tile mix that implies a partial placement could happen.
             replaced_segments, replaced_machines, total_cost = self.belt_system.gather_replacements(
                 segments, selected_belt_type
             )
@@ -124,8 +103,6 @@ class BeltGhostPreviewController:
             color_flags = [color] * len(segments)
 
         else:
-            # Fresh placement over empty tiles: show per-tile affordability
-            # as the player's inventory would be spent down segment by segment.
             available = {
                 item_id: self.player.inventory.get_amount(item_id)
                 for item_id in self.belt_system.BUILD_COSTS[selected_belt_type]
@@ -155,10 +132,7 @@ class BeltGhostPreviewController:
                 else:
                     color_flags.append("yellow")
 
-        # ---------------------------------------------------------
         # Camera visibility
-        # ---------------------------------------------------------
-
         cam_tile_x1, cam_tile_y1 = self.world.snap_to_tile(
             self.camera.x,
             self.camera.y
@@ -182,22 +156,11 @@ class BeltGhostPreviewController:
                 visible_segments.append(seg)
                 visible_flags.append(flag)
 
-        # ---------------------------------------------------------
         # Draw existing belts whose appearance would change
-        # ---------------------------------------------------------
-
         self._draw_affected(affected_segments)
 
-        # ---------------------------------------------------------
         # Draw new ghost belts
-        # ---------------------------------------------------------
-
-        self.ghost_renderer.draw_dragging(
-            self.screen,
-            self.camera,
-            visible_segments,
-            color_flags=visible_flags
-        )
+        self.ghost_renderer.draw_dragging(self.screen, self.camera, visible_segments, color_flags=visible_flags)
 
     def draw_delete_ghost(self, segments_to_delete):
         affected_segments = self.belt_system.resolve_delete_preview_connections(

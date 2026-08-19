@@ -37,10 +37,7 @@ class BuildSystem:
                 mx, my,
                 delete_whole=bool(py.key.get_mods() & py.KMOD_SHIFT),
                 camera_x=self.camera.x,
-                camera_y=self.camera.y,
-                player_inventory=self.player.inventory
-            )
-            self.update_all_splitters_outputs()
+                camera_y=self.camera.y)
             self.belt_system.update_belt_incoming_directions()
             return
 
@@ -57,7 +54,6 @@ class BuildSystem:
                 if self._mouse_over_ui(mx, my):
                     return
                 self.belt_system.place_belt(world_x, world_y, self.belt_system.selected_belt_type)
-                self.update_all_splitters_outputs()
                 self.belt_system.placing_belt = False
                 return
 
@@ -67,21 +63,6 @@ class BuildSystem:
             self.belt_system.update_belt_incoming_directions()
             if hasattr(self, 'preview_splitter'):
                 self.preview_splitter = None
-
-    def update_all_splitters_outputs(self):
-        cell = self.grid.CELL_SIZE
-        for machine in self.world.machines:
-            if isinstance(machine, Splitter):
-                output_belts = []
-                for direction in machine._get_relative_dirs():
-                    next_rect = machine.rect.move(int(direction.x * cell), int(direction.y * cell))
-                    seg = self.world.belt_map.get((next_rect.x, next_rect.y))
-                    output_belts.append(seg)
-                machine.output_belts = [b for b in output_belts if b]
-                if machine.output_belts:
-                    machine.current_output_index %= len(machine.output_belts)
-                else:
-                    machine.current_output_index = 0
 
     def update_hovered_delete_target(self):
         if self.build_mode != "deleting":

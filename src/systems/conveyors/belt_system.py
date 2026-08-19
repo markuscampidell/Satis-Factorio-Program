@@ -19,13 +19,10 @@ class BeltSystem:
         self.beltX1 = 0
         self.beltY1 = 0
         self.placing_belt = False
-        self.selected_belt_type = "basic"
+        self.selected_belt_type = "express"
         self.belt_placement_direction = Vector2(1, 0)
 
     def is_tile_blocked_for_placement(self, grid_pos, allow_replace):
-        """The player always blocks belt placement. A machine or existing
-        belt tile only blocks if we're not allowed to replace it (shift
-        held) - shift replaces everything, belts and machines alike."""
         if self.world.is_blocked_by_player(grid_pos):
             return True
         return self.world.is_cell_blocked(grid_pos) and not allow_replace
@@ -37,10 +34,6 @@ class BeltSystem:
 
     @classmethod
     def apply_refunds(cls, inventory, replaced_segments, replaced_machines):
-        """Try to add every refund (belt items+costs, machine contents) to
-        `inventory`. Returns False the instant something doesn't fit,
-        without adding anything further. Works the same against a scratch
-        clone (dry run) or the real inventory (commit)."""
         for seg in replaced_segments:
             if seg.item and not inventory.try_add_items(seg.item.item_id, 1):
                 return False
@@ -56,10 +49,6 @@ class BeltSystem:
         return True
 
     def gather_replacements(self, segments, belt_type):
-        """What placing `segments` (as `belt_type`) would replace: the
-        existing belts and machines under the path, and the total cost of
-        the new belts. Used both to actually place them and to preview
-        whether placing them would succeed."""
         cells = [seg.grid_pos for seg in segments]
         replaced_segments, replaced_machines = self.world.gather_occupants(cells)
 
@@ -72,36 +61,12 @@ class BeltSystem:
         return replaced_segments, replaced_machines, total_cost
 
     def check_placement_affordability(self, replaced_segments, replaced_machines, total_cost):
-        """Dry-runs the refund+cost sequence on a scratch copy of the
-        inventory - the same all-or-nothing rule place_belt enforces for
-        real. Returns:
-        - "no_space" if a refund (belt items, belt costs, machine costs,
-          machine contents) wouldn't fit in the inventory,
-        - "no_funds" if everything fits but the net cost isn't affordable,
-        - "ok" if the placement would succeed.
-        Split into a status rather than a plain bool so previews can show
-        *why* it would fail (orange = no space, yellow = can't afford)."""
         scratch = self.player.inventory.clone()
         if not self.apply_refunds(scratch, replaced_segments, replaced_machines):
             return "no_space"
         return "ok" if scratch.try_remove_items(total_cost) else "no_funds"
 
     def get_drag_tiles(self, start_tile, end_tile):
-        """Path tiles for a drag from start_tile to end_tile, routed by the
-        current facing direction (belt_placement_direction): horizontal
-        facing routes horizontal-first, vertical facing routes
-        vertical-first.
-
-        Flow matches the facing direction along whichever axis the drag
-        actually moves along: e.g. facing Right always ends up flowing
-        rightward, whether you dragged left-to-right or right-to-left to
-        get there. But if the drag has *no* movement along the facing's
-        own axis at all (facing Up/Down while dragging a dead-straight
-        horizontal line, or facing Left/Right while dragging a
-        dead-straight vertical line), the facing has nothing to compare
-        against on that axis, so it's ignored and the belts just flow
-        start_tile -> end_tile - the natural, unsurprising result for a
-        straight drag regardless of which way you happen to be facing."""
         x1, y1 = start_tile
         x2, y2 = end_tile
         direction = self.belt_placement_direction
@@ -157,13 +122,10 @@ class BeltSystem:
         self.update_belt_incoming_directions()
 
     def can_afford_belt_deletion(self, segments):
-        """True if the player's inventory has room for everything deleting
-        all of `segments` would refund (their build cost plus any item
-        mid-transit on them)."""
         scratch = self.player.inventory.clone()
         return self.apply_refunds(scratch, segments, [])
 
-    def delete_belt(self, mx, my, delete_whole=False, camera_x=0, camera_y=0, player_inventory=None):
+    def delete_belt(self, mx, my, delete_whole=False, camera_x=0, camera_y=0):
         world_x, world_y = mx + camera_x, my + camera_y
         shift_held = py.key.get_mods() & py.KMOD_SHIFT
 
@@ -179,7 +141,7 @@ class BeltSystem:
         for seg in to_delete:
             seg.refund_item_on_segment(self.player.inventory)
             for item_id, amount in self.BUILD_COSTS[seg.belt_type].items():
-                player_inventory.try_add_items(item_id, amount)
+                self.player.inventory.try_add_items(item_id, amount)
             self.world.remove_belt_segment(seg)
 
         self.update_belt_incoming_directions()
@@ -386,9 +348,6 @@ class BeltSystem:
         return affected_segments
 
     def _splitter_affected_belt_positions(self, splitter):
-        """Positions of real belts sitting on any of `splitter`'s 3 output
-        tiles - the ones whose sprite could possibly change if this
-        splitter (real or hypothetical) were added or removed."""
         positions = set()
 
         for push_direction in splitter._get_relative_dirs():
@@ -402,11 +361,6 @@ class BeltSystem:
         return positions
 
     def resolve_splitter_preview_connections(self, temp_splitter):
-        """Existing belts whose sprite would change if `temp_splitter` (a
-        Splitter-like object exposing grid_pos/direction/_get_relative_dirs,
-        not yet actually in the world - e.g. a hovered placement ghost)
-        were placed. Same idea as resolve_preview_connections, but for a
-        hypothetical splitter instead of ghost belt segments."""
         affected_segments = []
 
         for pos in self._splitter_affected_belt_positions(temp_splitter):
@@ -421,9 +375,6 @@ class BeltSystem:
         return affected_segments
 
     def resolve_splitter_delete_preview_connections(self, splitter):
-        """Existing belts whose sprite would change if `splitter` (a real,
-        currently-placed Splitter) were deleted - the removal mirror of
-        resolve_splitter_preview_connections."""
         affected_segments = []
 
         for pos in self._splitter_affected_belt_positions(splitter):
