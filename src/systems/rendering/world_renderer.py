@@ -36,11 +36,9 @@ class WorldRenderer:
             gx, gy = seg.grid_pos
 
             if camera_left <= gx < camera_right and camera_top <= gy < camera_bottom:
-                incoming_directions = (seg.incoming_directions if seg.incoming_directions else -seg.direction)
+                incoming_directions = seg.incoming_directions or [seg.direction]
 
-                outgoing = seg.direction
-
-                image = self._get_belt_segment_image(incoming_directions, outgoing)
+                image = self.belt_sprite_manager.get_sprite(incoming_directions, seg.direction)
 
                 screen.blit(
                     image,
@@ -81,18 +79,6 @@ class WorldRenderer:
                     anim["end"],
                     min(anim["progress"], 1.0)
                 )
-    
-    def _get_belt_segment_image(self, incoming_directions, outgoing):
-        if len(incoming_directions) > 1:
-            # Multiple inputs: render as a straight belt
-            return self.belt_sprite_manager.get_straight(outgoing)
-
-        incoming = incoming_directions[0] if incoming_directions else outgoing
-
-        if incoming.x == outgoing.x and incoming.y == outgoing.y:
-            return self.belt_sprite_manager.get_straight(outgoing)
-
-        return self.belt_sprite_manager.get_curve(incoming, outgoing)
     
     def _draw_machines(self, screen):
         camera_left = self.camera.x // self.grid.CELL_SIZE

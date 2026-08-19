@@ -23,41 +23,16 @@ class GhostBeltRenderer:
             round(outgoing.y)
         )
 
-        # Multiple inputs = straight belt
-        if len(incoming_directions) > 1:
-            key = ("straight", outgoing.x, outgoing.y)
+        dirs = incoming_directions if incoming_directions else [outgoing]
 
-        else:
-            incoming = (
-                incoming_directions[0]
-                if incoming_directions
-                else outgoing
-            )
-
-            incoming = Vector2(
-                round(incoming.x),
-                round(incoming.y)
-            )
-
-            if incoming == outgoing:
-                key = ("straight", outgoing.x, outgoing.y)
-            else:
-                key = (
-                    "curve",
-                    incoming.x,
-                    incoming.y,
-                    outgoing.x,
-                    outgoing.y
-                )
+        key = (
+            tuple(sorted((round(d.x), round(d.y)) for d in dirs)),
+            outgoing.x,
+            outgoing.y
+        )
 
         if key not in self.cache:
-            if key[0] == "straight":
-                base_img = self.sprite_manager.get_straight(outgoing)
-            else:
-                base_img = self.sprite_manager.get_curve(
-                    Vector2(key[1], key[2]),
-                    Vector2(key[3], key[4])
-                )
+            base_img = self.sprite_manager.get_sprite(dirs, outgoing)
 
             if base_img is None:
                 return
