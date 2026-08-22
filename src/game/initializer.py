@@ -17,6 +17,7 @@ from ui.machine_ui_renderer import MachineUIRenderer
 from ui.player_inventory_ui import PlayerInventoryUI
 from ui.hand_crafting_ui import HandCraftingUI
 from ui.hand_crafting_renderer import HandCraftingRenderer
+from ui.screen_edge_hints_renderer import ScreenEdgeHintsRenderer
 from ui.ui_manager import UIManager
 
 # Graphics
@@ -40,9 +41,15 @@ from systems.rendering.ghost_machine_renderer import GhostMachineRenderer
 from systems.conveyors.belt_system import BeltSystem
 from systems.conveyors.belt_ghost_preview_controller import BeltGhostPreviewController
 
+MIN_SCREEN_SIZE = (1100, 700)
+
 class Initializer:
     @staticmethod
     def init_game(window_size=(1280, 720)):
+        window_size = (
+            max(window_size[0], MIN_SCREEN_SIZE[0]),
+            max(window_size[1], MIN_SCREEN_SIZE[1])
+        )
         screen = py.display.set_mode(window_size, py.RESIZABLE)
         clock = py.time.Clock()
         screen_width, screen_height = window_size
@@ -85,7 +92,8 @@ class Initializer:
 
         item_renderer = ItemRenderer()
         world_renderer = WorldRenderer(world, camera, player, belt_sprite_manager, item_renderer, build_system, grid)
-        ui_renderer = UiRenderer(machine_ui_renderer, player_inventory_ui, hand_crafting_renderer)
+        screen_edge_hints_renderer = ScreenEdgeHintsRenderer(player_inventory_ui, hand_crafting_ui)
+        ui_renderer = UiRenderer(machine_ui_renderer, player_inventory_ui, hand_crafting_renderer, screen_edge_hints_renderer)
         build_mode_renderer = BuildModeRenderer(build_system, machine_system, ghost_machine_renderer, belt_ghost_preview_controller, belt_system, camera, grid)
         cursor_renderer = CursorRenderer(build_system)
         render_system = RenderSystem(
@@ -94,7 +102,7 @@ class Initializer:
             ui_renderer=ui_renderer,
             cursor_renderer=cursor_renderer
         )
-        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, grid)
+        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, grid, hand_crafting_ui)
 
         player.handcrafting.recipes = smelter_recipes + assembler_recipes
 

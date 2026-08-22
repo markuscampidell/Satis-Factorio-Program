@@ -24,6 +24,9 @@ class MachineUIRenderer:
         if not ui.open or not ui.selected_machine:
             return
 
+        # Always centered - no dragging, so this can't drift off-screen.
+        ui.rect.center = (screen.get_width() // 2, screen.get_height() // 2)
+
         screen.blit(ui.sprite, ui.rect)
         self._draw_progress_bar(screen)
         self.slot_renderer.draw(screen, ui)

@@ -9,11 +9,13 @@ class MachineSlotRenderer:
     per-minute rate) and the animated processing arrow between them."""
 
     SLOT_SIZE = 48
+    GHOST_ALPHA = 100  # low opacity
 
     def __init__(self):
         self.font_small = py.font.SysFont("Arial", 16)
         self.font_tiny = py.font.SysFont("Arial", 10)
         self._arrow_color = None
+        self._ghost_sprite_cache = {}
 
     def draw(self, screen, ui):
         ui.slot_rects.clear()
@@ -35,6 +37,8 @@ class MachineSlotRenderer:
             slot = ui.selected_machine.input_inventories[item_id].slots[0][0] if ui.selected_machine.input_inventories[item_id].slots[0] else None
             if slot:
                 self._draw_item_in_slot(screen, slot, rect)
+            else:
+                self._draw_ghost_item(screen, item_id, rect)
             text = self.font_small.render(f"{inputs_per_min[item_id]:.0f}/min", True, "#000000")
             screen.blit(text, (rect.centerx - text.get_width() // 2, rect.y - 18))
             ui.slot_rects.append(rect)
@@ -47,6 +51,8 @@ class MachineSlotRenderer:
             slot = inv.slots[0][0] if inv.slots[0] else None
             if slot:
                 self._draw_item_in_slot(screen, slot, rect)
+            else:
+                self._draw_ghost_item(screen, item_id, rect)
             text = self.font_small.render(f"{outputs_per_min.get(item_id, 0):.0f}/min", True, "#000000")
             screen.blit(text, (rect.centerx - text.get_width() // 2, rect.y - 18))
             ui.slot_rects.append(rect)
@@ -82,6 +88,31 @@ class MachineSlotRenderer:
             (x, y + arrow_h - arrow_w // 2)
         ]
         py.draw.polygon(screen, self._arrow_color, points)
+
+    def _draw_ghost_item(self, screen, item_id, rect):
+        """Faint preview of the item type this empty slot expects."""
+        ghost = self._get_ghost_sprite(item_id)
+        if ghost:
+            screen.blit(ghost, (rect.x + 5, rect.y + 5))
+
+    def _get_ghost_sprite(self, item_id):
+        if item_id in self._ghost_sprite_cache:
+            return self._ghost_sprite_cache[item_id]
+
+        item = get_item_by_id(item_id)
+        ghost = None
+        if item and hasattr(item, "sprite") and item.sprite:
+            slot_size = self.SLOT_SIZE - 10
+            base = item.get_scaled_sprite(slot_size) if hasattr(item, 'get_scaled_sprite') else py.transform.scale(item.sprite, (slot_size, slot_size))
+            if base:
+                # Copy before fading - get_scaled_sprite returns a cached
+                # surface shared with every other place that draws this
+                # item, so set_alpha on it directly would fade those too.
+                ghost = base.copy()
+                ghost.set_alpha(self.GHOST_ALPHA)
+
+        self._ghost_sprite_cache[item_id] = ghost
+        return ghost
 
     def _draw_item_in_slot(self, screen, slot, rect):
         py.draw.rect(screen, "#AAAAAA", rect, 2)

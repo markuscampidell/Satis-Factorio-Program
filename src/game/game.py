@@ -2,7 +2,7 @@
 import pygame as py
 from sys import exit
 
-from game.initializer import Initializer
+from game.initializer import Initializer, MIN_SCREEN_SIZE
 
 class Game:
     def __init__(self):
@@ -20,10 +20,12 @@ class Game:
                     exit()
 
                 if event.type == py.VIDEORESIZE:
-                    self.context.screen = py.display.set_mode((event.w, event.h), py.RESIZABLE)
-                    self._update_screen_size(event.w, event.h)
-                    self.context.grid.update_screen_size(event.w, event.h)
-                    self.context.build_mode_renderer.update_overlay_surfaces(event.w, event.h)
+                    width = max(event.w, MIN_SCREEN_SIZE[0])
+                    height = max(event.h, MIN_SCREEN_SIZE[1])
+                    self.context.screen = py.display.set_mode((width, height), py.RESIZABLE)
+                    self._update_screen_size(width, height)
+                    self.context.grid.update_screen_size(width, height)
+                    self.context.build_mode_renderer.update_overlay_surfaces(width, height)
 
                 if event.type == py.MOUSEBUTTONUP and event.button == 1: 
                     self.context.machine_system.just_placed_machine = False

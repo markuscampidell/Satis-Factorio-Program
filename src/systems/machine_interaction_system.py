@@ -4,12 +4,13 @@ import pygame as py
 from objects.machines.producing_machine import ProducingMachine
 
 class MachineInteractionSystem:
-    def __init__(self, world, build_system, machine_ui, camera, grid):
+    def __init__(self, world, build_system, machine_ui, camera, grid, hand_crafting_ui):
         self.world = world
         self.build_system = build_system
         self.machine_ui = machine_ui
         self.camera = camera
         self.grid = grid
+        self.hand_crafting_ui = hand_crafting_ui
 
     def handle_click(self, event, just_placed_machine):
         if event.type != py.MOUSEBUTTONDOWN or event.button != 1:
@@ -35,4 +36,5 @@ class MachineInteractionSystem:
 
         # Open UI if it's a ProducingMachine
         if machine and isinstance(machine, ProducingMachine):
+            self.hand_crafting_ui.close()
             self.machine_ui.open_for(machine)

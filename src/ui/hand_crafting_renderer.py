@@ -26,7 +26,7 @@ class HandCraftingRenderer:
         w, h = ui.get_screen_size()
 
         # Always stick to right side, vertically centered
-        ui.rect.x = w - ui.width - 20
+        ui.rect.x = w - ui.width #- 20
         ui.rect.y = h // 2 - ui.height // 2
 
         screen.blit(ui.sprite, ui.rect)

@@ -48,6 +48,7 @@ class InputSystem:
         if event.key == py.K_f:
             if not self.hand_crafting_ui.open:
                 self.build_system.reset_build_state()
+                self.machine_ui.close()
                 self.hand_crafting_ui.open = True
             else:
                 self.hand_crafting_ui.close()
