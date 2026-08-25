@@ -18,6 +18,7 @@ from ui.player_inventory_ui import PlayerInventoryUI
 from ui.hand_crafting_ui import HandCraftingUI
 from ui.hand_crafting_renderer import HandCraftingRenderer
 from ui.screen_edge_hints_renderer import ScreenEdgeHintsRenderer
+from ui.game_menu_bar import GameMenuBar, GameMenuBarRenderer
 from ui.ui_manager import UIManager
 
 # Graphics
@@ -45,14 +46,18 @@ MIN_SCREEN_SIZE = (1100, 700)
 
 class Initializer:
     @staticmethod
-    def init_game(window_size=(1280, 720)):
+    def init_game(window_size=(1280, 720), screen=None):
         window_size = (
             max(window_size[0], MIN_SCREEN_SIZE[0]),
             max(window_size[1], MIN_SCREEN_SIZE[1])
         )
-        screen = py.display.set_mode(window_size, py.RESIZABLE)
+        if screen is None:
+            screen = py.display.set_mode(window_size, py.RESIZABLE)
         clock = py.time.Clock()
-        screen_width, screen_height = window_size
+        # If an existing screen was passed in, its actual live size (which
+        # may differ from the window_size default if it was resized before
+        # this call) is authoritative, not the requested window_size.
+        screen_width, screen_height = screen.get_size()
 
         grid = Grid()
         camera = Camera(screen_width, screen_height)
@@ -96,11 +101,14 @@ class Initializer:
         ui_renderer = UiRenderer(machine_ui_renderer, player_inventory_ui, hand_crafting_renderer, screen_edge_hints_renderer)
         build_mode_renderer = BuildModeRenderer(build_system, machine_system, ghost_machine_renderer, belt_ghost_preview_controller, belt_system, camera, grid)
         cursor_renderer = CursorRenderer(build_system)
+        game_menu_bar = GameMenuBar(world, player, camera, ui_manager, get_screen_size=lambda: (camera.screen_width, camera.screen_height))
+        game_menu_bar_renderer = GameMenuBarRenderer(game_menu_bar)
         render_system = RenderSystem(
             world_renderer=world_renderer,
             build_renderer=build_mode_renderer,
             ui_renderer=ui_renderer,
-            cursor_renderer=cursor_renderer
+            cursor_renderer=cursor_renderer,
+            game_menu_bar_renderer=game_menu_bar_renderer
         )
         machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, grid, hand_crafting_ui)
 
@@ -142,4 +150,6 @@ class Initializer:
                            machine_ui=machine_ui,
                            machine_ui_renderer=machine_ui_renderer,
                            hand_crafting_renderer=hand_crafting_renderer,
-                           machine_interaction_system=machine_interaction_system)
+                           machine_interaction_system=machine_interaction_system,
+
+                           game_menu_bar=game_menu_bar)
