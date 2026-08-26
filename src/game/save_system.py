@@ -5,12 +5,12 @@ import re
 from pathlib import Path
 
 from core.vector2 import Vector2
-from entities.inventory import Inventory
 from objects.conveyors.belt_segment import BeltSegment
 from objects.machines.producing_machine import ProducingMachine
 from objects.machines.smelter import Smelter
 from objects.machines.assembler import Assembler
 from objects.machines.splitter import Splitter
+from objects.machines.storage import Storage
 from constants.itemdata import get_item_by_id
 from constants.recipes import get_recipe_by_id
 
@@ -160,7 +160,7 @@ def new_game(world, player, camera, name: str) -> None:
     world.machine_map.clear()
     world.belt_map.clear()
 
-    player.inventory = Inventory(5, 9)
+    player.inventory.clear()
     player.rect.centerx = 0
     player.rect.centery = 0
     player.dx = 0
@@ -189,8 +189,8 @@ def _serialize_player(player):
 def _deserialize_player(player, data):
     player.rect.centerx = data["x"]
     player.rect.centery = data["y"]
-    player.inventory = Inventory(5, 9)
     player.inventory.slots = data["inventory"]
+    player.inventory.dirty = False
     player.dx = 0
     player.dy = 0
 
@@ -224,6 +224,13 @@ def _serialize_machine(m):
             "current_item": m.current_item.item_id if m.current_item else None,
         }
 
+    if isinstance(m, Storage):
+        return {
+            "type": "storage",
+            "grid_pos": list(m.grid_pos),
+            "slots": m.inventory.slots,
+        }
+
     # Smelter / Assembler (both ProducingMachine)
     return {
         "type": _MACHINE_TYPES[type(m)],
@@ -246,6 +253,11 @@ def _deserialize_machine(entry):
         m.item_progress = 0.0
         m.current_output_index = 0
         m.current_item_speed = Splitter.DEFAULT_TILES_PER_SEC
+        return m
+
+    if entry["type"] == "storage":
+        m = Storage(grid_pos=tuple(entry["grid_pos"]))
+        m.inventory.slots = entry["slots"]
         return m
 
     cls = Smelter if entry["type"] == "smelter" else Assembler

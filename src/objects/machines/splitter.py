@@ -84,10 +84,10 @@ class Splitter(Machine):
                 machine = machine_map.get(next_tile)
 
                 accepted = False
-                if isinstance(machine, ProducingMachine):
-                    accepted = machine.try_receive_item(self.current_item, self.grid_pos, self.current_item_speed)
-                elif isinstance(machine, Splitter):
+                if isinstance(machine, Splitter):
                     accepted = machine.receive_item(self.current_item, incoming_direction=direction, source_speed=self.current_item_speed)
+                elif isinstance(machine, ProducingMachine) or hasattr(machine, "try_receive_item"):
+                    accepted = machine.try_receive_item(self.current_item, self.grid_pos, self.current_item_speed)
 
                 if accepted:
                     self.current_item = None

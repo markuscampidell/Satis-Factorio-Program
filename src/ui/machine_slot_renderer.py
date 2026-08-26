@@ -41,7 +41,7 @@ class MachineSlotRenderer:
                 self._draw_ghost_item(screen, item_id, rect)
             text = self.font_small.render(f"{inputs_per_min[item_id]:.0f}/min", True, "#000000")
             screen.blit(text, (rect.centerx - text.get_width() // 2, rect.y - 18))
-            ui.slot_rects.append(rect)
+            ui.slot_rects.append((rect, item_id, "input"))
 
     def _draw_output_slots(self, screen, ui, x, y, output_inventories, outputs_per_min):
         slot_spacing = 10
@@ -55,7 +55,7 @@ class MachineSlotRenderer:
                 self._draw_ghost_item(screen, item_id, rect)
             text = self.font_small.render(f"{outputs_per_min.get(item_id, 0):.0f}/min", True, "#000000")
             screen.blit(text, (rect.centerx - text.get_width() // 2, rect.y - 18))
-            ui.slot_rects.append(rect)
+            ui.slot_rects.append((rect, item_id, "output"))
 
     def _draw_processing_arrow(self, screen, ui):
         m = ui.selected_machine

@@ -2,6 +2,7 @@
 import pygame as py
 
 from constants.itemdata import get_item_by_id
+from entities.inventory_transfer import move_stack, move_all_of_type
 
 class PlayerInventoryUI:
     SLOT_SIZE = 48
@@ -80,14 +81,14 @@ class PlayerInventoryUI:
                     text_rect = text.get_rect(bottomright=(slot_rect.right - 5, slot_rect.bottom - 5))
                     screen.blit(text, text_rect)
 
-                    # Save for hover detection
-                    self.slot_rects.append((slot_rect, item))
+                    # Save for hover detection / click handling
+                    self.slot_rects.append((slot_rect, item, x, y))
 
     def _handle_hover(self, screen):
         mx, my = py.mouse.get_pos()
         hovered_item = None
 
-        for rect, item in self.slot_rects:
+        for rect, item, x, y in self.slot_rects:
             if rect.collidepoint(mx, my):
                 hovered_item = item
                 break
@@ -127,6 +128,52 @@ class PlayerInventoryUI:
 
         tooltip_surface.blit(text_surf, (padding, padding))
         screen.blit(tooltip_surface, (x, y))
+
+    def handle_event(self, event, machine_ui, storage_ui):
+        """Shift+click a slot to move that stack into whichever other panel
+        is currently open (a Storage's flat inventory, or a producing
+        machine's matching input/output inventory); Ctrl+click moves every
+        stack of that item type instead. Plain left click does nothing.
+        No-op if neither panel is open, or the item doesn't belong there."""
+        if not self.open:
+            return
+        if event.type != py.MOUSEBUTTONDOWN or event.button != 1:
+            return
+
+        mods = py.key.get_mods()
+        shift_held = bool(mods & py.KMOD_SHIFT)
+        ctrl_held = bool(mods & py.KMOD_CTRL)
+        if not (shift_held or ctrl_held):
+            return
+
+        mx, my = event.pos
+        for rect, item, x, y in self.slot_rects:
+            if rect.collidepoint(mx, my):
+                self._transfer_slot(x, y, shift_held, machine_ui, storage_ui)
+                return
+
+    def _transfer_slot(self, x, y, shift_held, machine_ui, storage_ui):
+        source = self.player.inventory
+
+        if storage_ui.open and storage_ui.selected_storage:
+            dest = storage_ui.selected_storage.inventory
+        elif machine_ui.open and machine_ui.selected_machine:
+            slot = source.slots[y][x]
+            if not slot:
+                return
+            machine = machine_ui.selected_machine
+            input_inventories = getattr(machine, "input_inventories", {})
+            output_inventories = getattr(machine, "output_inventories", {})
+            dest = input_inventories.get(slot["item"]) or output_inventories.get(slot["item"])
+            if dest is None:
+                return  # item type not accepted by this machine
+        else:
+            return
+
+        if shift_held:
+            move_stack(source, x, y, dest)
+        else:
+            move_all_of_type(source, x, y, dest)
 
     def close(self):
         self.open = False

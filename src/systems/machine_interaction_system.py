@@ -2,15 +2,17 @@
 import pygame as py
 
 from objects.machines.producing_machine import ProducingMachine
+from objects.machines.storage import Storage
 
 class MachineInteractionSystem:
-    def __init__(self, world, build_system, machine_ui, camera, grid, hand_crafting_ui):
+    def __init__(self, world, build_system, machine_ui, camera, grid, hand_crafting_ui, storage_ui):
         self.world = world
         self.build_system = build_system
         self.machine_ui = machine_ui
         self.camera = camera
         self.grid = grid
         self.hand_crafting_ui = hand_crafting_ui
+        self.storage_ui = storage_ui
 
     def handle_click(self, event, just_placed_machine):
         if event.type != py.MOUSEBUTTONDOWN or event.button != 1:
@@ -19,7 +21,7 @@ class MachineInteractionSystem:
             return
         if self.build_system.build_mode is not None:
             return
-        if self.machine_ui.open:
+        if self.machine_ui.open or self.storage_ui.open:
             return
 
         mx, my = event.pos
@@ -34,7 +36,10 @@ class MachineInteractionSystem:
         # Check for a machine occupying that tile
         machine = self.world.get_machine_at((grid_x, grid_y))
 
-        # Open UI if it's a ProducingMachine
+        # Open the matching UI depending on what kind of machine this is
         if machine and isinstance(machine, ProducingMachine):
             self.hand_crafting_ui.close()
             self.machine_ui.open_for(machine)
+        elif machine and isinstance(machine, Storage):
+            self.hand_crafting_ui.close()
+            self.storage_ui.open_for(machine)

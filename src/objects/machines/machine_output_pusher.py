@@ -7,21 +7,36 @@ def push_output(machine, belt_map, machine_map):
     an output tile - a belt, a splitter, or another machine. Tries each
     output direction in turn for the first available output item."""
     for item_id, inv in machine.output_inventories.items():
-        for row in inv.slots:
-            for i, slot in enumerate(row):
-                if not (slot and slot["amount"] > 0):
-                    continue
+        if _push_from_inventory(machine, inv, belt_map, machine_map):
+            return True
+    return False
 
-                item_obj = get_item_by_id(slot["item"])
 
-                for (dx, dy), push_direction in machine._get_output_tiles():
-                    tile_pos = (machine.grid_pos[0] + dx, machine.grid_pos[1] + dy)
+def push_storage_output(storage, belt_map, machine_map):
+    """Same push behavior as push_output(), but for a Storage building's
+    single flat inventory instead of a dict of per-item 1x1 inventories -
+    lets belts/splitters pull items back out of a storage chest exactly
+    like they already can from a producing machine's output."""
+    return _push_from_inventory(storage, storage.inventory, belt_map, machine_map)
 
-                    if _try_push_to_tile(machine, item_obj, push_direction, tile_pos, belt_map, machine_map):
-                        slot["amount"] -= 1
-                        if slot["amount"] == 0:
-                            row[i] = None
-                        return True
+
+def _push_from_inventory(machine, inv, belt_map, machine_map):
+    for row in inv.slots:
+        for i, slot in enumerate(row):
+            if not (slot and slot["amount"] > 0):
+                continue
+
+            item_obj = get_item_by_id(slot["item"])
+
+            for (dx, dy), push_direction in machine._get_output_tiles():
+                tile_pos = (machine.grid_pos[0] + dx, machine.grid_pos[1] + dy)
+
+                if _try_push_to_tile(machine, item_obj, push_direction, tile_pos, belt_map, machine_map):
+                    slot["amount"] -= 1
+                    if slot["amount"] == 0:
+                        row[i] = None
+                    inv.dirty = True
+                    return True
 
     return False
 
@@ -43,8 +58,22 @@ def _try_push_to_tile(machine, item_obj, push_direction, tile_pos, belt_map, mac
     if target is None:
         return False
     if hasattr(target, "receive_item"):
-        return target.receive_item(item_obj, incoming_direction=push_direction)
+        # A splitter fed straight from a machine/storage push (rather than
+        # from a belt behind it) has no belt speed of its own to inherit -
+        # fall back to the fastest belt touching it, so it doesn't just
+        # default to a fixed base speed.
+        source_speed = _fastest_neighboring_belt_speed(tile_pos, belt_map)
+        return target.receive_item(item_obj, incoming_direction=push_direction, source_speed=source_speed)
     if hasattr(target, "try_receive_item"):
         return target.try_receive_item(item_obj, machine.grid_pos)
 
     return False
+
+
+def _fastest_neighboring_belt_speed(tile_pos, belt_map):
+    """The speed (tiles/sec) of the fastest belt touching any of the 4
+    tiles adjacent to tile_pos, or None if there isn't one."""
+    x, y = tile_pos
+    neighbors = ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1))
+    speeds = [belt_map[pos].speed for pos in neighbors if pos in belt_map]
+    return max(speeds) if speeds else None

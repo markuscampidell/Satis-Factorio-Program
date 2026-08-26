@@ -135,7 +135,7 @@ class BeltSegment:
 
             return success
 
-        elif isinstance(machine, ProducingMachine):
+        elif isinstance(machine, ProducingMachine) or hasattr(machine, "try_receive_item"):
             added = machine.try_receive_item(self.item, source_grid_pos, self.speed)
 
             if added:

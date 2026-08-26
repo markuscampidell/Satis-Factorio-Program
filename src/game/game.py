@@ -109,7 +109,8 @@ class Game:
                 and self.context.build_system.build_mode is None
                 and not self.context.player_inventory_ui.open
                 and not self.context.machine_ui.open
-                and not self.context.hand_crafting_ui.open):
+                and not self.context.hand_crafting_ui.open
+                and not self.context.storage_ui.open):
             self.context.game_menu_bar.game_menu_open = True
             return
 
@@ -119,6 +120,8 @@ class Game:
         self.context.build_system.handle_placement(event)
 
         self.context.machine_ui.handle_event(event, self.context.machine_system.just_placed_machine, self.context.build_system.build_mode == "building",)
+        self.context.storage_ui.handle_event(event, self.context.machine_system.just_placed_machine, self.context.build_system.build_mode == "building")
+        self.context.player_inventory_ui.handle_event(event, self.context.machine_ui, self.context.storage_ui)
 
         self.context.machine_interaction_system.handle_click(event, self.context.machine_system.just_placed_machine)
 
@@ -139,6 +142,25 @@ class Game:
             machine.update(delta_time, self.context.world.belt_map, self.context.world.machine_map)
 
         self.context.build_system.update_hovered_delete_target()
+
+        self._resolve_dirty_inventories()
+
+    def _resolve_dirty_inventories(self):
+        """Re-sorts any inventory that changed this frame - belts feeding a
+        storage building, or a player/storage click-transfer - once per
+        frame rather than on every individual item movement. Producing
+        machines aren't included: their input/output inventories are each
+        a single-item 1x1 slot, so there's nothing to sort."""
+        player_inventory = self.context.player.inventory
+        if player_inventory.dirty:
+            player_inventory.sort()
+            player_inventory.dirty = False
+
+        for machine in self.context.world.machines:
+            inventory = getattr(machine, "inventory", None)
+            if inventory is not None and inventory.dirty:
+                inventory.sort()
+                inventory.dirty = False
 
     def _update_screen_size(self, width, height):
         self.context.camera.screen_width = width

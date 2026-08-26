@@ -4,11 +4,12 @@ import pygame as py
 from objects.machines.assembler import Assembler
 from objects.machines.smelter import Smelter
 from objects.machines.splitter import Splitter
+from objects.machines.storage import Storage
 from objects.conveyors.belt_segment import BeltSegment
 
 
 class InputSystem:
-    def __init__(self, build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system):
+    def __init__(self, build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system, storage_ui):
         self.build_system = build_system
         self.ui_manager = ui_manager
         self.hand_crafting_ui = hand_crafting_ui
@@ -16,6 +17,7 @@ class InputSystem:
         self.player_inventory_ui = player_inventory_ui
         self.belt_system = belt_system
         self.machine_system = machine_system
+        self.storage_ui = storage_ui
 
     def handle_keys(self, event):
         if event.type != py.KEYDOWN: return
@@ -49,6 +51,7 @@ class InputSystem:
             if not self.hand_crafting_ui.open:
                 self.build_system.reset_build_state()
                 self.machine_ui.close()
+                self.storage_ui.close()
                 self.hand_crafting_ui.open = True
             else:
                 self.hand_crafting_ui.close()
@@ -73,7 +76,7 @@ class InputSystem:
             return
 
 
-        if self.player_inventory_ui.open or self.machine_ui.open: return
+        if self.player_inventory_ui.open or self.machine_ui.open or self.storage_ui.open: return
 
 
         if event.key == py.K_r and self.build_system.build_mode == "building":
@@ -91,7 +94,8 @@ class InputSystem:
             machine_map = {py.K_1: Smelter,
                            py.K_2: Assembler,
                            py.K_3: BeltSegment,
-                           py.K_4: Splitter,}
+                           py.K_4: Splitter,
+                           py.K_5: Storage,}
 
             if event.key in machine_map:
                 self.build_system.select_machine(machine_map[event.key])

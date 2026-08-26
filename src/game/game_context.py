@@ -13,6 +13,7 @@ class GameContext:
     player: any
     player_inventory_ui: any
     hand_crafting_ui: any
+    storage_ui: any
 
     font: any
     title_font_surface: any

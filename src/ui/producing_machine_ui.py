@@ -1,6 +1,8 @@
 # ui.producing_machine_ui
 import pygame as py
 
+from entities.inventory_transfer import move_stack, move_all_of_type
+
 
 class ProducingMachineUI:
     """State and interaction (open/close, recipe/close clicks) for a
@@ -40,6 +42,7 @@ class ProducingMachineUI:
         left_click = event.type == py.MOUSEBUTTONDOWN and getattr(event, "button", None) == 1
         if self.open and self.selected_machine:
             self._handle_recipe_click(left_click, mx, my)
+            self._handle_slot_click(left_click, mx, my)
             self._handle_close_click(left_click, mx, my)
             self._handle_visibility()
 
@@ -51,6 +54,36 @@ class ProducingMachineUI:
                 if rect.collidepoint(mx, my):
                     self.selected_machine.set_recipe(recipe, player_inventory=self.player.inventory)
                     break
+
+    def _handle_slot_click(self, left_click, mx, my):
+        """Plain left click does nothing. Shift+click moves one input/output
+        slot's stack to the player; Ctrl+click moves every stack of that
+        item type (identical result here, since each input/output is
+        already its own single-item 1x1 inventory)."""
+        if not left_click or mx is None or my is None:
+            return
+
+        mods = py.key.get_mods()
+        shift_held = bool(mods & py.KMOD_SHIFT)
+        ctrl_held = bool(mods & py.KMOD_CTRL)
+        if not (shift_held or ctrl_held):
+            return
+
+        machine = self.selected_machine
+        for rect, item_id, kind in self.slot_rects:
+            if not rect.collidepoint(mx, my):
+                continue
+
+            inventories = machine.input_inventories if kind == "input" else machine.output_inventories
+            inv = inventories.get(item_id)
+            if inv is None:
+                return
+
+            if shift_held:
+                move_stack(inv, 0, 0, self.player.inventory)
+            else:
+                move_all_of_type(inv, 0, 0, self.player.inventory)
+            return
 
     def _handle_close_click(self, left_click, mx, my):
         if not left_click:
