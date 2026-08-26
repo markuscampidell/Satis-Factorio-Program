@@ -121,15 +121,21 @@ class Inventory:
         for item_id, amount in items.items(): self.try_remove_item(item_id, amount)
         return True
 
-    def sort(self):
-        """Compacts and groups this inventory's contents: same-item stacks
-        are merged (up to MAX_STACK_SIZE), then everything is laid out from
-        the top-left in item-id order, with empty slots pushed to the end."""
+    def contents_as_dict(self) -> dict[str, int]:
+        """This inventory's total amount of each item it holds, as
+        {item_id: amount} - e.g. for refunding/dumping everything at once."""
         totals = {}
         for row in self.slots:
             for slot in row:
                 if slot:
                     totals[slot["item"]] = totals.get(slot["item"], 0) + slot["amount"]
+        return totals
+
+    def sort(self):
+        """Compacts and groups this inventory's contents: same-item stacks
+        are merged (up to MAX_STACK_SIZE), then everything is laid out from
+        the top-left in item-id order, with empty slots pushed to the end."""
+        totals = self.contents_as_dict()
 
         flat = [None] * (self.width * self.height)
         index = 0

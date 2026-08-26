@@ -7,6 +7,7 @@ class Smelter(ProducingMachine):
     HEIGHT = 2
     SPRITE_PATH = "src/assets/sprites/machines/smelter.png"
     BUILD_COST = {"iron_ingot": 2, "copper_ingot": 1}
+    SAVE_TYPE = "smelter"
 
     def __init__(self, grid_pos):
         self.recipes = smelter_recipes

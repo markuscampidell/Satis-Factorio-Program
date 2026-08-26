@@ -3,6 +3,7 @@ import pygame as py
 
 from core.vector2 import Vector2
 from objects.conveyors.belt_segment import BeltSegment
+from objects.machines.splitter import relative_dirs
 from systems.conveyors.belt_system import BeltSystem
 
 
@@ -17,12 +18,7 @@ class _SplitterPreviewStub:
         self.direction = direction
 
     def _get_relative_dirs(self):
-        dx, dy = float(self.direction.x), float(self.direction.y)
-        return [
-            Vector2(-dy, dx),
-            Vector2(dx, dy),
-            Vector2(dy, -dx),
-        ]
+        return relative_dirs(self.direction)
 
 
 class GhostMachineRenderer:

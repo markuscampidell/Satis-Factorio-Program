@@ -1,6 +1,4 @@
 # game.world
-import pygame as py
-
 class World:
     def __init__(self, player, cell_size):
         self.player = player
@@ -12,7 +10,12 @@ class World:
         self.machine_map = {}
         self.belt_map = {}
 
-
+    def clear(self):
+        """Empties the world of all machines/belts, for a fresh load/new game."""
+        self.machines.clear()
+        self.belt_segments.clear()
+        self.machine_map.clear()
+        self.belt_map.clear()
 
     def add_machine(self, machine):
         """Add a machine and map all its occupied cells."""

@@ -1,8 +1,6 @@
 # objects.machines.producing_machine
-import pygame as py
-
 from constants.itemdata import get_item_by_id
-from core.vector2 import Vector2
+from constants.recipes import get_recipe_by_id
 from entities.inventory import Inventory
 from objects.machines.machine import Machine
 from objects.machines.machine_output_pusher import push_output
@@ -18,8 +16,6 @@ class ProducingMachine(Machine):
         self.processing = False
         self.process_timer = 0.0
         self.process_time = recipe.process_time if recipe else 1.0
-
-        self.cell_size = cell_size
 
         # Purely visual: items animating from the input edge to the
         # machine center after they've already been added to the inventory.
@@ -38,21 +34,44 @@ class ProducingMachine(Machine):
             self.processing = True
             self.process_timer = 0.0
 
-        if self.processing:
-            self.process_timer += dt
-            if self.process_timer >= self.process_time:
-                self._complete_process()
+        if not self.processing:
+            return
+
+        self.process_timer += dt
+
+        # A loop (not just `if`) so a very short process_time relative to
+        # dt can complete more than once in a single frame, and a tiny
+        # epsilon so float accumulation error from repeatedly adding dt
+        # (e.g. process_timer landing on 1.9999999999999978 instead of
+        # exactly 2.0) can't stall a completion that's already due.
+        while self.process_timer >= self.process_time - 1e-9:
+            self._complete_process()
+            leftover = max(0.0, self.process_timer - self.process_time)
+
+            # Carry the overshoot straight into the next cycle only if it
+            # can start immediately - resetting to a hard 0.0 unconditionally
+            # discards up to a frame's worth of progress on every single
+            # cycle, which adds up to a real, measurable throughput loss
+            # over many cycles (worse for shorter process_time recipes).
+            # But if it can't continue (out of input/output room), that
+            # leftover shouldn't be banked for whenever it eventually
+            # resumes - reset it like normal so an arbitrary wait doesn't
+            # give the next cycle a free head start.
+            if self.can_process():
+                self.process_timer = leftover
+            else:
                 self.processing = False
                 self.process_timer = 0.0
+                break
 
-    def try_receive_item(self, item, source_grid_pos, source_speed=None):
+    def try_receive_item(self, item, source_grid_pos, direction=None, source_speed=None):
         """Try to add `item` to whichever input inventory actually needs
         it (matches the recipe input and has room). Triggers the visual
-        "item traveling in" animation on success. Single entry point used
-        by both belts and splitters feeding this machine, so both get
-        identical acceptance rules and the same animation. `source_speed`
-        is the feeding belt's tiles/sec, if there is one, so the animation
-        matches how fast that belt actually moves."""
+        "item traveling in" animation on success. Accepts from any side, so
+        `direction` is unused - it's part of Machine's shared signature,
+        not every machine type cares which way an item is arriving from.
+        `source_speed` is the feeding belt's tiles/sec, if there is one, so
+        the animation matches how fast that belt actually moves."""
         inv = self.input_inventories.get(item.item_id)
         if inv is None:
             return False
@@ -91,28 +110,15 @@ class ProducingMachine(Machine):
     def get_refund_items(self):
         refund = super().get_refund_items()
         for inv in list(self.input_inventories.values()) + list(self.output_inventories.values()):
-            for row in inv.slots:
-                for slot in row:
-                    if slot:
-                        refund[slot["item"]] = refund.get(slot["item"], 0) + slot["amount"]
+            for item_id, amount in inv.contents_as_dict().items():
+                refund[item_id] = refund.get(item_id, 0) + amount
         return refund
 
     def set_recipe(self, recipe, player_inventory):
-        # Inputs
         if hasattr(self, "input_inventories"):
-            for item_id, inv in self.input_inventories.items():
-                for row in inv.slots:
-                    for slot in row:
-                        if slot:
-                            player_inventory.try_add_items(slot["item"], slot["amount"])
-
-        # Outputs
-        if hasattr(self, "output_inventories"):
-            for item_id, inv in self.output_inventories.items():
-                for row in inv.slots:
-                    for slot in row:
-                        if slot:
-                            player_inventory.try_add_items(slot["item"], slot["amount"])
+            for inv in list(self.input_inventories.values()) + list(self.output_inventories.values()):
+                for item_id, amount in inv.contents_as_dict().items():
+                    player_inventory.try_add_items(item_id, amount)
 
         self.processing = False
         self.process_timer = 0.0
@@ -122,21 +128,41 @@ class ProducingMachine(Machine):
 
         if recipe: self._reset_inventories(recipe)
 
+    def to_dict(self):
+        data = super().to_dict()
+        data["recipe_id"] = self.recipe.recipe_id if self.recipe else None
+        data["input_inventories"] = {item_id: inv.slots for item_id, inv in self.input_inventories.items()}
+        data["output_inventories"] = {item_id: inv.slots for item_id, inv in self.output_inventories.items()}
+        return data
+
+    @classmethod
+    def from_dict(cls, data):
+        m = cls(tuple(data["grid_pos"]))
+
+        recipe = get_recipe_by_id(data["recipe_id"]) if data["recipe_id"] else None
+        m.recipe = recipe
+        m.process_time = recipe.process_time if recipe else 1.0
+
+        if recipe:
+            m._reset_inventories(recipe)
+        else:
+            m.input_inventories = {}
+            m.output_inventories = {}
+
+        for item_id, slots in data["input_inventories"].items():
+            m.input_inventories[item_id].slots = slots
+        for item_id, slots in data["output_inventories"].items():
+            m.output_inventories[item_id].slots = slots
+
+        m.processing = False
+        m.process_timer = 0.0
+
+        return m
 
     def draw(self, screen, camera):
         if not self.image:
             return
-
-        pixel_x = self.grid_pos[0] * self.cell_size - camera.x
-        pixel_y = self.grid_pos[1] * self.cell_size - camera.y
-        width = self.WIDTH * self.cell_size
-        height = self.HEIGHT * self.cell_size
-
-        # Image is already scaled to machine dimensions in Machine.__init__
-        if self.image:
-            screen.blit(self.image, (pixel_x, pixel_y))
-
-        # Optional: draw outputs for clarity
+        super().draw(screen, camera)
         self._draw_recipe_outputs(screen, camera)
 
     def _draw_recipe_outputs(self, screen, camera):

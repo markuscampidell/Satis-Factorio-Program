@@ -24,8 +24,6 @@ class Player:
         self.dy = 0
 
     def update(self, machines, dt):
-        self.handcrafting.update(dt)
-
         dx, dy = self.get_movement()
 
         if dx:

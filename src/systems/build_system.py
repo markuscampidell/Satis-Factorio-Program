@@ -75,18 +75,13 @@ class BuildSystem:
         grid_x = (mx + self.camera.x) // self.grid.CELL_SIZE
         grid_y = (my + self.camera.y) // self.grid.CELL_SIZE
 
-        # Check machines by tile
-        self.hovered_delete_target = None
-        for machine in self.world.machines:
-            for cell in getattr(machine, "occupied_cells", []):
-                if cell == (grid_x, grid_y):
-                    self.hovered_delete_target = machine
-                    return
+        # Check machines by tile, then belts
+        machine = self.world.machine_map.get((grid_x, grid_y))
+        if machine:
+            self.hovered_delete_target = machine
+            return
 
-        # Check belts by tile
-        seg = self.world.belt_map.get((grid_x, grid_y))
-        if seg:
-            self.hovered_delete_target = seg
+        self.hovered_delete_target = self.world.belt_map.get((grid_x, grid_y))
 
     def _mouse_over_ui(self, mx, my):
         return ((self.machine_ui.open and self.machine_ui.rect.collidepoint(mx, my)) or

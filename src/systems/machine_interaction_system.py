@@ -5,12 +5,11 @@ from objects.machines.producing_machine import ProducingMachine
 from objects.machines.storage import Storage
 
 class MachineInteractionSystem:
-    def __init__(self, world, build_system, machine_ui, camera, grid, hand_crafting_ui, storage_ui):
+    def __init__(self, world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui):
         self.world = world
         self.build_system = build_system
         self.machine_ui = machine_ui
         self.camera = camera
-        self.grid = grid
         self.hand_crafting_ui = hand_crafting_ui
         self.storage_ui = storage_ui
 
@@ -31,7 +30,7 @@ class MachineInteractionSystem:
         world_y = my + self.camera.y
 
         # Convert world coordinates to grid position
-        grid_x, grid_y = self.grid.world_to_grid(world_x, world_y)
+        grid_x, grid_y = self.world.snap_to_tile(world_x, world_y)
 
         # Check for a machine occupying that tile
         machine = self.world.get_machine_at((grid_x, grid_y))

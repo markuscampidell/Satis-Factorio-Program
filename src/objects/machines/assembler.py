@@ -4,11 +4,12 @@ from constants.recipes import assembler_recipes
 
 class Assembler(ProducingMachine):
     SPRITE_PATH = "src/assets/sprites/machines/assembler.png"
-    
+
     BUILD_COST = {"iron_ingot": 3}
 
     WIDTH = 3
     HEIGHT = 3
+    SAVE_TYPE = "assembler"
 
     def __init__(self, grid_pos):
         self.recipes = assembler_recipes

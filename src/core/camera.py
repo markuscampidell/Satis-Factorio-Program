@@ -8,6 +8,14 @@ class Camera:
         self.margin = margin                  # distance from edge before camera moves
         self.smooth = smooth                  # 0.05 → 5% of distance per frame
 
+    def center_on(self, rect):
+        """Snaps the camera to be centered exactly on `rect` - unlike
+        update(), which smoothly follows the player with a margin, this
+        jumps straight there (e.g. a fresh/loaded game with no saved
+        camera position yet)."""
+        self.x = rect.centerx - self.screen_width // 2
+        self.y = rect.centery - self.screen_height // 2
+
     def update(self, player):
         playerx = player.rect.centerx - self.x
         playery = player.rect.centery - self.y

@@ -80,12 +80,29 @@ class HandCraftingUI:
 
         self.progress += dt / process_time
 
-        if self.progress >= 1.0:
+        # A loop (not just `if`) so a short process_time relative to dt can
+        # complete more than once in a frame, and a tiny epsilon so float
+        # accumulation error can't stall a completion that's already due.
+        while self.crafting_mode is not None and self.progress >= 1.0 - 1e-9:
             self.player.handcrafting.try_craft_selected()
-            self.progress = 0.0
+            leftover = max(0.0, self.progress - 1.0)
 
             if self.crafting_mode == "single":
                 self.crafting_mode = None
+                self.progress = 0.0
+                break
+
+            # auto mode: carry the overshoot into the next craft instead of
+            # discarding it, but only if it can start right away - same
+            # reasoning as ProducingMachine._update_processing.
+            recipe = self.player.handcrafting.get_selected_recipe()
+            if not recipe or self.player.handcrafting.check_craft_status(recipe) != "ok":
+                self.crafting_mode = None
+                self.progress = 0.0
+                break
+
+            process_time = getattr(recipe, "process_time", 1)
+            self.progress = leftover
 
     def close(self):
         self.open = False

@@ -3,6 +3,7 @@ import pygame as py
 
 from objects.machines.storage import Storage
 from entities.inventory_transfer import move_stack, move_all_of_type
+from ui.modifier_keys import get_shift_ctrl
 
 
 class StorageUI:
@@ -57,9 +58,7 @@ class StorageUI:
         """Plain left click does nothing. Shift+click moves that slot's
         stack to the player's inventory; Ctrl+click moves every stack of
         that same item type."""
-        mods = py.key.get_mods()
-        shift_held = bool(mods & py.KMOD_SHIFT)
-        ctrl_held = bool(mods & py.KMOD_CTRL)
+        shift_held, ctrl_held = get_shift_ctrl()
         if not (shift_held or ctrl_held):
             return
 

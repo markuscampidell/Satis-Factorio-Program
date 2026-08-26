@@ -6,23 +6,22 @@ from pathlib import Path
 
 from core.vector2 import Vector2
 from objects.conveyors.belt_segment import BeltSegment
-from objects.machines.producing_machine import ProducingMachine
 from objects.machines.smelter import Smelter
 from objects.machines.assembler import Assembler
 from objects.machines.splitter import Splitter
 from objects.machines.storage import Storage
 from constants.itemdata import get_item_by_id
-from constants.recipes import get_recipe_by_id
 
 SAVE_VERSION = 1
 
 _SAVES_DIR = Path(__file__).resolve().parents[2] / "saves"
 _LAST_OPENED_FILE = _SAVES_DIR / ".last_opened"
 
-_MACHINE_TYPES = {
-    Smelter: "smelter",
-    Assembler: "assembler",
-}
+# Every machine class that can appear in a save file, keyed by its own
+# SAVE_TYPE tag - each owns its (de)serialization via to_dict()/from_dict(),
+# so adding a new machine type only means adding it here, not touching
+# _serialize_machine/_deserialize_machine at all.
+_SAVABLE_MACHINE_TYPES = {cls.SAVE_TYPE: cls for cls in (Smelter, Assembler, Splitter, Storage)}
 
 
 def _saves_dir() -> Path:
@@ -123,10 +122,7 @@ def load_game(world, player, camera, belt_system, name: str) -> None:
     with open(path, "r") as f:
         data = json.load(f)
 
-    world.machines.clear()
-    world.belt_segments.clear()
-    world.machine_map.clear()
-    world.belt_map.clear()
+    world.clear()
 
     _deserialize_player(player, data["player"])
 
@@ -138,8 +134,7 @@ def load_game(world, player, camera, belt_system, name: str) -> None:
         camera.x = camera_data["x"]
         camera.y = camera_data["y"]
     else:
-        camera.x = player.rect.centerx - camera.screen_width // 2
-        camera.y = player.rect.centery - camera.screen_height // 2
+        camera.center_on(player.rect)
 
     for entry in data["belts"]:
         world.add_belt_segment(_deserialize_belt(entry))
@@ -155,10 +150,7 @@ def load_game(world, player, camera, belt_system, name: str) -> None:
 def new_game(world, player, camera, name: str) -> None:
     """Reset world/player to a brand-new game state (empty world, starting
     grant inventory) and immediately persist it."""
-    world.machines.clear()
-    world.belt_segments.clear()
-    world.machine_map.clear()
-    world.belt_map.clear()
+    world.clear()
 
     player.inventory.clear()
     player.rect.centerx = 0
@@ -169,8 +161,7 @@ def new_game(world, player, camera, name: str) -> None:
     player.inventory.try_add_items("iron_ingot", 4300)
     player.inventory.try_add_items("copper_ingot", 200)
 
-    camera.x = player.rect.centerx - camera.screen_width // 2
-    camera.y = player.rect.centery - camera.screen_height // 2
+    camera.center_on(player.rect)
 
     save_game(world, player, camera, name)
     _set_last_opened(name)
@@ -216,69 +207,9 @@ def _deserialize_belt(entry):
 
 
 def _serialize_machine(m):
-    if isinstance(m, Splitter):
-        return {
-            "type": "splitter",
-            "grid_pos": list(m.grid_pos),
-            "direction": [m.direction.x, m.direction.y],
-            "current_item": m.current_item.item_id if m.current_item else None,
-        }
-
-    if isinstance(m, Storage):
-        return {
-            "type": "storage",
-            "grid_pos": list(m.grid_pos),
-            "slots": m.inventory.slots,
-        }
-
-    # Smelter / Assembler (both ProducingMachine)
-    return {
-        "type": _MACHINE_TYPES[type(m)],
-        "grid_pos": list(m.grid_pos),
-        "recipe_id": m.recipe.recipe_id if m.recipe else None,
-        "input_inventories": {item_id: inv.slots for item_id, inv in m.input_inventories.items()},
-        "output_inventories": {item_id: inv.slots for item_id, inv in m.output_inventories.items()},
-    }
+    return m.to_dict()
 
 
 def _deserialize_machine(entry):
-    if entry["type"] == "splitter":
-        m = Splitter(grid_pos=tuple(entry["grid_pos"]), direction=Vector2(*entry["direction"]))
-        m.current_item = get_item_by_id(entry["current_item"]) if entry["current_item"] else None
-        # receive_item() only ever accepts incoming_direction == self.direction
-        # and sets current_incoming_direction to it - it's otherwise never
-        # initialized, so a loaded splitter holding an item needs it set
-        # here too (world_renderer reads it unconditionally when drawing).
-        m.current_incoming_direction = m.direction
-        m.item_progress = 0.0
-        m.current_output_index = 0
-        m.current_item_speed = Splitter.DEFAULT_TILES_PER_SEC
-        return m
-
-    if entry["type"] == "storage":
-        m = Storage(grid_pos=tuple(entry["grid_pos"]))
-        m.inventory.slots = entry["slots"]
-        return m
-
-    cls = Smelter if entry["type"] == "smelter" else Assembler
-    m = cls(tuple(entry["grid_pos"]))
-
-    recipe = get_recipe_by_id(entry["recipe_id"]) if entry["recipe_id"] else None
-    m.recipe = recipe
-    m.process_time = recipe.process_time if recipe else 1.0
-
-    if recipe:
-        m._reset_inventories(recipe)
-    else:
-        m.input_inventories = {}
-        m.output_inventories = {}
-
-    for item_id, slots in entry["input_inventories"].items():
-        m.input_inventories[item_id].slots = slots
-    for item_id, slots in entry["output_inventories"].items():
-        m.output_inventories[item_id].slots = slots
-
-    m.processing = False
-    m.process_timer = 0.0
-
-    return m
+    cls = _SAVABLE_MACHINE_TYPES[entry["type"]]
+    return cls.from_dict(entry)

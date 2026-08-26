@@ -25,11 +25,8 @@ class Vector2():
         if length == 0: return Vector2(0, 0)
         return Vector2(self.x / length, self.y / length)
     
-    def magnitude(self):
-        return (self.x ** 2 + self.y ** 2) ** 0.5
-    
     def length(self):
-        return self.magnitude()
+        return (self.x ** 2 + self.y ** 2) ** 0.5
     
     @classmethod
     def dot(cls, vector1: "Vector2", vector2: "Vector2"):

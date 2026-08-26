@@ -9,7 +9,6 @@ from entities.player import Player
 from game.world import World
 
 from constants.itemdata import ITEMS
-from constants.recipes import smelter_recipes, assembler_recipes
 
 # UI
 from ui.producing_machine_ui import ProducingMachineUI
@@ -66,8 +65,7 @@ class Initializer:
         player = Player(grid.CELL_SIZE)
         world = World(player, grid.CELL_SIZE)
 
-        camera.x = player.rect.centerx - camera.screen_width // 2
-        camera.y = player.rect.centery - camera.screen_height // 2
+        camera.center_on(player.rect)
 
         font = py.font.SysFont("Arial", 20)
         title_font_surface = font.render("Satis Factorio Program", True, "#000000")
@@ -115,9 +113,7 @@ class Initializer:
             cursor_renderer=cursor_renderer,
             game_menu_bar_renderer=game_menu_bar_renderer
         )
-        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, grid, hand_crafting_ui, storage_ui)
-
-        player.handcrafting.recipes = smelter_recipes + assembler_recipes
+        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui)
 
         return GameContext(screen=screen,
                            clock=clock,

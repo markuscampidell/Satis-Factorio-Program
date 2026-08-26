@@ -15,16 +15,21 @@ class BeltGhostPreviewController:
         self.camera = camera
         self.screen = screen
 
+    def _camera_tile_bounds(self):
+        """(x1, y1, x2, y2) grid-tile bounds of what's currently on screen."""
+        x1, y1 = self.world.snap_to_tile(self.camera.x, self.camera.y)
+        x2, y2 = self.world.snap_to_tile(
+            self.camera.x + self.camera.screen_width,
+            self.camera.y + self.camera.screen_height
+        )
+        return x1, y1, x2, y2
+
     def _draw_affected(self, affected_segments, only_if_changed=True):
         """Filter existing belts whose sprite would change by camera
         visibility, then draw them - shared by the single-tile, dragging,
         and delete preview paths (and by GhostMachineRenderer for the
         splitter preview)."""
-        cam_tile_x1, cam_tile_y1 = self.world.snap_to_tile(self.camera.x, self.camera.y)
-        cam_tile_x2, cam_tile_y2 = self.world.snap_to_tile(
-            self.camera.x + self.camera.screen_width,
-            self.camera.y + self.camera.screen_height
-        )
+        cam_tile_x1, cam_tile_y1, cam_tile_x2, cam_tile_y2 = self._camera_tile_bounds()
 
         visible_affected = []
 
@@ -133,15 +138,7 @@ class BeltGhostPreviewController:
                     color_flags.append("yellow")
 
         # Camera visibility
-        cam_tile_x1, cam_tile_y1 = self.world.snap_to_tile(
-            self.camera.x,
-            self.camera.y
-        )
-
-        cam_tile_x2, cam_tile_y2 = self.world.snap_to_tile(
-            self.camera.x + self.camera.screen_width,
-            self.camera.y + self.camera.screen_height
-        )
+        cam_tile_x1, cam_tile_y1, cam_tile_x2, cam_tile_y2 = self._camera_tile_bounds()
 
         visible_segments = []
         visible_flags = []

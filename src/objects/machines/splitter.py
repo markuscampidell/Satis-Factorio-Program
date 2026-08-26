@@ -1,39 +1,45 @@
 # objects.machines.splitter
-import pygame as py
 from pygame.transform import rotate
 
+from constants.itemdata import get_item_by_id
 from core.vector2 import Vector2
 from objects.machines.machine import Machine
-from objects.machines.producing_machine import ProducingMachine
 from game.grid import Grid
+
+
+def relative_dirs(direction):
+    """Left/forward/right unit vectors relative to `direction`. A free
+    function (not just a Splitter method) so ghost_machine_renderer's
+    placement-preview stub can share this geometry without needing a real
+    Splitter instance (which would load its sprite from disk just to
+    preview a rotation)."""
+    dx, dy = float(direction.x), float(direction.y)
+    return [
+        Vector2(-dy, dx),  # left
+        Vector2(dx, dy),   # forward
+        Vector2(dy, -dx),  # right
+    ]
+
 
 class Splitter(Machine):
     WIDTH = 1
     HEIGHT = 1
     SPRITE_PATH = "src/assets/sprites/machines/splitter.png"
     BUILD_COST = {"iron_ingot": 4}
+    SAVE_TYPE = "splitter"
 
     DEFAULT_TILES_PER_SEC = 2.0
 
     def __init__(self, grid_pos=(0,0), direction=None, cell_size=Grid.CELL_SIZE):
         super().__init__(grid_pos, cell_size)
 
-        # TILE-BASED POSITION
-        self.grid_pos = grid_pos  # (x, y) in tiles
-        self.cell_size = cell_size
-
         # Rotation / direction
         self.direction = direction or Vector2(1, 0)
         self.rotation_angle = 0
+        self._relative_dirs = relative_dirs(self.direction)
 
         # Image
         self.image_original = self.image.copy()
-        self.rect = py.Rect(
-            self.grid_pos[0] * cell_size,
-            self.grid_pos[1] * cell_size,
-            self.WIDTH * cell_size,
-            self.HEIGHT * cell_size
-        )
 
         # Item handling
         self.current_item = None
@@ -61,11 +67,11 @@ class Splitter(Machine):
             return False
 
         machine_map = machine_map or {}
-        relative_dirs = self._get_relative_dirs()
-        num_dirs = len(relative_dirs)
+        relative_dirs_list = self._get_relative_dirs()
+        num_dirs = len(relative_dirs_list)
 
         for _ in range(num_dirs):
-            direction = relative_dirs[self.current_output_index % num_dirs]
+            direction = relative_dirs_list[self.current_output_index % num_dirs]
             next_tile = (self.grid_pos[0] + int(direction.x), self.grid_pos[1] + int(direction.y))
             seg = belt_map.get(next_tile)
 
@@ -82,12 +88,7 @@ class Splitter(Machine):
                     return True
             else:
                 machine = machine_map.get(next_tile)
-
-                accepted = False
-                if isinstance(machine, Splitter):
-                    accepted = machine.receive_item(self.current_item, incoming_direction=direction, source_speed=self.current_item_speed)
-                elif isinstance(machine, ProducingMachine) or hasattr(machine, "try_receive_item"):
-                    accepted = machine.try_receive_item(self.current_item, self.grid_pos, self.current_item_speed)
+                accepted = machine.try_receive_item(self.current_item, self.grid_pos, direction=direction, source_speed=self.current_item_speed) if machine else False
 
                 if accepted:
                     self.current_item = None
@@ -99,22 +100,20 @@ class Splitter(Machine):
         return False
 
     def _get_relative_dirs(self):
-        dx, dy = float(self.direction.x), float(self.direction.y)
-        return [
-            Vector2(-dy, dx),  # left
-            Vector2(dx, dy),   # forward
-            Vector2(dy, -dx),  # right
-        ]
+        return self._relative_dirs
 
-    def receive_item(self, item, incoming_direction: Vector2 = None, source_speed=None):
+    def try_receive_item(self, item, source_grid_pos, direction=None, source_speed=None):
+        """Shared Machine.try_receive_item contract - unlike ProducingMachine
+        /Storage, a splitter only accepts from directly behind its own
+        facing direction, and only holds one item at a time."""
         if self.current_item is not None:
             return False
 
-        if incoming_direction != self.direction:
+        if direction != self.direction:
             return False
 
         self.current_item = item
-        self.current_incoming_direction = incoming_direction
+        self.current_incoming_direction = direction
         self.item_progress = 0.0
         self.current_item_speed = source_speed if source_speed is not None else self.DEFAULT_TILES_PER_SEC
 
@@ -127,14 +126,30 @@ class Splitter(Machine):
             refund[item_id] = refund.get(item_id, 0) + 1
         return refund
 
+    def to_dict(self):
+        data = super().to_dict()
+        data["direction"] = [self.direction.x, self.direction.y]
+        data["current_item"] = self.current_item.item_id if self.current_item else None
+        return data
+
+    @classmethod
+    def from_dict(cls, data):
+        m = cls(grid_pos=tuple(data["grid_pos"]), direction=Vector2(*data["direction"]))
+        m.current_item = get_item_by_id(data["current_item"]) if data["current_item"] else None
+        # try_receive_item() only ever accepts direction == self.direction
+        # and sets current_incoming_direction to it - it's otherwise never
+        # initialized, so a loaded splitter holding an item needs it set
+        # here too (world_renderer reads it unconditionally when drawing).
+        m.current_incoming_direction = m.direction
+        m.item_progress = 0.0
+        m.current_output_index = 0
+        m.current_item_speed = cls.DEFAULT_TILES_PER_SEC
+        return m
+
     def rotate(self):
         self.direction = Vector2(-self.direction.y, self.direction.x)
         self.rotation_angle = (self.rotation_angle + 90) % 360
         self.image = rotate(self.image_original, -self.rotation_angle)
         old_center = self.rect.center
         self.rect = self.image.get_rect(center=old_center)
-
-    def draw(self, screen, camera):
-        draw_x = self.grid_pos[0] * self.cell_size - camera.x
-        draw_y = self.grid_pos[1] * self.cell_size - camera.y
-        screen.blit(self.image, (draw_x, draw_y))
+        self._relative_dirs = relative_dirs(self.direction)

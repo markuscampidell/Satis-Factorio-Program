@@ -2,6 +2,7 @@
 import pygame as py
 
 from entities.inventory_transfer import move_stack, move_all_of_type
+from ui.modifier_keys import get_shift_ctrl
 
 
 class ProducingMachineUI:
@@ -63,9 +64,7 @@ class ProducingMachineUI:
         if not left_click or mx is None or my is None:
             return
 
-        mods = py.key.get_mods()
-        shift_held = bool(mods & py.KMOD_SHIFT)
-        ctrl_held = bool(mods & py.KMOD_CTRL)
+        shift_held, ctrl_held = get_shift_ctrl()
         if not (shift_held or ctrl_held):
             return
 

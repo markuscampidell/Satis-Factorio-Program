@@ -1,5 +1,6 @@
 # objects.machines.machine_output_pusher
 from constants.itemdata import get_item_by_id
+from game.grid import four_neighbor_coords
 
 
 def push_output(machine, belt_map, machine_map):
@@ -57,23 +58,20 @@ def _try_push_to_tile(machine, item_obj, push_direction, tile_pos, belt_map, mac
     target = machine_map.get(tile_pos)
     if target is None:
         return False
-    if hasattr(target, "receive_item"):
-        # A splitter fed straight from a machine/storage push (rather than
-        # from a belt behind it) has no belt speed of its own to inherit -
-        # fall back to the fastest belt touching it, so it doesn't just
-        # default to a fixed base speed.
-        source_speed = _fastest_neighboring_belt_speed(tile_pos, belt_map)
-        return target.receive_item(item_obj, incoming_direction=push_direction, source_speed=source_speed)
-    if hasattr(target, "try_receive_item"):
-        return target.try_receive_item(item_obj, machine.grid_pos)
 
-    return False
+    # A machine fed straight from another machine/storage push (rather
+    # than from a belt behind it) has no belt speed of its own to inherit -
+    # fall back to the fastest belt touching it (matters most for a
+    # splitter, which needs a speed for its own internal item timer;
+    # harmless for ProducingMachine/Storage, which just use it for the
+    # input animation).
+    source_speed = _fastest_neighboring_belt_speed(tile_pos, belt_map)
+    return target.try_receive_item(item_obj, machine.grid_pos, direction=push_direction, source_speed=source_speed)
 
 
 def _fastest_neighboring_belt_speed(tile_pos, belt_map):
     """The speed (tiles/sec) of the fastest belt touching any of the 4
     tiles adjacent to tile_pos, or None if there isn't one."""
     x, y = tile_pos
-    neighbors = ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1))
-    speeds = [belt_map[pos].speed for pos in neighbors if pos in belt_map]
+    speeds = [belt_map[pos].speed for pos in four_neighbor_coords(x, y) if pos in belt_map]
     return max(speeds) if speeds else None

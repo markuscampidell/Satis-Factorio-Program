@@ -2,8 +2,6 @@
 import pygame as py
 from game.grid import Grid
 from core.vector2 import Vector2
-from objects.machines.producing_machine import ProducingMachine
-from objects.machines.splitter import Splitter
 
 class BeltSegment:
     def __init__(self, grid_pos, direction: Vector2, incoming_directions: list, belt_type="basic"):
@@ -25,34 +23,48 @@ class BeltSegment:
         self.items_per_minute = self._get_items_per_minute_for_type()
         self.speed = (self.items_per_minute / 60)  # tiles per second
 
-    def update(self, belt_map, machine_map, dt):
-        if not self.item:
-            return
+    def advance(self, dt):
+        """Progress-only tick - no transfer decisions. Split out from the
+        old update() so a full frame can run advance() once, then attempt
+        transfers in a cascading loop (see update_all()) instead of just
+        once, which is what let a packed line's items only ever shuffle
+        forward one tile per *frame* instead of draining at real speed."""
+        if self.item:
+            self.item_progress += self.speed * dt
 
-        self.item_progress += self.speed * dt
+    def attempt_transfer(self, belt_map, machine_map):
+        """If this segment's item has finished crossing the tile, try to
+        hand it off - request the next belt (arbitrated fairly, possibly
+        across several belts feeding one merge point, by
+        resolve_input_requests) or insert straight into a machine. Returns
+        True only for a machine-insert, which completes immediately;
+        a belt-to-belt hand-off isn't final until resolve_input_requests
+        runs, so it's reported as a change there instead."""
+        if not self.item or self.item_progress < 1.0:
+            return False
 
-        if self.item_progress >= 1.0:
-            next_pos = (self.grid_pos[0] + self.direction.x,
-                        self.grid_pos[1] + self.direction.y)
+        next_pos = (self.grid_pos[0] + self.direction.x,
+                    self.grid_pos[1] + self.direction.y)
 
-            next_segment = belt_map.get(next_pos)
-            moved = False
+        next_segment = belt_map.get(next_pos)
+        if next_segment:
+            # Deliberately NOT clamped here - if this request is granted,
+            # resolve_input_requests carries the overshoot (whatever's past
+            # 1.0) onto the receiving segment instead of discarding it, so
+            # a never-blocked item doesn't lose a sliver of progress on
+            # every single hop. If it's rejected instead, update_all()'s
+            # final pass clamps it back to 1.0 once the frame's cascade is
+            # done, so it never renders past the tile it's actually on.
+            next_segment.request_item(self, self.item, self.direction)
+            return False
 
-            # Request transfer to the next belt.
-            if next_segment:
-                if next_segment.request_item(self, self.item, self.direction):
-                    moved = True
+        machine = machine_map.get(next_pos)
+        if machine and self._try_insert_into_machine(machine, self.grid_pos):
+            return True
 
-            # Try inserting into a machine.
-            if not moved:
-                machine = machine_map.get(next_pos)
-
-                if machine and self._try_insert_into_machine(machine, self.grid_pos):
-                    moved = True
-
-            if not moved:
-                # Stay at the end of the belt until something accepts the item.
-                self.item_progress = 1.0
+        # Stay at the end of the belt until something accepts the item.
+        self.item_progress = 1.0
+        return False
 
     def refund_item_on_segment(self, player_inventory):
         if self.item:
@@ -86,10 +98,10 @@ class BeltSegment:
     def resolve_input_requests(self):
         if self.item is not None:
             self.input_requests.clear()
-            return
+            return False
 
         if not self.input_requests:
-            return
+            return False
 
         chosen = None
 
@@ -107,7 +119,17 @@ class BeltSegment:
         source, item, direction = chosen
 
         self.item = item
-        self.item_progress = 0.0
+        # Carry over however far past 1.0 the source had already advanced
+        # this frame, instead of hard-resetting to 0.0 - a freely-flowing
+        # (never-blocked) item typically overshoots the 1.0 threshold by a
+        # few percent of a tile before the frame that notices it, and
+        # discarding that overshoot on every single tile crossing adds up
+        # to a real, systematic throughput deficit (worse on faster belts,
+        # since a fixed frame time is a bigger fraction of a shorter
+        # tile-crossing). A blocked source is already clamped to exactly
+        # 1.0 by attempt_transfer, so this is 0.0 in that case anyway -
+        # this only ever adds precision, never changes blocked behavior.
+        self.item_progress = max(0.0, source.item_progress - 1.0)
 
         self.current_incoming_direction = direction
 
@@ -120,30 +142,16 @@ class BeltSegment:
             ) % len(self.incoming_directions)
 
         self.input_requests.clear()
+        return True
 
 
     def _try_insert_into_machine(self, machine, source_grid_pos):
-        if isinstance(machine, Splitter):
-            success = machine.receive_item(
-                self.item,
-                incoming_direction=self.direction,
-                source_speed=self.speed
-            )
+        added = machine.try_receive_item(self.item, source_grid_pos, direction=self.direction, source_speed=self.speed)
 
-            if success:
-                self._clear_item()
+        if added:
+            self._clear_item()
 
-            return success
-
-        elif isinstance(machine, ProducingMachine) or hasattr(machine, "try_receive_item"):
-            added = machine.try_receive_item(self.item, source_grid_pos, self.speed)
-
-            if added:
-                self._clear_item()
-
-            return added
-
-        return False
+        return added
 
 
     def _get_items_per_minute_for_type(self):
@@ -155,3 +163,38 @@ class BeltSegment:
             return 480
         else:
             return 120
+
+
+def update_all(belt_segments, belt_map, machine_map, dt):
+    """Advances every belt segment's item by dt, then resolves hand-offs
+    in a cascading loop - repeating attempt_transfer/resolve_input_requests
+    until a full pass makes no more progress, instead of just once. A
+    single pass only lets each item move at most one link (a freshly
+    emptied tile isn't noticed by the segment behind it until the next
+    pass), so without this a fully packed line only drains one tile per
+    *frame* rather than at the belt's actual speed - this lets a whole
+    backed-up line shift as far as it can within the same frame."""
+    for segment in belt_segments:
+        segment.advance(dt)
+
+    for _ in range(len(belt_segments) + 1):
+        changed = False
+
+        for segment in belt_segments:
+            if segment.attempt_transfer(belt_map, machine_map):
+                changed = True
+
+        for segment in belt_segments:
+            if segment.resolve_input_requests():
+                changed = True
+
+        if not changed:
+            break
+
+    # Anything still holding an item past 1.0 at this point tried every
+    # request this frame's cascade allowed and is genuinely blocked for
+    # the rest of it - pin it to exactly 1.0 so it doesn't render past its
+    # tile or keep accumulating overshoot next frame while it waits.
+    for segment in belt_segments:
+        if segment.item and segment.item_progress > 1.0:
+            segment.item_progress = 1.0

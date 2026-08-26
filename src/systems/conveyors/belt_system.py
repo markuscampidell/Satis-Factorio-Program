@@ -1,6 +1,7 @@
 # systems.conveyors.belt_system
 import pygame as py
 from core.vector2 import Vector2
+from game.grid import four_neighbor_coords
 from objects.conveyors.belt_segment import BeltSegment
 
 class BeltSystem:
@@ -160,14 +161,7 @@ class BeltSystem:
 
             x, y = seg.grid_pos
 
-            neighbors_coords = [
-                (x + 1, y),
-                (x - 1, y),
-                (x, y + 1),
-                (x, y - 1)
-            ]
-
-            for nx, ny in neighbors_coords:
+            for nx, ny in four_neighbor_coords(x, y):
                 neighbor = self.world.get_belt_segment_at(
                     nx * self.grid.CELL_SIZE,
                     ny * self.grid.CELL_SIZE
@@ -324,12 +318,7 @@ class BeltSystem:
         for seg in preview_segments:
             x, y = seg.grid_pos
 
-            for pos in (
-                (x - 1, y),
-                (x + 1, y),
-                (x, y - 1),
-                (x, y + 1),
-            ):
+            for pos in four_neighbor_coords(x, y):
                 if pos in self.world.belt_map and pos not in ghost_positions:
                     affected_positions.add(pos)
 
@@ -408,12 +397,7 @@ class BeltSystem:
         for seg in segments_to_delete:
             x, y = seg.grid_pos
 
-            for pos in (
-                (x - 1, y),
-                (x + 1, y),
-                (x, y - 1),
-                (x, y + 1),
-            ):
+            for pos in four_neighbor_coords(x, y):
                 if pos in temp_map:
                     affected_positions.add(pos)
 

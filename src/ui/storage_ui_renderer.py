@@ -1,7 +1,7 @@
 # ui.storage_ui_renderer
 import pygame as py
 
-from constants.itemdata import get_item_by_id
+from ui.slot_drawing import draw_item_slot_contents
 
 
 class StorageUIRenderer:
@@ -44,15 +44,6 @@ class StorageUIRenderer:
                 py.draw.rect(screen, "#AAAAAA", slot_rect, 2)
 
                 slot = inv.slots[y][x]
-                if slot:
-                    item = get_item_by_id(slot["item"])
-                    if item and item.sprite:
-                        size = ui.SLOT_SIZE - 10
-                        img = item.get_scaled_sprite(size) if hasattr(item, "get_scaled_sprite") else py.transform.scale(item.sprite, (size, size))
-                        if img:
-                            screen.blit(img, (slot_rect.x + 5, slot_rect.y + 5))
-
-                    text = self.font_small.render(str(slot["amount"]), True, "#000000")
-                    screen.blit(text, text.get_rect(bottomright=(slot_rect.right - 5, slot_rect.bottom - 5)))
+                draw_item_slot_contents(screen, slot, slot_rect, self.font_small)
 
                 ui.slot_rects.append((slot_rect, x, y))

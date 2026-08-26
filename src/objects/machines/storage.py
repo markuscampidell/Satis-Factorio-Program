@@ -17,13 +17,13 @@ class Storage(Machine):
     HEIGHT = 1
     SPRITE_PATH = "src/assets/sprites/machines/storage.png"
     BUILD_COST = {"iron_ingot": 10}
+    SAVE_TYPE = "storage"
 
     INVENTORY_WIDTH = 8
     INVENTORY_HEIGHT = 6
 
     def __init__(self, grid_pos, cell_size=Grid.CELL_SIZE):
         super().__init__(grid_pos, cell_size)
-        self.cell_size = cell_size
         self.inventory = Inventory(self.INVENTORY_WIDTH, self.INVENTORY_HEIGHT)
         self.input_animator = InputAnimator(cell_size)
 
@@ -31,10 +31,11 @@ class Storage(Machine):
         self.input_animator.update(dt)
         push_storage_output(self, belt_map or {}, machine_map or {})
 
-    def try_receive_item(self, item, source_grid_pos, source_speed=None):
-        """Same entry point/signature as ProducingMachine.try_receive_item -
-        belts and splitters call this generically. Unlike a recipe machine,
-        any item is accepted as long as there's room for it."""
+    def try_receive_item(self, item, source_grid_pos, direction=None, source_speed=None):
+        """Same shared Machine.try_receive_item signature as
+        ProducingMachine - accepts from any side, so `direction` is
+        unused. Unlike a recipe machine, any item is accepted as long as
+        there's room for it."""
         if not self.inventory.try_add_items(item, 1):
             return False
 
@@ -43,15 +44,17 @@ class Storage(Machine):
 
     def get_refund_items(self):
         refund = super().get_refund_items()
-        for row in self.inventory.slots:
-            for slot in row:
-                if slot:
-                    refund[slot["item"]] = refund.get(slot["item"], 0) + slot["amount"]
+        for item_id, amount in self.inventory.contents_as_dict().items():
+            refund[item_id] = refund.get(item_id, 0) + amount
         return refund
 
-    def draw(self, screen, camera):
-        if not self.image:
-            return
-        pixel_x = self.grid_pos[0] * self.cell_size - camera.x
-        pixel_y = self.grid_pos[1] * self.cell_size - camera.y
-        screen.blit(self.image, (pixel_x, pixel_y))
+    def to_dict(self):
+        data = super().to_dict()
+        data["slots"] = self.inventory.slots
+        return data
+
+    @classmethod
+    def from_dict(cls, data):
+        m = cls(grid_pos=tuple(data["grid_pos"]))
+        m.inventory.slots = data["slots"]
+        return m

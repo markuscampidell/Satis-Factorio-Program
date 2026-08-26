@@ -1,6 +1,12 @@
 # game.grid
 import pygame as py
 
+
+def four_neighbor_coords(x, y):
+    """The 4 orthogonally-adjacent grid coordinates around (x, y)."""
+    return [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+
+
 class Grid:
     CELL_SIZE = 32
 
@@ -33,6 +39,3 @@ class Grid:
     def update_screen_size(self, width, height):
         self.screen_width = width
         self.screen_height = height
-    
-    def world_to_grid(self, world_x, world_y):
-        return world_x // self.CELL_SIZE, world_y // self.CELL_SIZE

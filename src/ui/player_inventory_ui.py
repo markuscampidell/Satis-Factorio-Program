@@ -3,6 +3,8 @@ import pygame as py
 
 from constants.itemdata import get_item_by_id
 from entities.inventory_transfer import move_stack, move_all_of_type
+from ui.modifier_keys import get_shift_ctrl
+from ui.slot_drawing import draw_item_slot_contents
 
 class PlayerInventoryUI:
     SLOT_SIZE = 48
@@ -65,23 +67,10 @@ class PlayerInventoryUI:
                 slot = self.player.inventory.slots[y][x]
 
                 if slot:
-                    item_id = slot["item"]
-                    amount = slot["amount"]
-
-                    item = get_item_by_id(item_id)
-
-                    if item and item.sprite:
-                        slot_size = self.SLOT_SIZE - 10
-                        img = item.get_scaled_sprite(slot_size) if hasattr(item, 'get_scaled_sprite') else py.transform.scale(item.sprite, (slot_size, slot_size))
-                        if img:
-                            screen.blit(img, (slot_rect.x + 5, slot_rect.y + 5))
-
-                    # Stack number
-                    text = self.font_small.render(str(amount), True, "#000000")
-                    text_rect = text.get_rect(bottomright=(slot_rect.right - 5, slot_rect.bottom - 5))
-                    screen.blit(text, text_rect)
+                    draw_item_slot_contents(screen, slot, slot_rect, self.font_small)
 
                     # Save for hover detection / click handling
+                    item = get_item_by_id(slot["item"])
                     self.slot_rects.append((slot_rect, item, x, y))
 
     def _handle_hover(self, screen):
@@ -140,9 +129,7 @@ class PlayerInventoryUI:
         if event.type != py.MOUSEBUTTONDOWN or event.button != 1:
             return
 
-        mods = py.key.get_mods()
-        shift_held = bool(mods & py.KMOD_SHIFT)
-        ctrl_held = bool(mods & py.KMOD_CTRL)
+        shift_held, ctrl_held = get_shift_ctrl()
         if not (shift_held or ctrl_held):
             return
 

@@ -2,6 +2,7 @@
 import pygame as py
 
 from constants.itemdata import get_item_by_id
+from ui.slot_drawing import draw_item_slot_contents
 
 
 class MachineSlotRenderer:
@@ -36,7 +37,7 @@ class MachineSlotRenderer:
             py.draw.rect(screen, "#AAAAAA", rect, 2)
             slot = ui.selected_machine.input_inventories[item_id].slots[0][0] if ui.selected_machine.input_inventories[item_id].slots[0] else None
             if slot:
-                self._draw_item_in_slot(screen, slot, rect)
+                draw_item_slot_contents(screen, slot, rect, self.font_tiny)
             else:
                 self._draw_ghost_item(screen, item_id, rect)
             text = self.font_small.render(f"{inputs_per_min[item_id]:.0f}/min", True, "#000000")
@@ -50,7 +51,7 @@ class MachineSlotRenderer:
             py.draw.rect(screen, "#AAAAAA", rect, 2)
             slot = inv.slots[0][0] if inv.slots[0] else None
             if slot:
-                self._draw_item_in_slot(screen, slot, rect)
+                draw_item_slot_contents(screen, slot, rect, self.font_tiny)
             else:
                 self._draw_ghost_item(screen, item_id, rect)
             text = self.font_small.render(f"{outputs_per_min.get(item_id, 0):.0f}/min", True, "#000000")
@@ -113,16 +114,3 @@ class MachineSlotRenderer:
 
         self._ghost_sprite_cache[item_id] = ghost
         return ghost
-
-    def _draw_item_in_slot(self, screen, slot, rect):
-        py.draw.rect(screen, "#AAAAAA", rect, 2)
-        item = get_item_by_id(slot["item"]) if isinstance(slot["item"], str) else slot["item"]
-        if item and hasattr(item, "sprite") and item.sprite:
-            slot_size = self.SLOT_SIZE - 10
-            img = item.get_scaled_sprite(slot_size) if hasattr(item, 'get_scaled_sprite') else py.transform.scale(item.sprite, (slot_size, slot_size))
-            if img:
-                screen.blit(img, (rect.x + 5, rect.y + 5))
-        amount = slot["amount"]
-        text = self.font_tiny.render(str(amount), True, "#000000")
-        text_rect = text.get_rect(bottomright=(rect.right - 5, rect.bottom - 5))
-        screen.blit(text, text_rect)

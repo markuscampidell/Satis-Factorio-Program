@@ -5,6 +5,7 @@ from sys import exit
 from game.initializer import Initializer, MIN_SCREEN_SIZE
 from game.main_menu import MainMenu
 from game import save_system
+from objects.conveyors.belt_segment import update_all as update_all_belts
 
 class Game:
     def __init__(self):
@@ -132,11 +133,7 @@ class Game:
         if self.context.hand_crafting_ui.open:
             self.context.hand_crafting_ui.update(delta_time)
 
-        for segment in self.context.world.belt_segments:
-            segment.update(self.context.world.belt_map, self.context.world.machine_map, delta_time)
-
-        for segment in self.context.world.belt_segments:
-            segment.resolve_input_requests()
+        update_all_belts(self.context.world.belt_segments, self.context.world.belt_map, self.context.world.machine_map, delta_time)
 
         for machine in self.context.world.machines:
             machine.update(delta_time, self.context.world.belt_map, self.context.world.machine_map)
