@@ -13,6 +13,7 @@ class TextInput:
     once at startup - nothing to start/stop per widget instance."""
 
     MAX_LENGTH = 32
+    CURSOR_BLINK_INTERVAL = 8
 
     def __init__(self, rect: py.Rect, initial_text: str = ""):
         self.rect = rect
@@ -91,7 +92,7 @@ class TextInput:
 
     def update(self, dt):
         self._cursor_timer += dt
-        if self._cursor_timer >= 0.5:
+        if self._cursor_timer >= self.CURSOR_BLINK_INTERVAL:
             self._cursor_timer = 0.0
             self._cursor_visible = not self._cursor_visible
 
