@@ -182,7 +182,6 @@ def _deserialize_player(player, data):
     player.rect.centerx = data["x"]
     player.rect.centery = data["y"]
     player.inventory.slots = data["inventory"]
-    player.inventory.dirty = False
     player.dx = 0
     player.dy = 0
 

@@ -12,10 +12,12 @@ CONTROL_SECTIONS = [
         ("TAB", "Toggle your inventory"),
         ("F", "Toggle the hand-crafting panel"),
     ]),
-    ("Building", [
-        ("Q", "Toggle build mode"),
-        ("X", "Toggle delete mode"),
-        ("1 - 5", "Pick what to build: Smelter, Assembler, Belt, Splitter, Storage"),
+    ("Building (bottom-of-screen hotbar)", [
+        ("1 - 5", "Select a buildable: Smelter, Assembler, Belt, Splitter, Storage"),
+        ("6", "Select Nothing - deselects, same as clicking that hotbar slot"),
+        ("7 / X", "Toggle delete mode"),
+        ("Click a hotbar slot", "Same as pressing its number - the row is always clickable"),
+        ("C", "Point at a machine or belt and press this to pick its type into the hotbar"),
         ("R", "Rotate the selected building clockwise"),
         ("Shift + R", "Rotate the selected building counter-clockwise"),
         ("T", "Rotate the selected building 180 degrees"),
@@ -28,13 +30,18 @@ CONTROL_SECTIONS = [
         ("SPACE", "Toggle auto-craft for the selected recipe"),
     ]),
     ("Inventory & Storage", [
-        ("Left Click", "Open a machine's or storage's panel by clicking its tile"),
+        ("Left Click", "Open a machine's, storage's, splitter's, or belt's panel by clicking its tile"),
         ("Shift + Left Click", "Move one stack between the open panel and your inventory"),
         ("Ctrl + Left Click", "Move every stack of that item type between the open panel and your inventory"),
         ("Left Click (outside a panel)", "Close that panel"),
         ("Scroll Wheel", "Scroll a panel's contents, like this one"),
     ]),
-    ("Temporary", [
+    ("Belt & Splitter Filters", [
+        ("Left Click (checkbox)", "Toggle whether that filter is enabled"),
+        ("Left Click (a slot)", "Open the item picker to choose what that slot filters for"),
+        ("Right Click (a filled slot)", "Clear that slot"),
+    ]),
+    ("Miscellaneous", [
         ("I", "Instantly fill a selected machine's recipe inputs, while its panel is open (debug)"),
     ]),
 ]

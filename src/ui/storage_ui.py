@@ -37,7 +37,7 @@ class StorageUI:
         self.player_inventory_ui = player_inventory_ui
         self.panel_side = panel_side
 
-        self.slot_rects = []  # [(rect, x, y)] - populated by the renderer each frame
+        self.slot_rects = []  # [(rect, x, y, item_id)] - populated by the renderer each frame
 
     def handle_event(self, event, just_placed, placing_machine):
         if placing_machine or just_placed:
@@ -62,13 +62,13 @@ class StorageUI:
         if not (shift_held or ctrl_held):
             return
 
-        for rect, x, y in self.slot_rects:
+        for rect, x, y, item_id in self.slot_rects:
             if rect.collidepoint(mx, my):
                 inv = self.selected_storage.inventory
                 if shift_held:
-                    move_stack(inv, x, y, self.player.inventory)
+                    move_stack(inv, x, y, self.player.inventory, item_id)
                 else:
-                    move_all_of_type(inv, x, y, self.player.inventory)
+                    move_all_of_type(inv, x, y, self.player.inventory, item_id)
                 return
 
     def _handle_close_click(self, left_click, mx, my):

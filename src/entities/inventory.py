@@ -3,37 +3,73 @@ from entities.item import Item
 
 class Inventory:
     MAX_STACK_SIZE = 100
-    SORT_SETTLE_DELAY = 0.25  # seconds of no further changes before auto-sort runs
 
     def __init__(self, slot_width:int, slot_height:int):
         self.width = slot_width
         self.height = slot_height
         self.slots = [[None for _ in range(slot_width)] for _ in range(slot_height)] # creates a 2D list of None values representing empty slots
-        self.dirty = False  # set on any successful mutation; caller decides when/whether to sort() and clear it
-        self._settle_timer = 0.0
 
-    def mark_dirty(self):
-        """Flags this inventory as changed and restarts its settle timer -
-        call this (instead of setting .dirty directly) from anywhere that
-        mutates .slots, so tick_dirty()'s debounce sees every change."""
-        self.dirty = True
-        self._settle_timer = 0.0
+    def compact(self):
+        """Packs every occupied slot toward the start (row-major order),
+        filling any empty slot left behind by a removal with whichever
+        occupied slot is currently last, instead of leaving a hole. Called
+        immediately whenever a removal empties a slot, so the grid never
+        visibly sits with a gap in the middle.
 
-    def tick_dirty(self, dt):
-        """Call once per frame: auto-sorts only after this inventory has
-        gone SORT_SETTLE_DELAY seconds without a further change. Sorting on
-        every single change (the old behavior) visibly reshuffled item
-        positions on every belt tick during continuous throughput - e.g. a
-        storage chest being fed and drained quickly looked like its slots
-        were "duplicating" as stacks jumped position frame to frame.
-        Debouncing lets rapid activity settle before the one-time tidy-up,
-        instead of re-laying-out the whole grid on every single transfer."""
-        if not self.dirty:
-            return
-        self._settle_timer += dt
-        if self._settle_timer >= self.SORT_SETTLE_DELAY:
-            self.sort()
-            self.dirty = False
+        Deliberately NOT a full re-layout like sort() (which regroups
+        everything by item id from scratch): that would move every stack
+        after the change, not just the one needed to fill the gap - fine
+        for a one-off tidy-up, but visually chaotic if it ran on every
+        single item in/out during heavy belt throughput (stacks would
+        appear to jump between slots, or briefly show in two places at
+        once as they moved). This only ever touches the emptied slot plus,
+        at most, whichever slot used to be last - everything else stays
+        exactly where it was."""
+        flat = [self.slots[y][x] for y in range(self.height) for x in range(self.width)]
+
+        last = len(flat) - 1
+        for i in range(len(flat)):
+            if flat[i] is not None:
+                continue
+            while last > i and flat[last] is None:
+                last -= 1
+            if last <= i:
+                break
+            flat[i] = flat[last]
+            flat[last] = None
+            last -= 1
+
+        self.slots = [flat[y * self.width:(y + 1) * self.width] for y in range(self.height)]
+
+    def merge_stacks(self, item_id):
+        """Consolidates every stack of item_id into as few slots as
+        possible (each up to MAX_STACK_SIZE), without moving any of them
+        to a different position - only their amounts change, so a stack
+        that isn't fully absorbed stays exactly where it was. A stack that
+        does get fully absorbed is set to None; returns True if that
+        happened, so the caller knows to compact() afterward.
+
+        Only ever touches slots holding item_id - a removal elsewhere
+        can't cause two unrelated stacks to visibly merge, keeping this as
+        targeted as compact()."""
+        positions = [(y, x) for y in range(self.height) for x in range(self.width)
+                     if self.slots[y][x] and self.slots[y][x]["item"] == item_id]
+        if len(positions) < 2:
+            return False
+
+        remaining = sum(self.slots[y][x]["amount"] for y, x in positions)
+        emptied = False
+
+        for y, x in positions:
+            if remaining <= 0:
+                self.slots[y][x] = None
+                emptied = True
+                continue
+            amount = min(self.MAX_STACK_SIZE, remaining)
+            self.slots[y][x]["amount"] = amount
+            remaining -= amount
+
+        return emptied
 
     def clone(self):
         """A disposable copy for dry-running a sequence of add/remove
@@ -50,8 +86,6 @@ class Inventory:
         each time; replacing the object instead of mutating it would silently
         orphan that reference."""
         self.slots = [[None for _ in range(self.width)] for _ in range(self.height)]
-        self.dirty = False
-        self._settle_timer = 0.0
 
     def try_add_items(self, item, amount):
         if isinstance(item, Item): item_id = item.item_id
@@ -59,7 +93,6 @@ class Inventory:
 
         if not self.can_add_items(item_id, amount): return False  # Not enough space to add items
 
-        self.mark_dirty()  # can_add_items already guarantees this all-or-nothing add will succeed
         remaining = amount
 
         # First, try to fill existing stacks
@@ -106,6 +139,8 @@ class Inventory:
         # Tries to remove a specific amount of an item of the inventory, returns True if successful, else False
 
         remaining = amount
+        became_empty = False  # tracked so compact() runs once, after the scan below finishes,
+                               # rather than mid-scan where it could disturb slots this loop hasn't visited yet
 
         for y in range(self.height):
             for x in range(self.width):
@@ -116,13 +151,17 @@ class Inventory:
                     to_remove = min(slot["amount"], remaining)
                     slot["amount"] -= to_remove
                     remaining -= to_remove
-                    self.mark_dirty()
 
                     # If slot is empty after removal, set it to None
-                    if slot["amount"] == 0: self.slots[y][x] = None
+                    if slot["amount"] == 0:
+                        self.slots[y][x] = None
+                        became_empty = True
 
-                    if remaining == 0: return True
+                    if remaining == 0:
+                        if self.merge_stacks(item_id) or became_empty: self.compact()
+                        return True
 
+        if self.merge_stacks(item_id) or became_empty: self.compact()
         return False  # Not enough items to remove
 
     def get_amount(self, item_id: str) -> int:

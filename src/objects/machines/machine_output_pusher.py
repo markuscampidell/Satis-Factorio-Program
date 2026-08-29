@@ -34,9 +34,11 @@ def _push_from_inventory(machine, inv, belt_map, machine_map):
 
                 if _try_push_to_tile(machine, item_obj, push_direction, tile_pos, belt_map, machine_map):
                     slot["amount"] -= 1
-                    if slot["amount"] == 0:
+                    emptied = slot["amount"] == 0
+                    if emptied:
                         row[i] = None
-                    inv.mark_dirty()
+                    if inv.merge_stacks(item_obj.item_id) or emptied:
+                        inv.compact()
                     return True
 
     return False

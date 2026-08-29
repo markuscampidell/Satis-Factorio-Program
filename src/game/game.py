@@ -133,6 +133,7 @@ class Game:
         self.context.player_inventory_ui.handle_event(event, self.context.machine_ui, self.context.storage_ui)
 
         self.context.machine_interaction_system.handle_click(event, self.context.machine_system.just_placed_machine)
+        self.context.machine_interaction_system.handle_pick_key(event)
 
     def update(self, delta_time):
         self.context.player.update(self.context.world.machines, delta_time)
@@ -147,22 +148,7 @@ class Game:
             machine.update(delta_time, self.context.world.belt_map, self.context.world.machine_map)
 
         self.context.build_system.update_hovered_delete_target()
-
-        self._resolve_dirty_inventories(delta_time)
-
-    def _resolve_dirty_inventories(self, delta_time):
-        """Re-sorts any inventory that changed recently - belts feeding a
-        storage building, or a player/storage click-transfer - once it's
-        gone briefly untouched (Inventory.tick_dirty's debounce), rather
-        than on every individual item movement. Producing machines aren't
-        included: their input/output inventories are each a single-item
-        1x1 slot, so there's nothing to sort."""
-        self.context.player.inventory.tick_dirty(delta_time)
-
-        for machine in self.context.world.machines:
-            inventory = getattr(machine, "inventory", None)
-            if inventory is not None:
-                inventory.tick_dirty(delta_time)
+        self.context.machine_interaction_system.update_hover()
 
     def _update_screen_size(self, width, height):
         self.context.camera.screen_width = width

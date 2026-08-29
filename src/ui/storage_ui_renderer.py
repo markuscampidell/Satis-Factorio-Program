@@ -46,4 +46,4 @@ class StorageUIRenderer:
                 slot = inv.slots[y][x]
                 draw_item_slot_contents(screen, slot, slot_rect, self.font_small)
 
-                ui.slot_rects.append((slot_rect, x, y))
+                ui.slot_rects.append((slot_rect, x, y, slot["item"] if slot else None))

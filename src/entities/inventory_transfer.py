@@ -4,21 +4,31 @@ every inventory-holding UI (player, storage, machine input/output) so the
 "move this stack" / "move everything of this type" logic only lives once."""
 
 
-def move_stack(source_inv, x, y, dest_inv):
+def move_stack(source_inv, x, y, dest_inv, expected_item_id=None):
     """Move as much of the stack at (x, y) in source_inv into dest_inv as
-    fits, removing exactly what was moved. No-op on an empty slot."""
+    fits, removing exactly what was moved. No-op on an empty slot.
+
+    expected_item_id, when given, is the item the caller's UI last showed
+    at (x, y) - if the actual slot no longer matches (another removal
+    elsewhere compacted a different stack into this exact grid position
+    between that draw and this click), this no-ops instead of silently
+    moving whatever item is there now."""
     slot = source_inv.slots[y][x]
     if not slot:
+        return
+    if expected_item_id is not None and slot["item"] != expected_item_id:
         return
     _move_amount(source_inv, dest_inv, slot["item"], slot["amount"])
 
 
-def move_all_of_type(source_inv, x, y, dest_inv):
+def move_all_of_type(source_inv, x, y, dest_inv, expected_item_id=None):
     """Move every unit of whichever item type occupies (x, y) in
     source_inv - not just that one slot's stack - into dest_inv, as much as
-    fits. No-op on an empty slot."""
+    fits. No-op on an empty slot. See move_stack for expected_item_id."""
     slot = source_inv.slots[y][x]
     if not slot:
+        return
+    if expected_item_id is not None and slot["item"] != expected_item_id:
         return
     item_id = slot["item"]
     _move_amount(source_inv, dest_inv, item_id, source_inv.get_amount(item_id))

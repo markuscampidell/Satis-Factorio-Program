@@ -136,18 +136,18 @@ class PlayerInventoryUI:
         mx, my = event.pos
         for rect, item, x, y in self.slot_rects:
             if rect.collidepoint(mx, my):
-                self._transfer_slot(x, y, shift_held, machine_ui, storage_ui)
+                self._transfer_slot(x, y, item.item_id, shift_held, machine_ui, storage_ui)
                 return
 
-    def _transfer_slot(self, x, y, shift_held, machine_ui, storage_ui):
+    def _transfer_slot(self, x, y, expected_item_id, shift_held, machine_ui, storage_ui):
         source = self.player.inventory
 
         if storage_ui.open and storage_ui.selected_storage:
             dest = storage_ui.selected_storage.inventory
         elif machine_ui.open and machine_ui.selected_machine:
             slot = source.slots[y][x]
-            if not slot:
-                return
+            if not slot or slot["item"] != expected_item_id:
+                return  # the grid changed since this was drawn - safer to no-op than act on the wrong item
             machine = machine_ui.selected_machine
             input_inventories = getattr(machine, "input_inventories", {})
             output_inventories = getattr(machine, "output_inventories", {})
@@ -158,9 +158,9 @@ class PlayerInventoryUI:
             return
 
         if shift_held:
-            move_stack(source, x, y, dest)
+            move_stack(source, x, y, dest, expected_item_id)
         else:
-            move_all_of_type(source, x, y, dest)
+            move_all_of_type(source, x, y, dest, expected_item_id)
 
     def close(self):
         self.open = False

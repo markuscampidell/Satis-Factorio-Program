@@ -44,5 +44,6 @@ class GameContext:
     hand_crafting_renderer: any
     machine_interaction_system: any
     build_hotbar: any
+    hover_highlight_renderer: any
 
     game_menu_bar: any

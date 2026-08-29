@@ -43,6 +43,7 @@ from systems.rendering.ui_renderer import UiRenderer
 from systems.rendering.build_mode_renderer import BuildModeRenderer
 from systems.rendering.cursor_renderer import CursorRenderer
 from systems.rendering.ghost_machine_renderer import GhostMachineRenderer
+from systems.rendering.hover_highlight_renderer import HoverHighlightRenderer
 
 from systems.conveyors.belt_system import BeltSystem
 from systems.conveyors.belt_ghost_preview_controller import BeltGhostPreviewController
@@ -108,11 +109,13 @@ class Initializer:
         build_system = BuildSystem(world, player, camera, grid, belt_system, machine_system, machine_ui, player_inventory_ui, storage_ui, belt_filter_ui, splitter_filter_ui)
         input_system = InputSystem(build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system, storage_ui, belt_filter_ui, splitter_filter_ui)
         build_hotbar = BuildHotbar(build_system, ui_manager)
+        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui, player_inventory_ui, belt_filter_ui, splitter_filter_ui, ui_manager)
 
         item_renderer = ItemRenderer()
         world_renderer = WorldRenderer(world, camera, player, belt_sprite_manager, item_renderer, build_system, grid)
         ui_renderer = UiRenderer(machine_ui_renderer, player_inventory_ui, hand_crafting_renderer, storage_ui_renderer, belt_filter_ui_renderer, splitter_filter_ui_renderer)
         build_mode_renderer = BuildModeRenderer(build_system, machine_system, ghost_machine_renderer, belt_ghost_preview_controller, belt_system, camera, grid)
+        hover_highlight_renderer = HoverHighlightRenderer(machine_interaction_system, camera, grid)
         cursor_renderer = CursorRenderer(build_system)
         game_menu_bar = GameMenuBar(world, player, camera, ui_manager, get_screen_size=lambda: (camera.screen_width, camera.screen_height))
         game_menu_bar_renderer = GameMenuBarRenderer(game_menu_bar)
@@ -122,9 +125,9 @@ class Initializer:
             ui_renderer=ui_renderer,
             cursor_renderer=cursor_renderer,
             game_menu_bar_renderer=game_menu_bar_renderer,
-            build_hotbar=build_hotbar
+            build_hotbar=build_hotbar,
+            hover_highlight_renderer=hover_highlight_renderer
         )
-        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui, player_inventory_ui, belt_filter_ui, splitter_filter_ui)
 
         return GameContext(screen=screen,
                            clock=clock,
@@ -167,5 +170,6 @@ class Initializer:
                            hand_crafting_renderer=hand_crafting_renderer,
                            machine_interaction_system=machine_interaction_system,
                            build_hotbar=build_hotbar,
+                           hover_highlight_renderer=hover_highlight_renderer,
 
                            game_menu_bar=game_menu_bar)
