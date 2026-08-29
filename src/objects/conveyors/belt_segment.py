@@ -2,6 +2,7 @@
 import pygame as py
 from game.grid import Grid
 from core.vector2 import Vector2
+from objects.item_filter import ItemFilter
 
 class BeltSegment:
     def __init__(self, grid_pos, direction: Vector2, incoming_directions: list, belt_type="basic"):
@@ -22,6 +23,14 @@ class BeltSegment:
 
         self.items_per_minute = self._get_items_per_minute_for_type()
         self.speed = (self.items_per_minute / 60)  # tiles per second
+
+        # What's allowed to enter this tile - from another belt, a
+        # machine/storage push, or a splitter. Doesn't affect what this
+        # segment pushes onward once an item is already on it.
+        self.filter = ItemFilter()
+
+    def accepts_item(self, item_id):
+        return self.filter.accepts(item_id)
 
     def advance(self, dt):
         """Progress-only tick - no transfer decisions. Split out from the
@@ -81,6 +90,9 @@ class BeltSegment:
     def request_item(self, source_belt, item, incoming_direction):
         # Don't accept an item from an opposing belt.
         if incoming_direction == -self.direction:
+            return False
+
+        if not self.accepts_item(item.item_id):
             return False
 
         if self.item is not None:

@@ -14,6 +14,8 @@ class GameContext:
     player_inventory_ui: any
     hand_crafting_ui: any
     storage_ui: any
+    belt_filter_ui: any
+    splitter_filter_ui: any
 
     font: any
     title_font_surface: any

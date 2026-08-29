@@ -3,9 +3,10 @@ import pygame as py
 
 from objects.machines.producing_machine import ProducingMachine
 from objects.machines.storage import Storage
+from objects.machines.splitter import Splitter
 
 class MachineInteractionSystem:
-    def __init__(self, world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui, player_inventory_ui):
+    def __init__(self, world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui, player_inventory_ui, belt_filter_ui, splitter_filter_ui):
         self.world = world
         self.build_system = build_system
         self.machine_ui = machine_ui
@@ -13,6 +14,8 @@ class MachineInteractionSystem:
         self.hand_crafting_ui = hand_crafting_ui
         self.storage_ui = storage_ui
         self.player_inventory_ui = player_inventory_ui
+        self.belt_filter_ui = belt_filter_ui
+        self.splitter_filter_ui = splitter_filter_ui
 
     def handle_click(self, event, just_placed_machine):
         if event.type != py.MOUSEBUTTONDOWN or event.button != 1:
@@ -21,7 +24,7 @@ class MachineInteractionSystem:
             return
         if self.build_system.build_mode is not None:
             return
-        if self.machine_ui.open or self.storage_ui.open:
+        if self.machine_ui.open or self.storage_ui.open or self.belt_filter_ui.open or self.splitter_filter_ui.open:
             return
 
         mx, my = event.pos
@@ -45,3 +48,11 @@ class MachineInteractionSystem:
             self.hand_crafting_ui.close()
             self.storage_ui.open_for(machine)
             self.player_inventory_ui.open = True
+        elif machine and isinstance(machine, Splitter):
+            self.hand_crafting_ui.close()
+            self.splitter_filter_ui.open_for(machine)
+        else:
+            belt = self.world.belt_map.get((grid_x, grid_y))
+            if belt:
+                self.hand_crafting_ui.close()
+                self.belt_filter_ui.open_for(belt)

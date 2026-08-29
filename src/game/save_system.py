@@ -6,6 +6,7 @@ from pathlib import Path
 
 from core.vector2 import Vector2
 from objects.conveyors.belt_segment import BeltSegment
+from objects.item_filter import ItemFilter
 from objects.machines.smelter import Smelter
 from objects.machines.assembler import Assembler
 from objects.machines.splitter import Splitter
@@ -192,6 +193,7 @@ def _serialize_belt(seg):
         "direction": [seg.direction.x, seg.direction.y],
         "belt_type": seg.belt_type,
         "item": seg.item.item_id if seg.item else None,
+        "filter": seg.filter.to_dict(),
     }
 
 
@@ -203,6 +205,17 @@ def _deserialize_belt(entry):
         belt_type=entry["belt_type"],
     )
     seg.item = get_item_by_id(entry["item"]) if entry["item"] else None
+
+    if "filter" in entry:
+        seg.filter = ItemFilter.from_dict(entry["filter"])
+    else:
+        # Back-compat with saves from before the filter was nested under
+        # its own "filter" key (it used to be two flat top-level fields).
+        seg.filter = ItemFilter.from_dict({
+            "enabled": entry.get("filter_enabled", False),
+            "allowed_items": entry.get("allowed_items", []),
+        })
+
     return seg
 
 

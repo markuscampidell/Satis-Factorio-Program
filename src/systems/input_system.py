@@ -9,7 +9,7 @@ from objects.conveyors.belt_segment import BeltSegment
 
 
 class InputSystem:
-    def __init__(self, build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system, storage_ui):
+    def __init__(self, build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system, storage_ui, belt_filter_ui, splitter_filter_ui):
         self.build_system = build_system
         self.ui_manager = ui_manager
         self.hand_crafting_ui = hand_crafting_ui
@@ -18,6 +18,8 @@ class InputSystem:
         self.belt_system = belt_system
         self.machine_system = machine_system
         self.storage_ui = storage_ui
+        self.belt_filter_ui = belt_filter_ui
+        self.splitter_filter_ui = splitter_filter_ui
 
     def handle_keys(self, event):
         if event.type != py.KEYDOWN: return
@@ -77,7 +79,8 @@ class InputSystem:
             return
 
 
-        if self.player_inventory_ui.open or self.machine_ui.open or self.storage_ui.open: return
+        if (self.player_inventory_ui.open or self.machine_ui.open or self.storage_ui.open
+                or self.belt_filter_ui.open or self.splitter_filter_ui.open): return
 
 
         if event.key == py.K_r and self.build_system.build_mode == "building":

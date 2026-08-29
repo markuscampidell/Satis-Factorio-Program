@@ -7,7 +7,7 @@ from objects.machines.smelter import Smelter
 from core.vector2 import Vector2
 
 class BuildSystem:
-    def __init__(self, world, player, camera, grid, belt_system, machine_system, machine_ui, player_inventory_ui, storage_ui):
+    def __init__(self, world, player, camera, grid, belt_system, machine_system, machine_ui, player_inventory_ui, storage_ui, belt_filter_ui, splitter_filter_ui):
         self.world = world
         self.player = player
         self.camera = camera
@@ -17,6 +17,8 @@ class BuildSystem:
         self.machine_ui = machine_ui
         self.player_inventory_ui = player_inventory_ui
         self.storage_ui = storage_ui
+        self.belt_filter_ui = belt_filter_ui
+        self.splitter_filter_ui = splitter_filter_ui
 
         # Build state
         self.build_mode = None
@@ -24,7 +26,8 @@ class BuildSystem:
         self.hovered_delete_target = None
 
     def handle_placement(self, event):
-        if self.player_inventory_ui.open or self.machine_ui.open or self.storage_ui.open: return
+        if (self.player_inventory_ui.open or self.machine_ui.open or self.storage_ui.open
+                or self.belt_filter_ui.open or self.splitter_filter_ui.open): return
         if event.type != py.MOUSEBUTTONDOWN or event.button != 1: return
 
         mx, my = event.pos
@@ -86,7 +89,9 @@ class BuildSystem:
     def _mouse_over_ui(self, mx, my):
         return ((self.machine_ui.open and self.machine_ui.rect.collidepoint(mx, my)) or
                 (self.player_inventory_ui.open and self.player_inventory_ui.rect.collidepoint(mx, my)) or
-                (self.storage_ui.open and self.storage_ui.rect.collidepoint(mx, my)))
+                (self.storage_ui.open and self.storage_ui.rect.collidepoint(mx, my)) or
+                (self.belt_filter_ui.open and self.belt_filter_ui.rect.collidepoint(mx, my)) or
+                (self.splitter_filter_ui.open and self.splitter_filter_ui.rect.collidepoint(mx, my)))
     
     def exit_build_mode(self):
         self.build_mode = None

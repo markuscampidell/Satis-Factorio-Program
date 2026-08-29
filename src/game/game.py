@@ -112,7 +112,9 @@ class Game:
                 and not self.context.player_inventory_ui.open
                 and not self.context.machine_ui.open
                 and not self.context.hand_crafting_ui.open
-                and not self.context.storage_ui.open):
+                and not self.context.storage_ui.open
+                and not self.context.belt_filter_ui.open
+                and not self.context.splitter_filter_ui.open):
             self.context.game_menu_bar.game_menu_open = True
             return
 
@@ -123,6 +125,8 @@ class Game:
 
         self.context.machine_ui.handle_event(event, self.context.machine_system.just_placed_machine, self.context.build_system.build_mode == "building",)
         self.context.storage_ui.handle_event(event, self.context.machine_system.just_placed_machine, self.context.build_system.build_mode == "building")
+        self.context.belt_filter_ui.handle_event(event, self.context.machine_system.just_placed_machine, self.context.build_system.build_mode == "building")
+        self.context.splitter_filter_ui.handle_event(event, self.context.machine_system.just_placed_machine, self.context.build_system.build_mode == "building")
         self.context.player_inventory_ui.handle_event(event, self.context.machine_ui, self.context.storage_ui)
 
         self.context.machine_interaction_system.handle_click(event, self.context.machine_system.just_placed_machine)

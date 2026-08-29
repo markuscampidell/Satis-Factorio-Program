@@ -1,4 +1,6 @@
 # systems.rendering.world_renderer
+from objects.filter_badge import draw_filter_badge
+
 
 class WorldRenderer:
     def __init__(self, world, camera, player, belt_sprite_manager, item_renderer, build_system, grid):
@@ -47,6 +49,12 @@ class WorldRenderer:
                         gy * cell_size - self.camera.y
                     )
                 )
+
+                if seg.filter.enabled:
+                    corner_x = gx * cell_size - self.camera.x + cell_size - 8
+                    corner_y = gy * cell_size - self.camera.y + 8
+                    draw_filter_badge(screen, (corner_x, corner_y), size=10)
+
     def _draw_items(self, screen):
         for seg in self.world.belt_segments:
             if seg.item:

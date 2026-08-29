@@ -19,6 +19,10 @@ from ui.hand_crafting_renderer import HandCraftingRenderer
 from ui.game_menu_bar import GameMenuBar, GameMenuBarRenderer
 from ui.storage_ui import StorageUI
 from ui.storage_ui_renderer import StorageUIRenderer
+from ui.belt_filter_ui import BeltFilterUI
+from ui.belt_filter_ui_renderer import BeltFilterUIRenderer
+from ui.splitter_filter_ui import SplitterFilterUI
+from ui.splitter_filter_ui_renderer import SplitterFilterUIRenderer
 from ui.ui_manager import UIManager
 
 # Graphics
@@ -83,23 +87,29 @@ class Initializer:
         hand_crafting_renderer = HandCraftingRenderer(hand_crafting_ui)
         storage_ui = StorageUI(camera, player, player_inventory_ui)
         storage_ui_renderer = StorageUIRenderer(storage_ui)
+        belt_filter_ui = BeltFilterUI(camera, player_inventory_ui)
+        belt_filter_ui_renderer = BeltFilterUIRenderer(belt_filter_ui)
+        splitter_filter_ui = SplitterFilterUI(camera, player_inventory_ui)
+        splitter_filter_ui_renderer = SplitterFilterUIRenderer(splitter_filter_ui)
 
         ui_manager = UIManager({"player_inventory": player_inventory_ui,
                                 "machine": machine_ui,
                                 "hand_crafting": hand_crafting_ui,
-                                "storage": storage_ui})
+                                "storage": storage_ui,
+                                "belt_filter": belt_filter_ui,
+                                "splitter_filter": splitter_filter_ui})
 
         machine_system = MachineSystem(world, player, camera, grid)
         belt_system = BeltSystem(world, grid, player, ghost_belt_renderer)
         belt_ghost_preview_controller = BeltGhostPreviewController(world, player, grid, belt_system, ghost_belt_renderer, camera, screen)
         ghost_machine_renderer = GhostMachineRenderer(world, player, camera, grid, screen, belt_ghost_preview_controller)
 
-        build_system = BuildSystem(world, player, camera, grid, belt_system, machine_system, machine_ui, player_inventory_ui, storage_ui)
-        input_system = InputSystem(build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system, storage_ui)
+        build_system = BuildSystem(world, player, camera, grid, belt_system, machine_system, machine_ui, player_inventory_ui, storage_ui, belt_filter_ui, splitter_filter_ui)
+        input_system = InputSystem(build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system, storage_ui, belt_filter_ui, splitter_filter_ui)
 
         item_renderer = ItemRenderer()
         world_renderer = WorldRenderer(world, camera, player, belt_sprite_manager, item_renderer, build_system, grid)
-        ui_renderer = UiRenderer(machine_ui_renderer, player_inventory_ui, hand_crafting_renderer, storage_ui_renderer)
+        ui_renderer = UiRenderer(machine_ui_renderer, player_inventory_ui, hand_crafting_renderer, storage_ui_renderer, belt_filter_ui_renderer, splitter_filter_ui_renderer)
         build_mode_renderer = BuildModeRenderer(build_system, machine_system, ghost_machine_renderer, belt_ghost_preview_controller, belt_system, camera, grid)
         cursor_renderer = CursorRenderer(build_system)
         game_menu_bar = GameMenuBar(world, player, camera, ui_manager, get_screen_size=lambda: (camera.screen_width, camera.screen_height))
@@ -111,7 +121,7 @@ class Initializer:
             cursor_renderer=cursor_renderer,
             game_menu_bar_renderer=game_menu_bar_renderer
         )
-        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui, player_inventory_ui)
+        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui, player_inventory_ui, belt_filter_ui, splitter_filter_ui)
 
         return GameContext(screen=screen,
                            clock=clock,
@@ -124,6 +134,8 @@ class Initializer:
                            player_inventory_ui=player_inventory_ui,
                            hand_crafting_ui=hand_crafting_ui,
                            storage_ui=storage_ui,
+                           belt_filter_ui=belt_filter_ui,
+                           splitter_filter_ui=splitter_filter_ui,
 
                            font=font,
                            title_font_surface=title_font_surface,

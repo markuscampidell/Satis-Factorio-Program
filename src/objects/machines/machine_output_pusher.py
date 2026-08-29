@@ -47,7 +47,7 @@ def _try_push_to_tile(machine, item_obj, push_direction, tile_pos, belt_map, mac
     if belt is not None:
         # Only a belt facing directly away from us (same direction as
         # the push) accepts - not perpendicular, not facing back in.
-        if belt.item is not None or belt.direction != push_direction:
+        if belt.item is not None or belt.direction != push_direction or not belt.accepts_item(item_obj.item_id):
             return False
 
         belt.item = item_obj
