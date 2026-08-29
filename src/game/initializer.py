@@ -16,7 +16,6 @@ from ui.machine_ui_renderer import MachineUIRenderer
 from ui.player_inventory_ui import PlayerInventoryUI
 from ui.hand_crafting_ui import HandCraftingUI
 from ui.hand_crafting_renderer import HandCraftingRenderer
-from ui.screen_edge_hints_renderer import ScreenEdgeHintsRenderer
 from ui.game_menu_bar import GameMenuBar, GameMenuBarRenderer
 from ui.storage_ui import StorageUI
 from ui.storage_ui_renderer import StorageUIRenderer
@@ -100,8 +99,7 @@ class Initializer:
 
         item_renderer = ItemRenderer()
         world_renderer = WorldRenderer(world, camera, player, belt_sprite_manager, item_renderer, build_system, grid)
-        screen_edge_hints_renderer = ScreenEdgeHintsRenderer(player_inventory_ui, hand_crafting_ui)
-        ui_renderer = UiRenderer(machine_ui_renderer, player_inventory_ui, hand_crafting_renderer, screen_edge_hints_renderer, storage_ui_renderer)
+        ui_renderer = UiRenderer(machine_ui_renderer, player_inventory_ui, hand_crafting_renderer, storage_ui_renderer)
         build_mode_renderer = BuildModeRenderer(build_system, machine_system, ghost_machine_renderer, belt_ghost_preview_controller, belt_system, camera, grid)
         cursor_renderer = CursorRenderer(build_system)
         game_menu_bar = GameMenuBar(world, player, camera, ui_manager, get_screen_size=lambda: (camera.screen_width, camera.screen_height))
@@ -113,7 +111,7 @@ class Initializer:
             cursor_renderer=cursor_renderer,
             game_menu_bar_renderer=game_menu_bar_renderer
         )
-        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui)
+        machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui, player_inventory_ui)
 
         return GameContext(screen=screen,
                            clock=clock,

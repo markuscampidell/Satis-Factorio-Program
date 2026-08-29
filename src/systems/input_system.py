@@ -53,6 +53,7 @@ class InputSystem:
                 self.machine_ui.close()
                 self.storage_ui.close()
                 self.hand_crafting_ui.open = True
+                self.player_inventory_ui.open = True
             else:
                 self.hand_crafting_ui.close()
             return
