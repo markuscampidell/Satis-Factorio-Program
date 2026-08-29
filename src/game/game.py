@@ -103,6 +103,9 @@ class Game:
         if self.context.game_menu_bar.handle_event(event):
             return
 
+        if self.context.build_hotbar.handle_event(event):
+            return
+
         # ESC opens the Game Menu, but only when not mid-build/delete and no
         # other UI (inventory/machine/hand-crafting) is open - in those
         # cases ESC keeps its existing job of canceling/closing instead

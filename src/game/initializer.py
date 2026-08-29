@@ -23,6 +23,7 @@ from ui.belt_filter_ui import BeltFilterUI
 from ui.belt_filter_ui_renderer import BeltFilterUIRenderer
 from ui.splitter_filter_ui import SplitterFilterUI
 from ui.splitter_filter_ui_renderer import SplitterFilterUIRenderer
+from ui.build_hotbar import BuildHotbar
 from ui.ui_manager import UIManager
 
 # Graphics
@@ -106,6 +107,7 @@ class Initializer:
 
         build_system = BuildSystem(world, player, camera, grid, belt_system, machine_system, machine_ui, player_inventory_ui, storage_ui, belt_filter_ui, splitter_filter_ui)
         input_system = InputSystem(build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system, storage_ui, belt_filter_ui, splitter_filter_ui)
+        build_hotbar = BuildHotbar(build_system, ui_manager)
 
         item_renderer = ItemRenderer()
         world_renderer = WorldRenderer(world, camera, player, belt_sprite_manager, item_renderer, build_system, grid)
@@ -119,7 +121,8 @@ class Initializer:
             build_renderer=build_mode_renderer,
             ui_renderer=ui_renderer,
             cursor_renderer=cursor_renderer,
-            game_menu_bar_renderer=game_menu_bar_renderer
+            game_menu_bar_renderer=game_menu_bar_renderer,
+            build_hotbar=build_hotbar
         )
         machine_interaction_system = MachineInteractionSystem(world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui, player_inventory_ui, belt_filter_ui, splitter_filter_ui)
 
@@ -163,5 +166,6 @@ class Initializer:
                            machine_ui_renderer=machine_ui_renderer,
                            hand_crafting_renderer=hand_crafting_renderer,
                            machine_interaction_system=machine_interaction_system,
+                           build_hotbar=build_hotbar,
 
                            game_menu_bar=game_menu_bar)

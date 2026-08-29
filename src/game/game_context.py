@@ -43,5 +43,6 @@ class GameContext:
     machine_ui_renderer: any
     hand_crafting_renderer: any
     machine_interaction_system: any
+    build_hotbar: any
 
     game_menu_bar: any

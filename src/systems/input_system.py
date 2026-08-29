@@ -1,12 +1,6 @@
 # systems.input_system
 import pygame as py
 
-from objects.machines.assembler import Assembler
-from objects.machines.smelter import Smelter
-from objects.machines.splitter import Splitter
-from objects.machines.storage import Storage
-from objects.conveyors.belt_segment import BeltSegment
-
 
 class InputSystem:
     def __init__(self, build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system, storage_ui, belt_filter_ui, splitter_filter_ui):
@@ -27,12 +21,6 @@ class InputSystem:
         if event.key == py.K_ESCAPE:
             self.ui_manager.close_all_uis()
             self.build_system.reset_build_state()
-            return
-
-        if event.key == py.K_q:
-            self.ui_manager.close_all_uis()
-            if self.build_system.build_mode == "building": self.build_system.reset_build_state()
-            else: self.build_system.enter_build_mode()
             return
 
         if event.key == py.K_x:
@@ -93,23 +81,6 @@ class InputSystem:
         if event.key == py.K_t and self.build_system.build_mode == "building":
             self.build_system.rotate_selected(steps=2)
             return
-
-        if self.build_system.build_mode in ("building", "deleting"):
-            machine_map = {py.K_1: Smelter,
-                           py.K_2: Assembler,
-                           py.K_3: BeltSegment,
-                           py.K_4: Splitter,
-                           py.K_5: Storage,}
-
-            if event.key in machine_map:
-                self.build_system.select_machine(machine_map[event.key])
-
-                if self.build_system.build_mode == "deleting":
-                    self.build_system.enter_build_mode()
-                
-                self.build_system.reset_rotation()
-
-                return
 
     def handle_mouse(self, event):
         if event.type == py.MOUSEWHEEL:
