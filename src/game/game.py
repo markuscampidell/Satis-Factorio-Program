@@ -141,24 +141,21 @@ class Game:
 
         self.context.build_system.update_hovered_delete_target()
 
-        self._resolve_dirty_inventories()
+        self._resolve_dirty_inventories(delta_time)
 
-    def _resolve_dirty_inventories(self):
-        """Re-sorts any inventory that changed this frame - belts feeding a
-        storage building, or a player/storage click-transfer - once per
-        frame rather than on every individual item movement. Producing
-        machines aren't included: their input/output inventories are each
-        a single-item 1x1 slot, so there's nothing to sort."""
-        player_inventory = self.context.player.inventory
-        if player_inventory.dirty:
-            player_inventory.sort()
-            player_inventory.dirty = False
+    def _resolve_dirty_inventories(self, delta_time):
+        """Re-sorts any inventory that changed recently - belts feeding a
+        storage building, or a player/storage click-transfer - once it's
+        gone briefly untouched (Inventory.tick_dirty's debounce), rather
+        than on every individual item movement. Producing machines aren't
+        included: their input/output inventories are each a single-item
+        1x1 slot, so there's nothing to sort."""
+        self.context.player.inventory.tick_dirty(delta_time)
 
         for machine in self.context.world.machines:
             inventory = getattr(machine, "inventory", None)
-            if inventory is not None and inventory.dirty:
-                inventory.sort()
-                inventory.dirty = False
+            if inventory is not None:
+                inventory.tick_dirty(delta_time)
 
     def _update_screen_size(self, width, height):
         self.context.camera.screen_width = width

@@ -108,6 +108,11 @@ class InputSystem:
                 return
 
     def handle_mouse(self, event):
+        if event.type == py.MOUSEWHEEL:
+            if self.hand_crafting_ui.open:
+                self.hand_crafting_ui.handle_mouse(event)
+            return
+
         if event.type != py.MOUSEBUTTONDOWN: return
 
         # Right click

@@ -4,6 +4,7 @@ import pygame as py
 from ui.text_input import TextInput
 from ui.confirm_dialog import ConfirmDialog
 from ui.message_dialog import MessageDialog
+from ui.controls_panel import ControlsPanel
 from game import save_system
 
 INVALID_NAME_MESSAGE = "Save names can only contain letters, numbers, spaces, - and _."
@@ -36,6 +37,8 @@ class GameMenuBar:
         self.save_as_message_dialog = None  # MessageDialog | None
         self._pending_save_as_name = None
 
+        self.controls_panel = ControlsPanel()
+
         # Polled once per frame by Game._run_game_frame, then acted on.
         self.return_to_menu_requested = False
         self.save_before_return = False
@@ -43,6 +46,7 @@ class GameMenuBar:
         self.menu_button_rect = None
         self.save_and_exit_rect = None
         self.save_as_rect = None
+        self.controls_rect = None
         self.exit_rect = None
         self.close_x_rect = None
         self.save_as_confirm_button_rect = None
@@ -70,6 +74,10 @@ class GameMenuBar:
                 # not trigger an exit - it just dismisses the dialog and
                 # falls back to the game menu panel behind it.
                 self.exit_confirm_dialog = None
+            return True
+
+        if self.controls_panel.open:
+            self.controls_panel.handle_event(event)
             return True
 
         if self.save_as_message_dialog is not None:
@@ -141,6 +149,8 @@ class GameMenuBar:
                     self.game_menu_open = False
                 elif self.save_as_rect and self.save_as_rect.collidepoint(event.pos):
                     self._open_save_as(initial_text=self.current_save_name or "")
+                elif self.controls_rect and self.controls_rect.collidepoint(event.pos):
+                    self.controls_panel.open_panel()
                 elif self.exit_rect and self.exit_rect.collidepoint(event.pos):
                     self.exit_confirm_dialog = ConfirmDialog("Save before exiting?")
 
@@ -207,6 +217,8 @@ class GameMenuBarRenderer:
         if bar.save_as_message_dialog:
             bar.save_as_message_dialog.draw(screen)
 
+        bar.controls_panel.draw(screen)
+
     def _draw_menu_button(self, screen):
         w, _ = screen.get_size()
         rect = py.Rect(w - 110, 10, 100, 32)
@@ -219,7 +231,7 @@ class GameMenuBarRenderer:
         bar = self.bar
         w, h = screen.get_size()
 
-        panel = py.Rect(0, 0, 320, 280)
+        panel = py.Rect(0, 0, 320, 340)
         panel.center = (w // 2, h // 2)
         bar.panel_rect = panel
         py.draw.rect(screen, (240, 240, 240), panel, border_radius=10)
@@ -240,8 +252,14 @@ class GameMenuBarRenderer:
         save_as_text = self.font.render("Save As", True, "#FFFFFF")
         screen.blit(save_as_text, save_as_text.get_rect(center=bar.save_as_rect.center))
 
+        bar.controls_rect = py.Rect(0, 0, 240, 44)
+        bar.controls_rect.center = (panel.centerx, panel.y + 210)
+        py.draw.rect(screen, (70, 70, 140), bar.controls_rect, border_radius=8)
+        controls_text = self.font.render("Controls", True, "#FFFFFF")
+        screen.blit(controls_text, controls_text.get_rect(center=bar.controls_rect.center))
+
         bar.exit_rect = py.Rect(0, 0, 240, 44)
-        bar.exit_rect.center = (panel.centerx, panel.y + 210)
+        bar.exit_rect.center = (panel.centerx, panel.y + 270)
         py.draw.rect(screen, (150, 0, 0), bar.exit_rect, border_radius=8)
         exit_text = self.font.render("Exit", True, "#FFFFFF")
         screen.blit(exit_text, exit_text.get_rect(center=bar.exit_rect.center))

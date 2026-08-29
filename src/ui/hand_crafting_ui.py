@@ -1,10 +1,14 @@
 # ui.hand_crafting_ui
 import pygame as py
 
+from ui.scroll import apply_wheel_scroll
+
 
 class HandCraftingUI:
     """State and interaction (open/close, crafting progress, button clicks)
     for the handcrafting panel. Drawing lives in HandCraftingRenderer."""
+
+    SCROLL_SPEED = 40
 
     def __init__(self, player, get_screen_size, panel_side="left"):
         self.player = player
@@ -27,9 +31,18 @@ class HandCraftingUI:
         self.recipe_rects = []
         self.produce_button_rect = None
         self.cancel_button_rect = None
+        self.recipe_list_viewport = None  # set by the renderer each draw
+        self.recipe_list_content_height = 0
+        self.scroll_offset = 0
 
     def handle_mouse(self, event):
         if not self.open: return
+
+        if event.type == py.MOUSEWHEEL and self.recipe_list_viewport and self.recipe_list_viewport.collidepoint(py.mouse.get_pos()):
+            self.scroll_offset = apply_wheel_scroll(
+                self.scroll_offset, event, self.recipe_list_content_height,
+                self.recipe_list_viewport.height, self.SCROLL_SPEED)
+            return
 
         # Left click
         if event.type == py.MOUSEBUTTONDOWN and event.button == 1:

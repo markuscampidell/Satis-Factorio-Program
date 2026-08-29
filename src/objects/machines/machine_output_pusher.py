@@ -36,7 +36,7 @@ def _push_from_inventory(machine, inv, belt_map, machine_map):
                     slot["amount"] -= 1
                     if slot["amount"] == 0:
                         row[i] = None
-                    inv.dirty = True
+                    inv.mark_dirty()
                     return True
 
     return False

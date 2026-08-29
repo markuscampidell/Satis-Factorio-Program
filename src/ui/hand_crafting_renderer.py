@@ -2,6 +2,7 @@
 import pygame as py
 
 from ui.recipe_ui import RecipeUI
+from ui.scroll import clamp_scroll, draw_scrollbar
 from constants.itemdata import get_item_by_id
 
 
@@ -51,34 +52,52 @@ class HandCraftingRenderer:
     def _draw_recipes(self, screen):
         ui = self.ui
         ui.recipe_rects = []
-        y = ui.rect.y + 40
 
         # Header
         header = self.font.render("Handcrafting", True, "#000000")
         screen.blit(header, (ui.rect.x + 10, ui.rect.y + 10))
 
-        for i, recipe in enumerate(ui.player.handcrafting.recipes):
-            r = py.Rect(ui.rect.x + 10, y, ui.width - 20, 40)
-            ui.recipe_rects.append((r, recipe))
+        recipes = ui.player.handcrafting.recipes
+        row_h = 45
+        viewport = py.Rect(ui.rect.x, ui.rect.y + 40, ui.width - 20, (ui.rect.bottom - 320) - (ui.rect.y + 40))
+        ui.recipe_list_viewport = viewport
+        ui.recipe_list_content_height = len(recipes) * row_h
+        ui.scroll_offset = clamp_scroll(ui.scroll_offset, ui.recipe_list_content_height, viewport.height)
 
-            # Highlight selected recipe
-            if i == ui.player.handcrafting.selected_recipe_index:
-                py.draw.rect(screen, (255, 165, 0), r, border_radius=6)
+        prev_clip = screen.get_clip()
+        screen.set_clip(viewport)
 
-            # Draw recipe name
-            text = self.font.render(recipe.name, True, "#000000")
-            screen.blit(text, (r.x + 10, r.y + 8))
+        y = viewport.y - ui.scroll_offset
+        for i, recipe in enumerate(recipes):
+            r = py.Rect(ui.rect.x + 10, y, ui.width - 34, 40)
 
-            # Draw output item sprites
-            output_x = r.x + 150  # start drawing outputs 150px from left
-            for item_id in recipe.outputs.keys():
-                item = get_item_by_id(item_id)
-                if item and item.sprite:
-                    sprite = py.transform.scale(item.sprite, (24, 24))
-                    screen.blit(sprite, (output_x, r.y + 8))
-                    output_x += 28  # move to the right for next sprite
+            if r.bottom >= viewport.y and r.top <= viewport.bottom:
+                # Highlight selected recipe
+                if i == ui.player.handcrafting.selected_recipe_index:
+                    py.draw.rect(screen, (255, 165, 0), r, border_radius=6)
 
-            y += 45  # spacing between recipes
+                # Draw recipe name
+                text = self.font.render(recipe.name, True, "#000000")
+                screen.blit(text, (r.x + 10, r.y + 8))
+
+                # Draw output item sprites
+                output_x = r.x + 150  # start drawing outputs 150px from left
+                for item_id in recipe.outputs.keys():
+                    item = get_item_by_id(item_id)
+                    if item and item.sprite:
+                        sprite = py.transform.scale(item.sprite, (24, 24))
+                        screen.blit(sprite, (output_x, r.y + 8))
+                        output_x += 28  # move to the right for next sprite
+
+                ui.recipe_rects.append((r, recipe))
+
+            y += row_h  # spacing between recipes
+
+        screen.set_clip(prev_clip)
+
+        if ui.recipe_list_content_height > viewport.height:
+            track = py.Rect(ui.rect.right - 16, viewport.y, 6, viewport.height)
+            draw_scrollbar(screen, track, ui.scroll_offset, ui.recipe_list_content_height, viewport.height)
 
     def _draw_produce_button(self, screen):
         ui = self.ui

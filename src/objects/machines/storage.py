@@ -13,8 +13,8 @@ class Storage(Machine):
     producing machine) - no recipe, no processing, just holds items until
     something (a belt, or the player) takes them."""
 
-    WIDTH = 1
-    HEIGHT = 1
+    WIDTH = 2
+    HEIGHT = 2
     SPRITE_PATH = "src/assets/sprites/machines/storage.png"
     BUILD_COST = {"iron_ingot": 10}
     SAVE_TYPE = "storage"

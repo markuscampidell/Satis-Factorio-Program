@@ -4,6 +4,7 @@ import pygame as py
 from ui.text_input import TextInput
 from ui.confirm_dialog import ConfirmDialog
 from ui.message_dialog import MessageDialog
+from ui.scroll import clamp_scroll, apply_wheel_scroll, draw_scrollbar
 from game import save_system
 
 INVALID_NAME_MESSAGE = "Save names can only contain letters, numbers, spaces, - and _."
@@ -39,6 +40,9 @@ class MainMenu:
         self._new_game_button_rects = {}
         self._load_game_row_rects = []  # list of (name_rect, name, edit_rect, delete_rect)
         self._load_game_back_rect = None
+        self._load_game_viewport = None
+        self._load_game_content_height = 0
+        self._load_game_scroll = 0
 
         self.refresh_save_list()
 
@@ -114,6 +118,7 @@ class MainMenu:
             self._open_new_game_screen()
         elif self._root_button_rects.get("load_game") and self._root_button_rects["load_game"].collidepoint(event.pos):
             self.screen_state = "load_game"
+            self._load_game_scroll = 0
             self.refresh_save_list()
         elif self._root_button_rects.get("quit") and self._root_button_rects["quit"].collidepoint(event.pos):
             return ("quit",)
@@ -175,6 +180,11 @@ class MainMenu:
         # means no other panel is open over the load game screen.
         if event.type == py.KEYDOWN and event.key == py.K_ESCAPE:
             self.screen_state = "root"
+            return None
+
+        if event.type == py.MOUSEWHEEL and self._load_game_viewport:
+            self._load_game_scroll = apply_wheel_scroll(
+                self._load_game_scroll, event, self._load_game_content_height, self._load_game_viewport.height)
             return None
 
         if event.type != py.MOUSEBUTTONDOWN or event.button != 1:
@@ -339,15 +349,30 @@ class MainMenu:
         self._load_game_row_rects = []
 
         if not self.saves:
+            self._load_game_viewport = None
+            self._load_game_content_height = 0
             empty = self.small_font.render("No saves yet", True, "#000000")
             screen.blit(empty, empty.get_rect(center=(w // 2, h // 2)))
         else:
             row_w, row_h, spacing = 420, 44, 10
             top = 120
+            viewport = py.Rect(0, top, w, (h - 88) - top)
+            self._load_game_viewport = viewport
+            self._load_game_content_height = len(self.saves) * (row_h + spacing)
+            self._load_game_scroll = clamp_scroll(
+                self._load_game_scroll, self._load_game_content_height, viewport.height)
+
             name_area_width = row_w - 12 - 74  # left padding + reserved space for edit/delete buttons
+
+            prev_clip = screen.get_clip()
+            screen.set_clip(viewport)
+
             for i, name in enumerate(self.saves):
                 row_rect = py.Rect(0, 0, row_w, row_h)
-                row_rect.center = (w // 2, top + i * (row_h + spacing) + row_h // 2)
+                row_rect.center = (w // 2, top + i * (row_h + spacing) + row_h // 2 - self._load_game_scroll)
+
+                if row_rect.bottom < viewport.y or row_rect.top > viewport.bottom:
+                    continue  # scrolled out of view - skip drawing and hit-testing it
 
                 py.draw.rect(screen, (90, 90, 90), row_rect, border_radius=8)
                 fitted_name = self._fit_text(name, name_area_width, self.button_font)
@@ -367,6 +392,13 @@ class MainMenu:
                 screen.blit(edit_text, edit_text.get_rect(center=edit_rect.center))
 
                 self._load_game_row_rects.append((row_rect, name, edit_rect, delete_rect))
+
+            screen.set_clip(prev_clip)
+
+            if self._load_game_content_height > viewport.height:
+                track = py.Rect(w // 2 + row_w // 2 + 12, viewport.y, 6, viewport.height)
+                draw_scrollbar(screen, track, self._load_game_scroll,
+                                self._load_game_content_height, viewport.height)
 
         back_rect = py.Rect(0, 0, 120, 44)
         back_rect.center = (w // 2, h - 50)
