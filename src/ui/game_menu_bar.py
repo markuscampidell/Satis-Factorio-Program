@@ -47,6 +47,8 @@ class GameMenuBar:
         self.close_x_rect = None
         self.save_as_confirm_button_rect = None
         self.save_as_cancel_button_rect = None
+        self.panel_rect = None
+        self.save_as_panel_rect = None
 
     def handle_event(self, event) -> bool:
         """Returns True if this event was consumed and shouldn't propagate
@@ -63,6 +65,11 @@ class GameMenuBar:
                 self.return_to_menu_requested = True
                 self.exit_confirm_dialog = None
                 self.game_menu_open = False
+            elif result == "cancel":
+                # Unlike "no" (exit without saving), an outside click must
+                # not trigger an exit - it just dismisses the dialog and
+                # falls back to the game menu panel behind it.
+                self.exit_confirm_dialog = None
             return True
 
         if self.save_as_message_dialog is not None:
@@ -79,7 +86,7 @@ class GameMenuBar:
                 self.save_as_open = False
                 self.save_as_input = None
                 self.game_menu_open = False
-            elif result == "no":
+            elif result in ("no", "cancel"):
                 # Let them adjust the name rather than discarding it.
                 name = self._pending_save_as_name
                 self.save_as_confirm_dialog = None
@@ -88,6 +95,12 @@ class GameMenuBar:
             return True
 
         if self.save_as_open:
+            if (event.type == py.MOUSEBUTTONDOWN and event.button == 1
+                    and self.save_as_panel_rect and not self.save_as_panel_rect.collidepoint(event.pos)):
+                self.save_as_open = False
+                self.save_as_input = None
+                return True
+
             self.save_as_input.handle_event(event)
 
             if self.save_as_input.submitted:
@@ -115,7 +128,9 @@ class GameMenuBar:
                 return True
 
             if event.type == py.MOUSEBUTTONDOWN and event.button == 1:
-                if self.close_x_rect and self.close_x_rect.collidepoint(event.pos):
+                if self.panel_rect and not self.panel_rect.collidepoint(event.pos):
+                    self.game_menu_open = False
+                elif self.close_x_rect and self.close_x_rect.collidepoint(event.pos):
                     self.game_menu_open = False
                 elif self.menu_button_rect and self.menu_button_rect.collidepoint(event.pos):
                     self.game_menu_open = False
@@ -141,7 +156,7 @@ class GameMenuBar:
 
     def _open_save_as(self, initial_text):
         w, h = self.get_screen_size()
-        rect = py.Rect(0, 0, 280, 44)
+        rect = py.Rect(0, 0, 320, 44)
         rect.center = (w // 2, h // 2 - 10)
         self.save_as_input = TextInput(rect, initial_text=initial_text)
         self.save_as_open = True
@@ -206,6 +221,7 @@ class GameMenuBarRenderer:
 
         panel = py.Rect(0, 0, 320, 280)
         panel.center = (w // 2, h // 2)
+        bar.panel_rect = panel
         py.draw.rect(screen, (240, 240, 240), panel, border_radius=10)
         py.draw.rect(screen, (60, 60, 60), panel, width=2, border_radius=10)
 
@@ -240,8 +256,9 @@ class GameMenuBarRenderer:
         bar = self.bar
         w, h = screen.get_size()
 
-        panel = py.Rect(0, 0, 340, 160)
+        panel = py.Rect(0, 0, 360, 160)
         panel.center = (w // 2, h // 2)
+        bar.save_as_panel_rect = panel
         py.draw.rect(screen, (240, 240, 240), panel, border_radius=10)
         py.draw.rect(screen, (60, 60, 60), panel, width=2, border_radius=10)
 

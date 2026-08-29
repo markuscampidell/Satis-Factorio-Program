@@ -41,8 +41,9 @@ class TextInput:
             return
 
         if event.type == py.TEXTINPUT:
-            if len(self.text) < self.MAX_LENGTH:
-                self.text = self.text[:self.cursor_pos] + event.text + self.text[self.cursor_pos:]
+            candidate = self.text[:self.cursor_pos] + event.text + self.text[self.cursor_pos:]
+            if len(candidate) <= self.MAX_LENGTH and self._fits(candidate):
+                self.text = candidate
                 self.cursor_pos += len(event.text)
                 self._show_cursor()
         elif event.type == py.KEYDOWN:
@@ -72,6 +73,14 @@ class TextInput:
                 self.submitted = True
             elif event.key == py.K_ESCAPE:
                 self.cancelled = True
+
+    def _fits(self, text):
+        """Whether text, rendered in this box's font, still fits inside the
+        box's own width - so the limit tracks each box's actual size
+        instead of a single character count shared by every input across
+        the menu (a name typed wide-character-heavy, e.g. all 'M's, would
+        otherwise overflow a narrow box long before MAX_LENGTH is hit)."""
+        return self.font.size(text)[0] <= self.rect.width - 16
 
     def _index_at_x(self, screen_x):
         """Nearest character boundary to a click's x coordinate."""

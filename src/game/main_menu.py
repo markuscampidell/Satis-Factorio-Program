@@ -74,7 +74,7 @@ class MainMenu:
                     self._clear_modal_state()
                     self.screen_state = "root"
                     return ("start_new_game", name)
-            elif result == "no":
+            elif result in ("no", "cancel"):
                 if self.confirm_action == "new_game":
                     # Let them adjust the name rather than starting over blank.
                     name = self.pending_new_game_name
@@ -170,6 +170,13 @@ class MainMenu:
         return ("start_new_game", name)
 
     def _handle_load_game_event(self, event):
+        # message_dialog/confirm_dialog/rename_input are all checked before
+        # dispatching here (see handle_event), so reaching this point already
+        # means no other panel is open over the load game screen.
+        if event.type == py.KEYDOWN and event.key == py.K_ESCAPE:
+            self.screen_state = "root"
+            return None
+
         if event.type != py.MOUSEBUTTONDOWN or event.button != 1:
             return None
 
@@ -194,11 +201,17 @@ class MainMenu:
     def _open_rename(self, name):
         self.rename_target = name
         w, h = self.get_screen_size()
-        rect = py.Rect(0, 0, 300, 44)
+        rect = py.Rect(0, 0, 320, 44)
         rect.center = (w // 2, h // 2)
         self.rename_input = TextInput(rect, initial_text=name)
 
     def _handle_rename_input_event(self, event):
+        if (event.type == py.MOUSEBUTTONDOWN and event.button == 1
+                and not self.rename_input.rect.collidepoint(event.pos)):
+            self.rename_input = None
+            self.rename_target = None
+            return None
+
         self.rename_input.handle_event(event)
 
         if self.rename_input.submitted:
@@ -331,12 +344,14 @@ class MainMenu:
         else:
             row_w, row_h, spacing = 420, 44, 10
             top = 120
+            name_area_width = row_w - 12 - 74  # left padding + reserved space for edit/delete buttons
             for i, name in enumerate(self.saves):
                 row_rect = py.Rect(0, 0, row_w, row_h)
                 row_rect.center = (w // 2, top + i * (row_h + spacing) + row_h // 2)
 
                 py.draw.rect(screen, (90, 90, 90), row_rect, border_radius=8)
-                text = self.button_font.render(name, True, "#FFFFFF")
+                fitted_name = self._fit_text(name, name_area_width, self.button_font)
+                text = self.button_font.render(fitted_name, True, "#FFFFFF")
                 screen.blit(text, text.get_rect(midleft=(row_rect.x + 12, row_rect.centery)))
 
                 delete_rect = py.Rect(0, 0, 32, 32)

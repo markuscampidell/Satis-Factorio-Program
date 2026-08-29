@@ -11,6 +11,7 @@ class Game:
     def __init__(self):
         py.init()
         py.key.start_text_input()
+        py.key.set_repeat(500, 33)  # OS-style key repeat: 500ms delay, ~30/sec thereafter
 
         window_size = (max(1280, MIN_SCREEN_SIZE[0]), max(720, MIN_SCREEN_SIZE[1]))
         self.screen = py.display.set_mode(window_size, py.RESIZABLE)
