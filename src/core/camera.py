@@ -35,3 +35,16 @@ class Camera:
             self.y -= (self.margin - playery) * self.smooth
         elif playery > self.screen_height - self.margin:
             self.y += (playery - (self.screen_height - self.margin)) * self.smooth
+
+    def visible_tile_rect(self, cell_size):
+        """(left, top, right, bottom) tile bounds of what's currently on
+        screen, right/bottom exclusive - centralizes the camera-bounds math
+        world_renderer.py used to duplicate ad hoc in two places. Cast to
+        int since camera.x/y drift to floats (the soft-follow smoothing in
+        update() adds fractional amounts each frame), but a tile coordinate
+        used as a chunk-range bound needs to be an actual int."""
+        left = int(self.x // cell_size)
+        top = int(self.y // cell_size)
+        right = int((self.x + self.screen_width) // cell_size) + 1
+        bottom = int((self.y + self.screen_height) // cell_size) + 1
+        return left, top, right, bottom

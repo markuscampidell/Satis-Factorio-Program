@@ -29,7 +29,7 @@ class GameOrchestrator:
             """Runs one tick of the actual game world: moves the player,
             follows them with the camera, and advances belts and
             machines."""
-            self.context.player.update(self.context.world.machines)
+            self.context.player.update(self.context.world.machines_near(self.context.player.rect))
             self.context.camera.update(self.context.player)
     
             if self.context.hand_crafting_ui.open:

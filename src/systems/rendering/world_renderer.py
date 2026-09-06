@@ -28,18 +28,15 @@ class WorldRenderer:
     def _draw_grid(self, screen):
         if self.build_system.build_mode is not None:
             self.grid.draw(screen, self.camera)
+            self.grid.draw_chunk_borders(screen, self.camera)
 
     def _draw_belt_segments(self, screen):
         """Draws every belt tile that's actually on screen, plus a small
         badge on the ones with an active filter."""
         cell_size = self.grid.CELL_SIZE
+        camera_left, camera_top, camera_right, camera_bottom = self.camera.visible_tile_rect(cell_size)
 
-        camera_left = self.camera.x // cell_size
-        camera_top = self.camera.y // cell_size
-        camera_right = (self.camera.x + self.camera.screen_width) // cell_size + 1
-        camera_bottom = (self.camera.y + self.camera.screen_height) // cell_size + 1
-
-        for seg in self.world.belt_segments:
+        for seg in self.world.belt_segments_in_tile_rect(camera_left, camera_top, camera_right, camera_bottom):
             gx, gy = seg.grid_pos
 
             if camera_left <= gx < camera_right and camera_top <= gy < camera_bottom:
@@ -62,8 +59,12 @@ class WorldRenderer:
 
     def _draw_items(self, screen):
         """Draws every item currently traveling on a belt or animating
-        into a machine."""
-        for seg in self.world.belt_segments:
+        into a machine, restricted to the belts/machines actually near the
+        camera."""
+        cell_size = self.grid.CELL_SIZE
+        camera_left, camera_top, camera_right, camera_bottom = self.camera.visible_tile_rect(cell_size)
+
+        for seg in self.world.belt_segments_in_tile_rect(camera_left, camera_top, camera_right, camera_bottom):
             if seg.item:
                 self.item_renderer.draw_item(
                     screen,
@@ -74,7 +75,7 @@ class WorldRenderer:
                     seg.current_incoming_direction or seg.direction
                 )
 
-        for machine in self.world.machines:
+        for machine in self.world.machines_in_tile_rect(camera_left, camera_top, camera_right, camera_bottom):
             if hasattr(machine, "current_item") and machine.current_item:
                 self.item_renderer.draw_item(
                     screen,
@@ -99,12 +100,9 @@ class WorldRenderer:
     def _draw_machines(self, screen):
         """Draws every machine that's actually on screen, skipping the
         ones the camera can't currently see."""
-        camera_left = self.camera.x // self.grid.CELL_SIZE
-        camera_top = self.camera.y // self.grid.CELL_SIZE
-        camera_right = (self.camera.x + self.camera.screen_width) // self.grid.CELL_SIZE + 1
-        camera_bottom = (self.camera.y + self.camera.screen_height) // self.grid.CELL_SIZE + 1
+        camera_left, camera_top, camera_right, camera_bottom = self.camera.visible_tile_rect(self.grid.CELL_SIZE)
 
-        for machine in self.world.machines:
+        for machine in self.world.machines_in_tile_rect(camera_left, camera_top, camera_right, camera_bottom):
             # Check if any of the machine's tiles are inside camera view
             for gx, gy in machine.occupied_cells:
                 if camera_left <= gx < camera_right and camera_top <= gy < camera_bottom:
