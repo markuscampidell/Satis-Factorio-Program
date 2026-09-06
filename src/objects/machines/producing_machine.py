@@ -33,7 +33,7 @@ class ProducingMachine(Machine):
         that's finished."""
         self._update_processing(dt)
         self.input_animator.update(dt)
-        push_output(self, belt_map or {}, machine_map or {})
+        push_output(self, belt_map or {})
 
     def _update_processing(self, dt):
         """Runs the crafting timer forward and finishes a batch whenever
@@ -78,9 +78,8 @@ class ProducingMachine(Machine):
     def try_receive_item(self, item, source_grid_pos, direction=None, source_speed=None):
         """Try to add `item` to whichever input inventory actually needs
         it (matches the recipe input and has room). Triggers the visual
-        "item traveling in" animation on success. Accepts from any side, so
-        `direction` is unused - it's part of Machine's shared signature,
-        not every machine type cares which way an item is arriving from.
+        "item traveling in" animation on success - accepts from any side,
+        but `direction` still steers which way that animation slides.
         `source_speed` is the feeding belt's tiles/sec, if there is one, so
         the animation matches how fast that belt actually moves."""
         inv = self.input_inventories.get(item.item_id)
@@ -90,7 +89,7 @@ class ProducingMachine(Machine):
         if not inv.try_add_items(item, 1):
             return False
 
-        self.input_animator.start(item, source_grid_pos, self.grid_pos, self.WIDTH, self.HEIGHT, tiles_per_sec=source_speed)
+        self.input_animator.start(item, source_grid_pos, direction, tiles_per_sec=source_speed)
         return True
 
     def _complete_process(self):

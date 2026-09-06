@@ -1,10 +1,11 @@
 # objects.machines.input_animator
 
 class InputAnimator:
-    """Tracks purely-visual animations of items traveling from a belt tile
-    to a machine's center, played after the item has already been added to
-    the machine's input inventory (the transport itself already happened -
-    this just shows it happening)."""
+    """Tracks purely-visual animations of items taking one more step in the
+    belt's direction, played after the item has already been added to a
+    machine's input inventory (the transport itself already happened - this
+    just shows it happening). Doesn't know or care where the machine
+    actually is."""
 
     DEFAULT_TILES_PER_SEC = 2.0
 
@@ -12,19 +13,19 @@ class InputAnimator:
         self.cell_size = cell_size
         self.animations = []
 
-    def start(self, item, source_grid_pos, target_grid_pos, target_width, target_height, tiles_per_sec=None):
-        """Starts a new item flying from the belt into the machine's
-        center, timed so it takes about as long as the belt it came from
-        would have taken to cover that same distance."""
+    def start(self, item, source_grid_pos, direction, tiles_per_sec=None):
+        """Starts a new item sliding one tile forward, in whichever
+        direction it was already traveling, timed to match the speed of
+        the belt it came from."""
         entry_x = source_grid_pos[0] * self.cell_size + self.cell_size // 2
         entry_y = source_grid_pos[1] * self.cell_size + self.cell_size // 2
-        target_x = target_grid_pos[0] * self.cell_size + (target_width * self.cell_size) // 2
-        target_y = target_grid_pos[1] * self.cell_size + (target_height * self.cell_size) // 2
+        dx = direction.x if direction else 0
+        dy = direction.y if direction else 0
+        target_x = entry_x + dx * self.cell_size
+        target_y = entry_y + dy * self.cell_size
 
-        distance = ((target_x - entry_x) ** 2 + (target_y - entry_y) ** 2) ** 0.5
         speed = tiles_per_sec if tiles_per_sec is not None else self.DEFAULT_TILES_PER_SEC
-        speed_pixels_per_sec = speed * self.cell_size
-        duration = max(distance / speed_pixels_per_sec, 0.001)
+        duration = max(1.0 / speed, 0.001)
 
         self.animations.append({
             "item": item,

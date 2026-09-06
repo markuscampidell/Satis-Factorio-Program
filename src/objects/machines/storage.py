@@ -27,17 +27,17 @@ class Storage(Machine):
 
     def update(self, dt, belt_map=None, machine_map=None):
         self.input_animator.update(dt)
-        push_storage_output(self, belt_map or {}, machine_map or {})
+        push_storage_output(self, belt_map or {})
 
     def try_receive_item(self, item, source_grid_pos, direction=None, source_speed=None):
         """Same shared Machine.try_receive_item signature as
-        ProducingMachine - accepts from any side, so `direction` is
-        unused. Unlike a recipe machine, any item is accepted as long as
-        there's room for it."""
+        ProducingMachine - accepts from any side, though `direction` still
+        steers which way the input animation slides. Unlike a recipe
+        machine, any item is accepted as long as there's room for it."""
         if not self.inventory.try_add_items(item, 1):
             return False
 
-        self.input_animator.start(item, source_grid_pos, self.grid_pos, self.WIDTH, self.HEIGHT, tiles_per_sec=source_speed)
+        self.input_animator.start(item, source_grid_pos, direction, tiles_per_sec=source_speed)
         return True
 
     def get_refund_items(self):
