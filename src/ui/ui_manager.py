@@ -18,3 +18,17 @@ class UIManager:
     def close_all_uis(self):
         for ui in self.uis.values():
             ui.open = False
+
+    def close_uis_clicked_outside(self, mx, my):
+        """If (mx, my) doesn't land inside any currently-open UI's rect,
+        closes every UI panel at once - so clicking away from whatever's
+        open (a machine panel, storage, a filter panel, the player
+        inventory, handcrafting, any combination of them being open
+        together) dismisses all of it in one click, rather than each panel
+        only knowing how to close itself."""
+        open_uis = [ui for ui in self.uis.values() if ui.open]
+        if not open_uis:
+            return
+        if any(ui.rect.collidepoint(mx, my) for ui in open_uis):
+            return
+        self.close_all_uis()

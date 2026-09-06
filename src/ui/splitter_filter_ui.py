@@ -66,18 +66,7 @@ class SplitterFilterUI:
                     for panel, output_filter in zip(self.panels, self.selected_splitter.output_filters):
                         if panel.handle_click(mx, my, output_filter, right_click=right_click):
                             break
-            self._handle_close_click(left_click, mx, my)
             self._handle_visibility()
-
-    def _handle_close_click(self, left_click, mx, my):
-        if not left_click:
-            return
-        if mx is not None and my is not None:
-            if self.rect.collidepoint(mx, my):
-                return
-            if self.player_inventory_ui.open and self.player_inventory_ui.rect.collidepoint(mx, my):
-                return
-        self.close()
 
     def _handle_visibility(self):
         if not self.selected_splitter:

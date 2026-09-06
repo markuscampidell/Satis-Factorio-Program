@@ -2,7 +2,7 @@
 import pygame as py
 
 from constants.itemdata import get_item_by_id
-from ui.slot_drawing import draw_item_slot_contents
+from ui.slot_drawing import draw_item_slot_contents, draw_hovered_item_tooltip
 
 
 class MachineSlotRenderer:
@@ -15,13 +15,14 @@ class MachineSlotRenderer:
     def __init__(self):
         self.font_small = py.font.SysFont("Arial", 16)
         self.font_tiny = py.font.SysFont("Arial", 10)
+        self.font_tooltip = py.font.SysFont("Arial", 16)
         self._arrow_color = None
         self._ghost_sprite_cache = {}
 
     def draw(self, screen, ui):
         ui.slot_rects.clear()
         padding = 40
-        input_y = ui.rect.y + padding
+        input_y = ui.rect.y + padding + ui.TITLE_HEIGHT
         output_y = ui.rect.bottom - padding - self.SLOT_SIZE
         input_x = output_x = ui.rect.x + padding
 
@@ -29,6 +30,9 @@ class MachineSlotRenderer:
         self._draw_input_slots(screen, ui, input_x, input_y, machine.recipe.inputs_per_minute())
         self._draw_output_slots(screen, ui, output_x, output_y, machine.output_inventories, machine.recipe.outputs_per_minute())
         self._draw_processing_arrow(screen, ui)
+
+        hover_entries = [(rect, item_id) for rect, item_id, kind in ui.slot_rects]
+        draw_hovered_item_tooltip(screen, self.font_tooltip, hover_entries)
 
     def _draw_input_slots(self, screen, ui, x, y, inputs_per_min):
         slot_spacing = 10

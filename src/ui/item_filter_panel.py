@@ -3,6 +3,7 @@ import pygame as py
 
 from constants.itemdata import ITEMS, get_item_by_id
 from objects.item_filter import ItemFilter
+from ui.slot_drawing import draw_hovered_item_tooltip
 
 SLOT_SIZE = 36
 SLOT_GAP = 4
@@ -46,6 +47,7 @@ class ItemFilterPanel:
 
         self.label_font = py.font.SysFont("Arial", 18, bold=True)
         self.checkbox_font = py.font.SysFont("Arial", 15)
+        self.font_tooltip = py.font.SysFont("Arial", 16)
 
     def content_size(self, with_label=True):
         grid_width, grid_height = _grid_size(ItemFilter.SLOT_COUNT, self.columns)
@@ -80,6 +82,7 @@ class ItemFilterPanel:
     def _draw_slots(self, screen, top_left, item_filter):
         self.slot_rects = []
         enabled = item_filter.enabled
+        hover_entries = []
 
         for index in range(ItemFilter.SLOT_COUNT):
             rect = _grid_cell_rect(top_left, index, self.columns)
@@ -99,8 +102,11 @@ class ItemFilterPanel:
                             img = img.copy()
                             img.set_alpha(100)
                         screen.blit(img, (rect.x + 3, rect.y + 3))
+                hover_entries.append((rect, item))
 
             self.slot_rects.append((rect, index))
+
+        draw_hovered_item_tooltip(screen, self.font_tooltip, hover_entries)
 
     def handle_click(self, mx, my, item_filter, right_click=False):
         """Returns True if the click landed on one of this panel's own
@@ -142,6 +148,7 @@ class ItemPickerOverlay:
         self.bounds = None
 
         self.title_font = py.font.SysFont("Arial", 15, bold=True)
+        self.font_tooltip = py.font.SysFont("Arial", 16)
 
     @property
     def is_open(self):
@@ -187,6 +194,8 @@ class ItemPickerOverlay:
 
         grid_width, grid_height = _grid_size(len(ITEMS), self.COLUMNS)
         self.bounds = py.Rect(grid_top[0], grid_top[1], grid_width, grid_height)
+
+        draw_hovered_item_tooltip(screen, self.font_tooltip, self.item_rects)
 
     def handle_click(self, mx, my, right_click=False):
         """Returns True if the click was consumed by the picker (whether

@@ -16,6 +16,7 @@ class MachineUIRenderer:
     def __init__(self, machine_ui):
         self.machine_ui = machine_ui
         self.font = py.font.SysFont("Arial", 24)
+        self.title_font = py.font.SysFont("Arial", 22)
         self.slot_renderer = MachineSlotRenderer()
         self.recipe_list_renderer = MachineRecipeListRenderer()
 
@@ -28,6 +29,10 @@ class MachineUIRenderer:
         ui.rect.center = (screen.get_width() // 2, screen.get_height() // 2)
 
         screen.blit(ui.sprite, ui.rect)
+
+        title = self.title_font.render(type(ui.selected_machine).__name__, True, "#000000")
+        screen.blit(title, title.get_rect(midtop=(ui.rect.centerx, ui.rect.y + 8)))
+
         self._draw_progress_bar(screen)
         self.slot_renderer.draw(screen, ui)
         self.recipe_list_renderer.draw(screen, ui)

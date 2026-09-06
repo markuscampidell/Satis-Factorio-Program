@@ -10,8 +10,10 @@ class ProducingMachineUI:
     producing machine's panel - always centered on screen while open.
     Drawing lives in MachineUIRenderer."""
 
+    TITLE_HEIGHT = 34
+
     def __init__(self, camera, world, player, player_inventory_ui, screen, panel_side="right"):
-        self.sprite = py.Surface((400, 300), py.SRCALPHA)
+        self.sprite = py.Surface((400, 300 + self.TITLE_HEIGHT), py.SRCALPHA)
         self.rect = self.sprite.get_rect(center=(camera.screen_width // 2, camera.screen_height // 2))
         # Draw rounded panel background
         py.draw.rect(self.sprite, "#CAC8E4", self.sprite.get_rect(), border_radius=18)
@@ -44,7 +46,6 @@ class ProducingMachineUI:
         if self.open and self.selected_machine:
             self._handle_recipe_click(left_click, mx, my)
             self._handle_slot_click(left_click, mx, my)
-            self._handle_close_click(left_click, mx, my)
             self._handle_visibility()
 
     def _handle_recipe_click(self, left_click, mx, my):
@@ -83,16 +84,6 @@ class ProducingMachineUI:
             else:
                 move_all_of_type(inv, 0, 0, self.player.inventory)
             return
-
-    def _handle_close_click(self, left_click, mx, my):
-        if not left_click:
-            return
-        if mx is not None and my is not None:
-            if self.rect.collidepoint(mx, my):
-                return
-            if self.player_inventory_ui.open and self.player_inventory_ui.rect.collidepoint(mx, my):
-                return
-        self.close()
 
     def _handle_visibility(self):
         if not self.selected_machine:

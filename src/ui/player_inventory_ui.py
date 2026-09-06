@@ -4,7 +4,7 @@ import pygame as py
 from constants.itemdata import get_item_by_id
 from entities.inventory_transfer import move_stack, move_all_of_type
 from ui.modifier_keys import get_shift_ctrl
-from ui.slot_drawing import draw_item_slot_contents
+from ui.slot_drawing import draw_item_slot_contents, draw_hovered_item_tooltip
 
 class PlayerInventoryUI:
     """Draws the player's own inventory grid, and lets you shift/ctrl-click
@@ -12,6 +12,7 @@ class PlayerInventoryUI:
 
     SLOT_SIZE = 48
     PADDING = 10
+    TITLE_HEIGHT = 40
 
     def __init__(self, player, get_screen_size, panel_side="left"):
         self.player = player
@@ -20,7 +21,7 @@ class PlayerInventoryUI:
         self.open = False
 
         self.width = self.player.inventory.width * self.SLOT_SIZE + self.PADDING * 2
-        self.height = self.player.inventory.height * self.SLOT_SIZE + self.PADDING * 2
+        self.height = self.player.inventory.height * self.SLOT_SIZE + self.PADDING * 2 + self.TITLE_HEIGHT
 
         # Panel Surface
         self.sprite = py.Surface((self.width, self.height), py.SRCALPHA)
@@ -33,11 +34,10 @@ class PlayerInventoryUI:
 
         self.font_small = py.font.SysFont("Arial", 14)
         self.font_tooltip = py.font.SysFont("Arial", 16)
+        self.font_title = py.font.SysFont("Arial", 22)
 
         # Hover
         self.slot_rects = []
-        self._hovered_item = None
-        self._tooltip_visible = False
 
     def draw(self, screen):
         if not self.open:
@@ -50,6 +50,9 @@ class PlayerInventoryUI:
 
         screen.blit(self.sprite, self.rect.topleft)
 
+        title = self.font_title.render("Inventory", True, "#000000")
+        screen.blit(title, title.get_rect(midtop=(self.rect.centerx, self.rect.y + 8)))
+
         self._draw_grid_slots(screen)
         self._handle_hover(screen)
 
@@ -59,7 +62,7 @@ class PlayerInventoryUI:
         for y in range(self.player.inventory.height):
             for x in range(self.player.inventory.width):
                 left = self.rect.x + self.PADDING + x * self.SLOT_SIZE
-                top = self.rect.y + self.PADDING + y * self.SLOT_SIZE
+                top = self.rect.y + self.PADDING + self.TITLE_HEIGHT + y * self.SLOT_SIZE
                 width = self.SLOT_SIZE
                 height = self.SLOT_SIZE
 
@@ -77,49 +80,8 @@ class PlayerInventoryUI:
                     self.slot_rects.append((slot_rect, item, x, y))
 
     def _handle_hover(self, screen):
-        mx, my = py.mouse.get_pos()
-        hovered_item = None
-
-        for rect, item, x, y in self.slot_rects:
-            if rect.collidepoint(mx, my):
-                hovered_item = item
-                break
-
-        if hovered_item != self._hovered_item:
-            self._hovered_item = hovered_item
-            self._tooltip_visible = False
-
-        elif hovered_item: self._tooltip_visible = True
-
-        else: self._tooltip_visible = False
-
-        if self._tooltip_visible and self._hovered_item:
-            self._draw_tooltip(screen, self._hovered_item.name, (mx, my))
-
-    def _draw_tooltip(self, screen, text, pos):
-        padding = 8
-
-        text_surf = self.font_tooltip.render(text, True, "#000000")
-
-        width = text_surf.get_width() + padding * 2
-        height = text_surf.get_height() + padding * 2
-
-        x = pos[0] + 15
-        y = pos[1] + 15
-
-        # Bildschirmgrenzen prüfen
-        if x + width > screen.get_width():
-            x = screen.get_width() - width - 5
-        if y + height > screen.get_height():
-            y = screen.get_height() - height - 5
-
-        panel_color = (202, 200, 228, 220)
-
-        tooltip_surface = py.Surface((width, height), py.SRCALPHA)
-        py.draw.rect(tooltip_surface, panel_color, tooltip_surface.get_rect(), border_radius=12)
-
-        tooltip_surface.blit(text_surf, (padding, padding))
-        screen.blit(tooltip_surface, (x, y))
+        hover_entries = [(rect, item) for rect, item, x, y in self.slot_rects]
+        draw_hovered_item_tooltip(screen, self.font_tooltip, hover_entries)
 
     def handle_event(self, event, machine_ui, storage_ui):
         """Shift+click a slot to move that stack into whichever other panel

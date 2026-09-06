@@ -54,18 +54,7 @@ class BeltFilterUI:
                     self.picker.handle_click(mx, my, right_click=right_click)
                 else:
                     self.panel.handle_click(mx, my, self.selected_belt.filter, right_click=right_click)
-            self._handle_close_click(left_click, mx, my)
             self._handle_visibility()
-
-    def _handle_close_click(self, left_click, mx, my):
-        if not left_click:
-            return
-        if mx is not None and my is not None:
-            if self.rect.collidepoint(mx, my):
-                return
-            if self.player_inventory_ui.open and self.player_inventory_ui.rect.collidepoint(mx, my):
-                return
-        self.close()
 
     def _handle_visibility(self):
         if not self.selected_belt:

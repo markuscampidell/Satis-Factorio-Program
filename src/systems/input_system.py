@@ -45,6 +45,13 @@ class InputSystem:
 
         if event.key == py.K_f:
             if not self.hand_crafting_ui.open:
+                # A splitter's or belt's filter panel is a standalone,
+                # exclusive UI - not meant to be open alongside handcrafting
+                # (no item transfer between them, and both being open at
+                # once just crowds the screen) - so opening handcrafting
+                # kicks it out instead of stacking on top of it.
+                self.belt_filter_ui.close()
+                self.splitter_filter_ui.close()
                 self.build_system.reset_build_state()
                 self.machine_ui.close()
                 self.storage_ui.close()
@@ -55,6 +62,11 @@ class InputSystem:
             return
 
         if event.key == py.K_TAB:
+            # Same exclusivity as handcrafting above - the player inventory
+            # has nothing to do with a splitter/belt filter panel, so
+            # opening it closes that instead of piling on top of it.
+            self.belt_filter_ui.close()
+            self.splitter_filter_ui.close()
             if not self.player_inventory_ui.open:
                 self.build_system.reset_build_state()
             self.ui_manager.toggle_ui("player_inventory")

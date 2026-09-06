@@ -1,7 +1,7 @@
 # ui.storage_ui_renderer
 import pygame as py
 
-from ui.slot_drawing import draw_item_slot_contents
+from ui.slot_drawing import draw_item_slot_contents, draw_hovered_item_tooltip
 
 
 class StorageUIRenderer:
@@ -15,6 +15,7 @@ class StorageUIRenderer:
         self.ui = storage_ui
         self.title_font = py.font.SysFont("Arial", 22)
         self.font_small = py.font.SysFont("Arial", 14)
+        self.font_tooltip = py.font.SysFont("Arial", 16)
 
     def draw(self, screen):
         ui = self.ui
@@ -47,3 +48,6 @@ class StorageUIRenderer:
                 draw_item_slot_contents(screen, slot, slot_rect, self.font_small)
 
                 ui.slot_rects.append((slot_rect, x, y, slot["item"] if slot else None))
+
+        hover_entries = [(rect, item_id) for rect, x, y, item_id in ui.slot_rects]
+        draw_hovered_item_tooltip(screen, self.font_tooltip, hover_entries)

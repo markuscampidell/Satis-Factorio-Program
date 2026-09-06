@@ -2,6 +2,7 @@
 import pygame as py
 
 from constants.itemdata import get_item_by_id
+from ui.slot_drawing import draw_hovered_item_tooltip
 
 class RecipeUI:
     """Draws a small popup showing a recipe's name, inputs, outputs, and
@@ -10,6 +11,7 @@ class RecipeUI:
     def __init__(self):
         self.font = py.font.SysFont("Arial", 20)
         self.small_font = py.font.SysFont("Arial", 16)
+        self.font_tooltip = py.font.SysFont("Arial", 16)
 
     def draw_recipe_panel(self, screen, recipe, parent_rect=None, panel_side="right", custom_rect=None):
         panel_width, panel_height = 320, 180
@@ -26,11 +28,13 @@ class RecipeUI:
 
             panel_y = parent_rect.y + 40
             panel_rect = py.Rect(panel_x, panel_y, panel_width, panel_height)
-            
+
         panel = py.Surface((panel_rect.width, panel_rect.height), py.SRCALPHA)
         py.draw.rect(panel, (202, 200, 228, 220), panel.get_rect(), border_radius=18)
 
         panel.blit(self.font.render(recipe.name, True, "#000000"), (16, 16))
+
+        icon_hover_entries = []
 
         panel.blit(self.small_font.render("Inputs:", True, "#000000"), (16, 48))
         x = 90
@@ -39,6 +43,7 @@ class RecipeUI:
             if item and item.sprite:
                 sprite = py.transform.scale(item.sprite, (24, 24))
                 panel.blit(sprite, (x, 48))
+                icon_hover_entries.append((py.Rect(panel_rect.x + x, panel_rect.y + 48, 24, 24), item))
             panel.blit(self.small_font.render(f"x{amount}", True, "#000000"), (x + 28, 52))
             x += 70
 
@@ -49,6 +54,7 @@ class RecipeUI:
             if item and item.sprite:
                 sprite = py.transform.scale(item.sprite, (24, 24))
                 panel.blit(sprite, (x, 88))
+                icon_hover_entries.append((py.Rect(panel_rect.x + x, panel_rect.y + 88, 24, 24), item))
             panel.blit(self.small_font.render(f"x{amount}", True, "#000000"), (x + 28, 92))
             x += 70
 
@@ -63,3 +69,4 @@ class RecipeUI:
         )
 
         screen.blit(panel, panel_rect)
+        draw_hovered_item_tooltip(screen, self.font_tooltip, icon_hover_entries)

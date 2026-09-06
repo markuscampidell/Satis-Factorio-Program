@@ -3,6 +3,7 @@ import pygame as py
 
 from ui.recipe_ui import RecipeUI
 from ui.scroll import clamp_scroll, draw_scrollbar
+from ui.slot_drawing import draw_hovered_item_tooltip
 from constants.itemdata import get_item_by_id
 
 
@@ -14,6 +15,7 @@ class HandCraftingRenderer:
         self.ui = hand_crafting_ui
         self.font = py.font.SysFont("Arial", 20)
         self.small_font = py.font.SysFont("Arial", 16)
+        self.font_tooltip = py.font.SysFont("Arial", 16)
         self.recipe_ui = RecipeUI()
 
         # Hover
@@ -67,6 +69,7 @@ class HandCraftingRenderer:
         prev_clip = screen.get_clip()
         screen.set_clip(viewport)
 
+        icon_hover_entries = []
         y = viewport.y - ui.scroll_offset
         for i, recipe in enumerate(recipes):
             r = py.Rect(ui.rect.x + 10, y, ui.width - 34, 40)
@@ -86,7 +89,9 @@ class HandCraftingRenderer:
                     item = get_item_by_id(item_id)
                     if item and item.sprite:
                         sprite = py.transform.scale(item.sprite, (24, 24))
-                        screen.blit(sprite, (output_x, r.y + 8))
+                        sprite_rect = py.Rect(output_x, r.y + 8, 24, 24)
+                        screen.blit(sprite, sprite_rect)
+                        icon_hover_entries.append((sprite_rect, item))
                         output_x += 28  # move to the right for next sprite
 
                 ui.recipe_rects.append((r, recipe))
@@ -94,6 +99,7 @@ class HandCraftingRenderer:
             y += row_h  # spacing between recipes
 
         screen.set_clip(prev_clip)
+        draw_hovered_item_tooltip(screen, self.font_tooltip, icon_hover_entries)
 
         if ui.recipe_list_content_height > viewport.height:
             track = py.Rect(ui.rect.right - 16, viewport.y, 6, viewport.height)

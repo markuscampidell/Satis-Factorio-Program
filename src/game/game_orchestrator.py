@@ -71,7 +71,18 @@ class GameOrchestrator:
                     and not self.context.splitter_filter_ui.open):
                 self.context.game_menu_bar.game_menu_open = True
                 return
-    
+
+            # A left click that lands outside every currently-open UI panel
+            # dismisses all of them at once, before any panel gets a chance
+            # to react to it - not while placing/deleting (a build/delete
+            # click means something else entirely), and not on the same
+            # click that just placed a machine (handled the same way the
+            # individual panels already guarded against it).
+            if (event.type == py.MOUSEBUTTONDOWN and event.button == 1
+                    and self.context.build_system.build_mode is None
+                    and not self.context.machine_system.just_placed_machine):
+                self.context.ui_manager.close_uis_clicked_outside(*event.pos)
+
             self.context.input_system.handle_keys(event)
             self.context.input_system.handle_mouse(event)
     

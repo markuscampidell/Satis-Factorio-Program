@@ -3,6 +3,7 @@ import pygame as py
 
 from constants.itemdata import get_item_by_id
 from ui.recipe_ui import RecipeUI
+from ui.slot_drawing import draw_hovered_item_tooltip
 
 
 class MachineRecipeListRenderer:
@@ -12,11 +13,13 @@ class MachineRecipeListRenderer:
 
     def __init__(self):
         self.font = py.font.SysFont("Arial", 24)
+        self.font_tooltip = py.font.SysFont("Arial", 16)
         self.recipe_ui = RecipeUI()
         self._hovered_recipe = None
 
     def draw(self, screen, ui):
         ui.recipe_rects.clear()
+        icon_hover_entries = []
         padding = 15
         y = ui.rect.y + padding
         right_edge = ui.rect.right - padding
@@ -48,7 +51,9 @@ class MachineRecipeListRenderer:
                 item = get_item_by_id(item_id)
                 if item and hasattr(item, "sprite") and item.sprite:
                     sprite = py.transform.scale(item.sprite, (24, 24))
-                    screen.blit(sprite, (sprite_x, recipe_rect.y + (recipe_rect.height - 24) // 2))
+                    sprite_rect = py.Rect(sprite_x, recipe_rect.y + (recipe_rect.height - 24) // 2, 24, 24)
+                    screen.blit(sprite, sprite_rect)
+                    icon_hover_entries.append((sprite_rect, item))
                     sprite_drawn = True
                     break
 
@@ -58,6 +63,7 @@ class MachineRecipeListRenderer:
             y += rect.height + 10
 
         self._draw_hover_panel(screen, ui)
+        draw_hovered_item_tooltip(screen, self.font_tooltip, icon_hover_entries)
 
     def _draw_hover_panel(self, screen, ui):
         mx, my = py.mouse.get_pos()
