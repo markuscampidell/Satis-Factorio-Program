@@ -6,6 +6,10 @@ from objects.machines.storage import Storage
 from objects.machines.splitter import Splitter
 
 class MachineInteractionSystem:
+    """Handles clicking on a machine or belt out in the world - opens
+    whichever panel matches what you clicked, and keeps track of what's
+    currently hovered for the highlight effect."""
+
     def __init__(self, world, build_system, machine_ui, camera, hand_crafting_ui, storage_ui, player_inventory_ui, belt_filter_ui, splitter_filter_ui, ui_manager):
         self.world = world
         self.build_system = build_system

@@ -1,5 +1,8 @@
 # game.world
 class World:
+    """Keeps track of every machine and belt that's been built, and where
+    each one sits on the grid."""
+
     def __init__(self, player, cell_size):
         self.player = player
         self.cell_size = cell_size
@@ -37,10 +40,12 @@ class World:
 
 
     def add_belt_segment(self, seg):
+        """Add a belt segment and put it in the lookup map."""
         self.belt_segments.append(seg)
         self.belt_map[seg.grid_pos] = seg
 
     def remove_belt_segment(self, seg):
+        """Remove a belt segment from the world and the lookup map."""
         if seg in self.belt_segments:
             self.belt_segments.remove(seg)
         self.belt_map.pop(seg.grid_pos, None)

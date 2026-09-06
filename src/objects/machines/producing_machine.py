@@ -9,6 +9,9 @@ from objects.machines.input_animator import InputAnimator
 from game.grid import Grid
 
 class ProducingMachine(Machine):
+    """A machine that turns input items into output items over time,
+    following a recipe - like a smelter or an assembler."""
+
     def __init__(self, grid_pos, recipe=None, cell_size=Grid.CELL_SIZE):
         super().__init__(grid_pos, cell_size)
         self.recipe = recipe
@@ -25,11 +28,19 @@ class ProducingMachine(Machine):
             self._reset_inventories(recipe)
 
     def update(self, dt, belt_map=None, machine_map=None):
+        """Runs one tick: keeps crafting going, updates the little
+        "item flying in" animation, and tries to push out anything
+        that's finished."""
         self._update_processing(dt)
         self.input_animator.update(dt)
         push_output(self, belt_map or {}, machine_map or {})
 
     def _update_processing(self, dt):
+        """Runs the crafting timer forward and finishes a batch whenever
+        enough time has passed - possibly more than once in a single tick,
+        if crafting is fast enough. Only carries leftover time into the
+        next batch when it can start right away; otherwise it's dropped so
+        an idle wait doesn't give the next batch a head start."""
         if not self.processing and self.can_process():
             self.processing = True
             self.process_timer = 0.0
@@ -83,6 +94,8 @@ class ProducingMachine(Machine):
         return True
 
     def _complete_process(self):
+        """Finishes one batch: takes away the inputs and adds in the
+        outputs."""
         # Remove inputs
         for item_id, amount in self.recipe.inputs.items():
             self.input_inventories[item_id].try_remove_item(item_id, amount)
@@ -108,6 +121,8 @@ class ProducingMachine(Machine):
         self.output_inventories = {item_id: Inventory(slot_width=1, slot_height=1) for item_id in recipe.outputs}
 
     def get_refund_items(self):
+        """Also refunds whatever's currently sitting in the input and
+        output slots."""
         refund = super().get_refund_items()
         for inv in list(self.input_inventories.values()) + list(self.output_inventories.values()):
             for item_id, amount in inv.contents_as_dict().items():
@@ -115,6 +130,9 @@ class ProducingMachine(Machine):
         return refund
 
     def set_recipe(self, recipe, player_inventory):
+        """Switches to a different recipe. Whatever was sitting in the old
+        input/output slots gets handed back to the player first, since the
+        new recipe needs fresh, empty slots."""
         if hasattr(self, "input_inventories"):
             for inv in list(self.input_inventories.values()) + list(self.output_inventories.values()):
                 for item_id, amount in inv.contents_as_dict().items():
@@ -129,6 +147,8 @@ class ProducingMachine(Machine):
         if recipe: self._reset_inventories(recipe)
 
     def to_dict(self):
+        """Saves this machine's chosen recipe and whatever's sitting in
+        its input/output slots."""
         data = super().to_dict()
         data["recipe_id"] = self.recipe.recipe_id if self.recipe else None
         data["input_inventories"] = {item_id: inv.slots for item_id, inv in self.input_inventories.items()}
@@ -137,6 +157,8 @@ class ProducingMachine(Machine):
 
     @classmethod
     def from_dict(cls, data):
+        """Rebuilds this machine from saved data: its recipe, and
+        whatever was sitting in its input/output slots."""
         m = cls(tuple(data["grid_pos"]))
 
         recipe = get_recipe_by_id(data["recipe_id"]) if data["recipe_id"] else None
@@ -166,6 +188,8 @@ class ProducingMachine(Machine):
         self._draw_recipe_outputs(screen, camera)
 
     def _draw_recipe_outputs(self, screen, camera):
+        """Draws small icons of this machine's recipe outputs floating
+        above it, centered and evenly spaced out."""
         if not self.recipe or not self.recipe.outputs:
             return
         images = []

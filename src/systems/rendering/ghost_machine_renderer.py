@@ -39,6 +39,9 @@ class GhostMachineRenderer:
         self.belt_ghost_preview_controller = belt_ghost_preview_controller
 
     def draw(self, selected_machine_class=None, build_mode=None, rotation_steps=0):
+        """Draws the translucent preview of the currently selected
+        machine under the mouse, tinted a color if there's a problem
+        placing it here."""
         if selected_machine_class is None or build_mode != 'building':
             return
         if selected_machine_class is BeltSegment:

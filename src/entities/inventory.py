@@ -1,7 +1,10 @@
 # entities.inventory
-from entities.item import Item
+from constants.itemdata import Item
 
 class Inventory:
+    """A grid of item slots, like a chest or a backpack. Each slot holds
+    one kind of item and how many of it there are."""
+
     MAX_STACK_SIZE = 100
 
     def __init__(self, slot_width:int, slot_height:int):
@@ -10,21 +13,10 @@ class Inventory:
         self.slots = [[None for _ in range(slot_width)] for _ in range(slot_height)] # creates a 2D list of None values representing empty slots
 
     def compact(self):
-        """Packs every occupied slot toward the start (row-major order),
-        filling any empty slot left behind by a removal with whichever
-        occupied slot is currently last, instead of leaving a hole. Called
+        """Packs every occupied slot toward the start. Called
         immediately whenever a removal empties a slot, so the grid never
-        visibly sits with a gap in the middle.
+        visibly sits with a gap in the middle."""
 
-        Deliberately NOT a full re-layout like sort() (which regroups
-        everything by item id from scratch): that would move every stack
-        after the change, not just the one needed to fill the gap - fine
-        for a one-off tidy-up, but visually chaotic if it ran on every
-        single item in/out during heavy belt throughput (stacks would
-        appear to jump between slots, or briefly show in two places at
-        once as they moved). This only ever touches the emptied slot plus,
-        at most, whichever slot used to be last - everything else stays
-        exactly where it was."""
         flat = [self.slots[y][x] for y in range(self.height) for x in range(self.width)]
 
         last = len(flat) - 1
@@ -42,16 +34,10 @@ class Inventory:
         self.slots = [flat[y * self.width:(y + 1) * self.width] for y in range(self.height)]
 
     def merge_stacks(self, item_id):
-        """Consolidates every stack of item_id into as few slots as
-        possible (each up to MAX_STACK_SIZE), without moving any of them
-        to a different position - only their amounts change, so a stack
-        that isn't fully absorbed stays exactly where it was. A stack that
-        does get fully absorbed is set to None; returns True if that
-        happened, so the caller knows to compact() afterward.
+        """Merges every stack of item_id into as few slots as
+        possible using MAX_STACK_SIZE, without moving any of them to a different position in the grid.
+        Returns True if any slots were emptied in the process, else False."""
 
-        Only ever touches slots holding item_id - a removal elsewhere
-        can't cause two unrelated stacks to visibly merge, keeping this as
-        targeted as compact()."""
         positions = [(y, x) for y in range(self.height) for x in range(self.width)
                      if self.slots[y][x] and self.slots[y][x]["item"] == item_id]
         if len(positions) < 2:
@@ -79,15 +65,14 @@ class Inventory:
         return copy
 
     def clear(self):
-        """Empties this inventory in place, keeping the same object
-        identity - important for e.g. the player's inventory, since
-        HandcraftingComponent holds a direct reference to it captured once
-        at construction time rather than looking it up through player.inventory
-        each time; replacing the object instead of mutating it would silently
-        orphan that reference."""
+        """Empties the inventory completely."""
         self.slots = [[None for _ in range(self.width)] for _ in range(self.height)]
 
     def try_add_items(self, item, amount):
+        """Tries to add `amount` of an item to the inventory. Tops up
+        stacks that already have this item first, then uses empty slots
+        for whatever's left. Returns False if there wasn't enough room
+        anywhere."""
         if isinstance(item, Item): item_id = item.item_id
         else: item_id = item
 
@@ -119,7 +104,9 @@ class Inventory:
 
     
     def can_add_items(self, item_id: str, amount: int) -> bool:
-        # Check if the inventory could add a specific amount of an item, return Tre if it can, else False
+        """Checks if there's room for `amount` of an item, without
+        actually adding anything. An empty slot counts as a whole free
+        stack of space."""
         remaining = amount
 
         for y in range(self.height):
@@ -136,7 +123,9 @@ class Inventory:
         return False
 
     def try_remove_item(self, item_id: str, amount: int) -> bool:
-        # Tries to remove a specific amount of an item of the inventory, returns True if successful, else False
+        """Tries to remove `amount` of an item from the inventory. Cleans
+        up any empty gaps and squishes leftover stacks together
+        afterward. Returns False if there wasn't enough to remove."""
 
         remaining = amount
         became_empty = False  # tracked so compact() runs once, after the scan below finishes,
@@ -181,7 +170,9 @@ class Inventory:
         return True
 
     def try_remove_items(self, items: dict[str, int]) -> bool:
-        # Tries to remove all items needed for a build cost
+        """Tries to remove a whole bunch of different items at once. Only
+        does it if there's enough of everything - if even one item is
+        short, nothing gets removed at all."""
 
         if not self.has_enough_items(items): return False
         for item_id, amount in items.items(): self.try_remove_item(item_id, amount)
@@ -189,28 +180,10 @@ class Inventory:
 
     def contents_as_dict(self) -> dict[str, int]:
         """This inventory's total amount of each item it holds, as
-        {item_id: amount} - e.g. for refunding/dumping everything at once."""
+        {item_id: amount}"""
         totals = {}
         for row in self.slots:
             for slot in row:
                 if slot:
                     totals[slot["item"]] = totals.get(slot["item"], 0) + slot["amount"]
         return totals
-
-    def sort(self):
-        """Compacts and groups this inventory's contents: same-item stacks
-        are merged (up to MAX_STACK_SIZE), then everything is laid out from
-        the top-left in item-id order, with empty slots pushed to the end."""
-        totals = self.contents_as_dict()
-
-        flat = [None] * (self.width * self.height)
-        index = 0
-        for item_id in sorted(totals):
-            remaining = totals[item_id]
-            while remaining > 0:
-                amount = min(self.MAX_STACK_SIZE, remaining)
-                flat[index] = {"item": item_id, "amount": amount}
-                remaining -= amount
-                index += 1
-
-        self.slots = [flat[y * self.width:(y + 1) * self.width] for y in range(self.height)]

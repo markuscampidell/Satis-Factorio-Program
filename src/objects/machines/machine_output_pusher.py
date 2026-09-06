@@ -22,6 +22,9 @@ def push_storage_output(storage, belt_map, machine_map):
 
 
 def _push_from_inventory(machine, inv, belt_map, machine_map):
+    """Looks through every slot of one inventory for something to push
+    out, and pushes the first item that actually finds somewhere to go.
+    Cleans up the slot afterward if it emptied out."""
     for row in inv.slots:
         for i, slot in enumerate(row):
             if not (slot and slot["amount"] > 0):
@@ -45,6 +48,9 @@ def _push_from_inventory(machine, inv, belt_map, machine_map):
 
 
 def _try_push_to_tile(machine, item_obj, push_direction, tile_pos, belt_map, machine_map):
+    """Tries to push one item onto whatever sits at a single tile - a belt
+    (only if it's empty, facing the right way, and its filter allows this
+    item) or another machine/storage."""
     belt = belt_map.get(tile_pos)
     if belt is not None:
         # Only a belt facing directly away from us (same direction as

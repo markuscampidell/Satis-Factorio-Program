@@ -6,6 +6,9 @@ from core.vector2 import Vector2
 
 
 class BeltGhostPreviewController:
+    """Draws a see-through preview of belts before you actually place or
+    delete them, tinted a color that shows if you can afford it."""
+
     def __init__(self, world, player, grid, belt_system, ghost_renderer, camera, screen):
         self.world = world
         self.player = player
@@ -47,6 +50,9 @@ class BeltGhostPreviewController:
         self.ghost_renderer.draw_affected_segments(self.screen, self.camera, visible_affected)
 
     def draw_ghost(self, selected_machine_class, placing_belt=False, selected_belt_type="basic"):
+        """Draws the belt placement preview: a single tile if you've only
+        just started, or the whole dragged-out line (colored by whether
+        you can afford it) once you're dragging."""
         if selected_machine_class is not BeltSegment:
             return
 
@@ -160,11 +166,15 @@ class BeltGhostPreviewController:
         self.ghost_renderer.draw_dragging(self.screen, self.camera, visible_segments, color_flags=visible_flags)
 
     def draw_delete_ghost(self, segments_to_delete):
+        """Shows how nearby belts would look if the ones about to be
+        deleted were actually gone."""
         affected_segments = self.belt_system.resolve_delete_preview_connections(
             segments_to_delete
         )
         self._draw_affected(affected_segments, only_if_changed=False)
 
     def draw_splitter_delete_ghost(self, splitter):
+        """Shows how nearby belts would look if this splitter were
+        actually deleted."""
         affected_segments = self.belt_system.resolve_splitter_delete_preview_connections(splitter)
         self._draw_affected(affected_segments)

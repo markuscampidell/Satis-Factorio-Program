@@ -1,13 +1,16 @@
 # game.initializer
 import pygame as py
 
+# Game Context
 from game.game_context import GameContext
 
+# World
 from game.grid import Grid
 from core.camera import Camera
 from entities.player import Player
 from game.world import World
 
+# Items
 from constants.itemdata import ITEMS
 
 # UI
@@ -36,6 +39,7 @@ from systems.machine_interaction_system import MachineInteractionSystem
 from systems.input_system import InputSystem
 from systems.build_system import BuildSystem
 
+# Rendering
 from systems.rendering.render_system import RenderSystem
 from systems.rendering.world_renderer import WorldRenderer
 from systems.rendering.item_renderer import ItemRenderer
@@ -45,24 +49,28 @@ from systems.rendering.cursor_renderer import CursorRenderer
 from systems.rendering.ghost_machine_renderer import GhostMachineRenderer
 from systems.rendering.hover_highlight_renderer import HoverHighlightRenderer
 
+# Belt System
 from systems.conveyors.belt_system import BeltSystem
 from systems.conveyors.belt_ghost_preview_controller import BeltGhostPreviewController
 
 MIN_SCREEN_SIZE = (1100, 700)
 
 class Initializer:
+    """Builds a brand new game: makes every system and every UI window,
+    hooks them all up to each other, and hands them back in one
+    GameContext."""
+
     @staticmethod
     def init_game(window_size=(1280, 720), screen=None):
-        window_size = (
-            max(window_size[0], MIN_SCREEN_SIZE[0]),
-            max(window_size[1], MIN_SCREEN_SIZE[1])
-        )
+        """Creates the whole game world from scratch - the map, the
+        player, the camera, every UI panel, every system that makes
+        machines/belts/crafting work - and wires them all together.
+        Called once each time a new game starts or a save is loaded."""
+        window_size = (max(window_size[0], MIN_SCREEN_SIZE[0]),
+                       max(window_size[1], MIN_SCREEN_SIZE[1]))
         if screen is None:
             screen = py.display.set_mode(window_size, py.RESIZABLE)
         clock = py.time.Clock()
-        # If an existing screen was passed in, its actual live size (which
-        # may differ from the window_size default if it was resized before
-        # this call) is authoritative, not the requested window_size.
         screen_width, screen_height = screen.get_size()
 
         grid = Grid()
@@ -119,15 +127,13 @@ class Initializer:
         cursor_renderer = CursorRenderer(build_system)
         game_menu_bar = GameMenuBar(world, player, camera, ui_manager, get_screen_size=lambda: (camera.screen_width, camera.screen_height))
         game_menu_bar_renderer = GameMenuBarRenderer(game_menu_bar)
-        render_system = RenderSystem(
-            world_renderer=world_renderer,
-            build_renderer=build_mode_renderer,
-            ui_renderer=ui_renderer,
-            cursor_renderer=cursor_renderer,
-            game_menu_bar_renderer=game_menu_bar_renderer,
-            build_hotbar=build_hotbar,
-            hover_highlight_renderer=hover_highlight_renderer
-        )
+        render_system = RenderSystem(world_renderer=world_renderer,
+                                     build_renderer=build_mode_renderer,
+                                     ui_renderer=ui_renderer,
+                                     cursor_renderer=cursor_renderer,
+                                     game_menu_bar_renderer=game_menu_bar_renderer,
+                                     build_hotbar=build_hotbar,
+                                     hover_highlight_renderer=hover_highlight_renderer)
 
         return GameContext(screen=screen,
                            clock=clock,

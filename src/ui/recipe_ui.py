@@ -4,6 +4,9 @@ import pygame as py
 from constants.itemdata import get_item_by_id
 
 class RecipeUI:
+    """Draws a small popup showing a recipe's name, inputs, outputs, and
+    how long it takes to make."""
+
     def __init__(self):
         self.font = py.font.SysFont("Arial", 20)
         self.small_font = py.font.SysFont("Arial", 16)

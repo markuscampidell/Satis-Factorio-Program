@@ -172,6 +172,9 @@ class GameMenuBar:
         self.save_as_open = True
 
     def _submit_save_as(self, name):
+        """Tries to save under this name - warns if it's not allowed, or
+        asks to confirm first if it would overwrite a different existing
+        save."""
         if not save_system.is_valid_save_name(name):
             self.save_as_message_dialog = MessageDialog(INVALID_NAME_MESSAGE)
             return
@@ -193,18 +196,20 @@ class GameMenuBar:
 
 
 class GameMenuBarRenderer:
+    """Draws the Menu button, its popup panels, and the Save As dialog."""
+
     def __init__(self, game_menu_bar):
         self.bar = game_menu_bar
         self.font = py.font.SysFont("Arial", 18)
         self.title_font = py.font.SysFont("Arial", 24)
 
-    def draw(self, screen):
+    def draw(self, screen, delta_time):
         bar = self.bar
 
         bar.menu_button_rect = self._draw_menu_button(screen)
 
         if bar.save_as_open:
-            self._draw_save_as_dialog(screen)
+            self._draw_save_as_dialog(screen, delta_time)
         elif bar.game_menu_open:
             self._draw_panel(screen)
 
@@ -270,7 +275,7 @@ class GameMenuBarRenderer:
         x_text = self.font.render("X", True, "#FFFFFF")
         screen.blit(x_text, x_text.get_rect(center=bar.close_x_rect.center))
 
-    def _draw_save_as_dialog(self, screen):
+    def _draw_save_as_dialog(self, screen, delta_time):
         bar = self.bar
         w, h = screen.get_size()
 
@@ -284,7 +289,7 @@ class GameMenuBarRenderer:
         screen.blit(title, title.get_rect(center=(panel.centerx, panel.y + 28)))
 
         if bar.save_as_input:
-            bar.save_as_input.update(1 / 60)
+            bar.save_as_input.update(delta_time)
             bar.save_as_input.draw(screen)
 
         bar.save_as_confirm_button_rect = py.Rect(0, 0, 120, 40)

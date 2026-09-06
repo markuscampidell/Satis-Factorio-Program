@@ -2,6 +2,9 @@
 import pygame as py
 
 class CursorRenderer:
+    """Draws a colored circle at the mouse position, showing what mode
+    you're currently in - building, deleting, or just walking around."""
+
     def __init__(self, build_system):
         self.build_system = build_system
         self.cursor_radius = 12

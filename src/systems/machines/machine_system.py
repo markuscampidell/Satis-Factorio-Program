@@ -6,6 +6,9 @@ from core.vector2 import Vector2
 from systems.conveyors.belt_system import BeltSystem
 
 class MachineSystem:
+    """Handles placing and deleting machines in the world, including
+    checking you can actually afford it and that there's room."""
+
     def __init__(self, world, player, camera, grid):
         self.world = world
         self.player = player
@@ -17,6 +20,10 @@ class MachineSystem:
         self.splitter_rotation_steps = 0
 
     def place_machine(self, selected_machine_class):
+        """Tries to place the selected machine under the mouse. Makes sure
+        the spot is free and that the cost (after accounting for any
+        refund from what it would replace) actually works out, before
+        really building it."""
         if selected_machine_class is None:
             return
 
@@ -80,6 +87,8 @@ class MachineSystem:
         return BeltSystem.apply_refunds(scratch, [], [machine])
 
     def delete_machine(self, mx, my):
+        """Deletes whatever machine is under the mouse and refunds the
+        player, as long as there's room in their inventory for it."""
         grid_x, grid_y = self.world.snap_to_tile(mx + self.camera.x, my + self.camera.y)
 
         for machine in list(self.world.machines):
@@ -94,6 +103,9 @@ class MachineSystem:
                 return
 
     def get_machine_placement_preview(self, selected_machine_class):
+        """Figures out where a machine would land if placed right now, and
+        whether that spot is actually free - used to draw the placement
+        preview before you commit to it."""
         mx, my = py.mouse.get_pos()
         grid_x, grid_y = self.world.snap_to_tile(mx + self.camera.x, my + self.camera.y)
 

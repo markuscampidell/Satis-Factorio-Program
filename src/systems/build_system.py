@@ -7,6 +7,9 @@ from objects.machines.smelter import Smelter
 from core.vector2 import Vector2
 
 class BuildSystem:
+    """Handles building and deleting: what mode you're in, what's
+    selected, and actually placing or removing things when you click."""
+
     def __init__(self, world, player, camera, grid, belt_system, machine_system, machine_ui, player_inventory_ui, storage_ui, belt_filter_ui, splitter_filter_ui):
         self.world = world
         self.player = player
@@ -26,6 +29,8 @@ class BuildSystem:
         self.hovered_delete_target = None
 
     def handle_placement(self, event):
+        """Handles a click while in build or delete mode: places whatever's
+        selected, drags out a belt, or deletes what's under the cursor."""
         if (self.player_inventory_ui.open or self.machine_ui.open or self.storage_ui.open
                 or self.belt_filter_ui.open or self.splitter_filter_ui.open): return
         if event.type != py.MOUSEBUTTONDOWN or event.button != 1: return
@@ -69,6 +74,8 @@ class BuildSystem:
                 self.preview_splitter = None
 
     def update_hovered_delete_target(self):
+        """Figures out what's under the mouse right now, so delete mode
+        can highlight it before you actually click it."""
         if self.build_mode != "deleting":
             self.hovered_delete_target = None
             return

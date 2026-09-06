@@ -3,6 +3,10 @@ from dataclasses import dataclass
 
 @dataclass
 class GameContext:
+    """Holds every important object the game needs while it's running -
+    the world, the player, all the UI windows, every system - so they can
+    all be passed around and reached together instead of one by one."""
+
     screen: any
     clock: any
 

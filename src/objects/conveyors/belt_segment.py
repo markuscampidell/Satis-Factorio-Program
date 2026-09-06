@@ -5,6 +5,9 @@ from core.vector2 import Vector2
 from objects.item_filter import ItemFilter
 
 class BeltSegment:
+    """One tile of a conveyor belt. Carries at most one item at a time and
+    hands it off to whatever's next once it reaches the far end."""
+
     def __init__(self, grid_pos, direction: Vector2, incoming_directions: list, belt_type="basic"):
         self.grid_pos = grid_pos  # tile coordinates (x, y)
         self.direction = direction or Vector2(1, 0)
@@ -76,6 +79,8 @@ class BeltSegment:
         return False
 
     def refund_item_on_segment(self, player_inventory):
+        """Gives back whatever item is sitting on this segment to the
+        player, then clears it. Used when the belt is deleted."""
         if self.item:
             player_inventory.try_add_items(self.item.item_id, 1)
             self._clear_item()
@@ -88,6 +93,9 @@ class BeltSegment:
 
 
     def request_item(self, source_belt, item, incoming_direction):
+        """Asks this segment if it will take an item from a neighboring
+        belt. Doesn't move the item yet - just reserves a spot, since
+        several belts might all ask at once (see resolve_input_requests)."""
         # Don't accept an item from an opposing belt.
         if incoming_direction == -self.direction:
             return False
@@ -108,6 +116,10 @@ class BeltSegment:
 
 
     def resolve_input_requests(self):
+        """Picks one winner among every belt that asked to hand off an
+        item this frame, and actually moves that item onto this segment.
+        If more than one side feeds this tile, takes turns between them so
+        one side can't hog it forever."""
         if self.item is not None:
             self.input_requests.clear()
             return False

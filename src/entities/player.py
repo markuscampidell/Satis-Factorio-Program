@@ -6,6 +6,8 @@ from core.vector2 import Vector2
 from entities.hand_crafting_component import HandcraftingComponent
 
 class Player:
+    """The character you control and move around the world."""
+
     def __init__(self, size, color = ("#5F2D5D")):
         self.inventory = Inventory(5, 9)
         self.handcrafting = HandcraftingComponent(self.inventory)
@@ -23,7 +25,10 @@ class Player:
         self.dx = 0
         self.dy = 0
 
-    def update(self, machines, dt):
+    def update(self, machines):
+        """Moves the player one step and stops them from walking through
+        machines. Checked one direction at a time, so bumping into
+        something horizontally doesn't also block moving vertically."""
         dx, dy = self.get_movement()
 
         if dx:
@@ -35,6 +40,8 @@ class Player:
             self.handle_collision_y(machines, dy)
 
     def handle_collision_x(self, machines, dx):
+        """If moving sideways just walked the player into a machine,
+        pushes them back out to right next to its edge instead."""
         for machine in machines:
             max_dist = (machine.rect.width + self.rect.width) / 2
             if abs(machine.rect.centerx - self.rect.centerx) > max_dist:
@@ -47,6 +54,8 @@ class Player:
                     self.rect.left = machine.rect.right
 
     def handle_collision_y(self, machines, dy):
+        """If moving up or down just walked the player into a machine,
+        pushes them back out to right next to its edge instead."""
         for machine in machines:
             max_dist = (machine.rect.height + self.rect.height) / 2
             if abs(machine.rect.centery - self.rect.centery) > max_dist:
@@ -59,6 +68,9 @@ class Player:
                     self.rect.top = machine.rect.bottom
 
     def get_movement(self):
+        """Looks at which keys are held down and turns that into actual
+        movement. Speeds up and slows down smoothly instead of snapping
+        instantly to full speed or a dead stop."""
         keys = py.key.get_pressed()
 
         # Determine movement directions

@@ -3,6 +3,9 @@ from objects.machines.producing_machine import ProducingMachine
 from constants.recipes import smelter_recipes
 
 class Smelter(ProducingMachine):
+    """A machine that turns raw ore into ingots, using whichever smelter
+    recipe is currently selected."""
+
     WIDTH = 3
     HEIGHT = 3
     SPRITE_PATH = "src/assets/sprites/machines/smelter.png"

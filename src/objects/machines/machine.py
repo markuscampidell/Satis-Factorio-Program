@@ -4,6 +4,10 @@ import pygame as py
 from core.vector2 import Vector2
 
 class Machine:
+    """The base for every building that can be placed in the world - a
+    belt-fed factory machine, a splitter, a storage box. Handles the stuff
+    they all share, like where it sits, how big it is, and its picture."""
+
     WIDTH = 1
     HEIGHT = 1
     SPRITE_PATH = None

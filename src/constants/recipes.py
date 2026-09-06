@@ -1,11 +1,8 @@
 # constants.recipes
 class Recipe:
-    """example: Recipe(
-            recipe_id = "id",
-            name = "Name",
-            inputs = {"input1": 2, "input2": 3},
-            outputs = {"output1": 1, "output2": 2},
-            process_time = 5) """  # process_time is given in seconds
+    """A recipe for turning some items into other items, like 3 iron ore
+    into 1 iron ingot. Says what goes in, what comes out, and how long it
+    takes."""
     def __init__(self, recipe_id:str, name:str, inputs:dict[str, int], outputs:dict[str, int], process_time:float):
         self.recipe_id = recipe_id
         self.name = name
@@ -18,12 +15,16 @@ class Recipe:
 
 
     def outputs_per_minute(self):
+        """How much of each output this recipe would make in one minute,
+        if it ran over and over without stopping."""
         result = {}
         for item_id, amount in self.outputs.items():
             result[item_id] = amount * (60 / self.process_time)
         return result
 
     def inputs_per_minute(self):
+        """How much of each input this recipe would eat up in one minute,
+        if it ran over and over without stopping."""
         result = {}
         for item_id, amount in self.inputs.items():
             result[item_id] = amount * (60 / self.process_time)

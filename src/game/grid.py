@@ -8,6 +8,9 @@ def four_neighbor_coords(x, y):
 
 
 class Grid:
+    """Draws the faint grid lines over the ground so the tiles are easy to
+    see, mostly while building."""
+
     CELL_SIZE = 32
 
     def __init__(self, color=(204, 204, 204), alpha=120):
@@ -16,6 +19,9 @@ class Grid:
         self.pattern_surface = self._build_pattern_surface()
 
     def _build_pattern_surface(self):
+        """Makes one small tile with just two edges drawn on it, so the
+        whole grid can be built by stamping this everywhere instead of
+        drawing every line by hand."""
         cell = self.CELL_SIZE
         surface = py.Surface((cell, cell), py.SRCALPHA)
         py.draw.line(surface, (*self.color, self.alpha), (0, 0), (0, cell))
@@ -23,6 +29,9 @@ class Grid:
         return surface
 
     def draw(self, screen, camera):
+        """Tiles the little grid pattern across the whole screen, shifted
+        by the camera so it looks like it's actually part of the world
+        instead of stuck to the screen."""
         width, height = screen.get_size()
         cell = self.CELL_SIZE
 

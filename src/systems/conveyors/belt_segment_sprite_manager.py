@@ -4,6 +4,9 @@ import pygame as py
 from game.grid import Grid
 
 class BeltSegmentSpriteManager:
+    """Loads and picks the right picture for a belt tile, depending on
+    which ways it connects to its neighbors."""
+
     def __init__(self):
         self.straights = {}
         self.curves = {}

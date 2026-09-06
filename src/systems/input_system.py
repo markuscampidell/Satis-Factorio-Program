@@ -3,6 +3,10 @@ import pygame as py
 
 
 class InputSystem:
+    """Turns raw keyboard and mouse events into actual game actions -
+    opening panels, entering delete mode, rotating what you're building,
+    canceling things."""
+
     def __init__(self, build_system, ui_manager, hand_crafting_ui, machine_ui, player_inventory_ui, belt_system, machine_system, storage_ui, belt_filter_ui, splitter_filter_ui):
         self.build_system = build_system
         self.ui_manager = ui_manager
@@ -16,6 +20,8 @@ class InputSystem:
         self.splitter_filter_ui = splitter_filter_ui
 
     def handle_keys(self, event):
+        """Reacts to a single key press - opening or closing panels,
+        entering delete mode, rotating what's selected, and so on."""
         if event.type != py.KEYDOWN: return
 
         if event.key == py.K_ESCAPE:
@@ -83,6 +89,8 @@ class InputSystem:
             return
 
     def handle_mouse(self, event):
+        """Reacts to a single mouse event - right click cancels whatever's
+        in progress, left click gets passed on to whichever panel is open."""
         if event.type == py.MOUSEWHEEL:
             if self.hand_crafting_ui.open:
                 self.hand_crafting_ui.handle_mouse(event)
@@ -106,6 +114,8 @@ class InputSystem:
                 return
 
     def cancel_build_or_delete(self):
+        """Backs out of whatever's in progress: cancels a belt drag that
+        hasn't been finished yet, or just leaves build/delete mode."""
         if self.belt_system.placing_belt:
             self.belt_system.placing_belt = False
             return

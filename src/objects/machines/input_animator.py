@@ -13,6 +13,9 @@ class InputAnimator:
         self.animations = []
 
     def start(self, item, source_grid_pos, target_grid_pos, target_width, target_height, tiles_per_sec=None):
+        """Starts a new item flying from the belt into the machine's
+        center, timed so it takes about as long as the belt it came from
+        would have taken to cover that same distance."""
         entry_x = source_grid_pos[0] * self.cell_size + self.cell_size // 2
         entry_y = source_grid_pos[1] * self.cell_size + self.cell_size // 2
         target_x = target_grid_pos[0] * self.cell_size + (target_width * self.cell_size) // 2
@@ -32,6 +35,8 @@ class InputAnimator:
         })
 
     def update(self, dt):
+        """Moves every animation forward a bit, then throws away the ones
+        that have finished."""
         if not self.animations:
             return
         for anim in self.animations:

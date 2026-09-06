@@ -5,6 +5,10 @@ from objects.conveyors.belt_segment import BeltSegment
 from objects.machines.splitter import Splitter
 
 class BuildModeRenderer:
+    """Draws everything to do with build/delete mode: the tinted screen
+    overlay, placement/delete previews, and a highlight on whatever's
+    about to be deleted."""
+
     def __init__(self, build_system, machine_system, ghost_machine_renderer, ghost_belt_drawer, belt_system, camera, grid):
         self.build_system = build_system
         self.machine_system = machine_system
@@ -36,6 +40,8 @@ class BuildModeRenderer:
             self.ghost_belt_drawer.draw_ghost(self.build_system.selected_machine_class, self.belt_system.placing_belt, self.belt_system.selected_belt_type)
 
     def _highlight_hovered_delete_target(self, screen):
+        """Highlights whatever's about to be deleted - red if the refund
+        actually fits in your inventory, orange if it doesn't."""
         if self.build_system.build_mode != "deleting" or self.build_system.hovered_delete_target is None:
             return
 

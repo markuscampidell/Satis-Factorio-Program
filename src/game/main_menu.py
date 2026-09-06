@@ -133,6 +133,8 @@ class MainMenu:
         self.name_input = TextInput(rect, initial_text=initial_text)
 
     def _handle_new_game_event(self, event):
+        """Handles input on the New Game screen: typing a name, pressing
+        Enter/Start, or going Back."""
         if self.name_input is not None:
             self.name_input.handle_event(event)
 
@@ -159,6 +161,9 @@ class MainMenu:
         return None
 
     def _submit_new_game_name(self, name):
+        """Tries to start a new game under this name. Shows a warning if
+        the name isn't allowed, or asks to confirm first if a save with
+        that name already exists."""
         if not save_system.is_valid_save_name(name):
             self.message_dialog = MessageDialog(INVALID_NAME_MESSAGE)
             return None
@@ -175,6 +180,8 @@ class MainMenu:
         return ("start_new_game", name)
 
     def _handle_load_game_event(self, event):
+        """Handles input on the Load Game screen: picking a save to load,
+        renaming or deleting one, or scrolling the list."""
         # message_dialog/confirm_dialog/rename_input are all checked before
         # dispatching here (see handle_event), so reaching this point already
         # means no other panel is open over the load game screen.
@@ -216,6 +223,8 @@ class MainMenu:
         self.rename_input = TextInput(rect, initial_text=name)
 
     def _handle_rename_input_event(self, event):
+        """Handles typing a new save name into the rename box, and asks to
+        confirm first if that name is already taken by another save."""
         if (event.type == py.MOUSEBUTTONDOWN and event.button == 1
                 and not self.rename_input.rect.collidepoint(event.pos)):
             self.rename_input = None
@@ -261,19 +270,19 @@ class MainMenu:
     # Drawing
     # ------------------------------------------------------------------
 
-    def draw(self, screen):
+    def draw(self, screen, delta_time):
         w, h = self.get_screen_size()
         screen.fill("#987171")
 
         if self.screen_state == "root":
             self._draw_root(screen, w, h)
         elif self.screen_state == "new_game":
-            self._draw_new_game(screen, w, h)
+            self._draw_new_game(screen, w, h, delta_time)
         elif self.screen_state == "load_game":
             self._draw_load_game(screen, w, h)
 
         if self.rename_input:
-            self.rename_input.update(1 / 60)
+            self.rename_input.update(delta_time)
             self.rename_input.draw(screen)
 
         if self.confirm_dialog:
@@ -325,12 +334,12 @@ class MainMenu:
             self._root_button_rects[key] = rect
             self._draw_button(screen, rect, label)
 
-    def _draw_new_game(self, screen, w, h):
+    def _draw_new_game(self, screen, w, h, delta_time):
         title = self.font.render("New Game", True, "#000000")
         screen.blit(title, title.get_rect(center=(w // 2, h // 2 - 100)))
 
         if self.name_input is not None:
-            self.name_input.update(1 / 60)
+            self.name_input.update(delta_time)
             self.name_input.draw(screen)
 
         start_rect = py.Rect(0, 0, 120, 44)
@@ -343,6 +352,9 @@ class MainMenu:
         self._draw_button(screen, back_rect, "Back", color=(150, 0, 0))
 
     def _draw_load_game(self, screen, w, h):
+        """Draws the scrollable list of saves, each with its own rename
+        and delete button. Rows that have scrolled out of view are skipped
+        so they can't be clicked while hidden."""
         title = self.font.render("Load Game", True, "#000000")
         screen.blit(title, title.get_rect(center=(w // 2, 60)))
 

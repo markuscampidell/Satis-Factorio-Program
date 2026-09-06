@@ -1,5 +1,7 @@
 # systems.rendering.ui_renderer
 class UiRenderer:
+    """Draws every popup panel that might currently be open."""
+
     def __init__(self, machine_ui_renderer, player_inventory_ui, hand_crafting_renderer, storage_ui_renderer, belt_filter_ui_renderer, splitter_filter_ui_renderer):
         self.machine_ui_renderer = machine_ui_renderer
         self.player_inventory_ui = player_inventory_ui

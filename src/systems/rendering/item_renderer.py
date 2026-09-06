@@ -1,24 +1,24 @@
+# systems/rendering/item_renderer.py
 import pygame as py
 from game.grid import Grid
 
-
 class ItemRenderer:
+    """Draws an item traveling across a belt or into a machine, sliding
+    smoothly between two points instead of jumping."""
 
     def draw_item(self, screen, camera, item, grid_pos, progress, incoming_direction):
+        """Draws an item partway across one belt tile, based on how far
+        along it is and which direction it came from."""
         if not item or not item.sprite:
             return
 
         incoming = incoming_direction
 
-        start = (
-            grid_pos[0] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2 - incoming.x * Grid.CELL_SIZE,
-            grid_pos[1] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2 - incoming.y * Grid.CELL_SIZE,
-        )
+        start = (grid_pos[0] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2 - incoming.x * Grid.CELL_SIZE,
+                 grid_pos[1] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2 - incoming.y * Grid.CELL_SIZE,)
 
-        end = (
-            grid_pos[0] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2,
-            grid_pos[1] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2,
-        )
+        end = (grid_pos[0] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2,
+               grid_pos[1] * Grid.CELL_SIZE + Grid.CELL_SIZE // 2,)
 
         self.draw_item_lerp(screen, camera, item, start, end, progress)
 

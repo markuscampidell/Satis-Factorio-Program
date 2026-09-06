@@ -31,6 +31,10 @@ def relative_dirs(direction):
 
 
 class Splitter(Machine):
+    """A machine that takes in one item at a time and sends it back out
+    one of three sides (left, forward, right), taking turns between them
+    so items get spread out evenly."""
+
     WIDTH = 1
     HEIGHT = 1
     SPRITE_PATH = "src/assets/sprites/machines/splitter.png"
@@ -65,6 +69,9 @@ class Splitter(Machine):
         self.output_filters = [ItemFilter(), ItemFilter(), ItemFilter()]
 
     def update(self, dt, belt_map, machine_map=None):
+        """Waits for the current item to finish crossing the tile, then
+        tries to push it out. If nothing will take it, it just waits at
+        the front instead of losing the item."""
         if not self.current_item:
             self.item_progress = 0.0
             return
@@ -79,6 +86,10 @@ class Splitter(Machine):
                 self.item_progress = 1.0
 
     def push_item(self, belt_map, machine_map=None):
+        """Tries to send the current item out one of the three sides in
+        turn, skipping any side that's blocked, full, or filtered out.
+        Remembers which side it tried last, so next time it starts from
+        the next one instead of always favoring the same side."""
         if not self.current_item:
             return False
 
@@ -124,6 +135,8 @@ class Splitter(Machine):
         return self._relative_dirs
 
     def draw(self, screen, camera):
+        """Draws the splitter, then a small badge on each side that
+        currently has an active filter."""
         if not self.image:
             return
         super().draw(screen, camera)
@@ -156,6 +169,8 @@ class Splitter(Machine):
         return True
 
     def get_refund_items(self):
+        """Also refunds the item currently sitting on the splitter, if
+        there is one."""
         refund = super().get_refund_items()
         if self.current_item:
             item_id = self.current_item.item_id if hasattr(self.current_item, "item_id") else self.current_item
@@ -163,6 +178,8 @@ class Splitter(Machine):
         return refund
 
     def to_dict(self):
+        """Saves which way the splitter is facing, the item it's
+        currently holding (if any), and its three side filters."""
         data = super().to_dict()
         data["direction"] = [self.direction.x, self.direction.y]
         data["current_item"] = self.current_item.item_id if self.current_item else None
@@ -171,6 +188,8 @@ class Splitter(Machine):
 
     @classmethod
     def from_dict(cls, data):
+        """Rebuilds a splitter from saved data: its facing, the item it
+        was holding, and its three side filters."""
         m = cls(grid_pos=tuple(data["grid_pos"]), direction=Vector2(*data["direction"]))
         m.current_item = get_item_by_id(data["current_item"]) if data["current_item"] else None
         # try_receive_item() only ever accepts direction == self.direction
@@ -185,6 +204,8 @@ class Splitter(Machine):
         return m
 
     def rotate(self):
+        """Turns the splitter 90 degrees clockwise: spins its picture and
+        works out which way its three sides now point."""
         self.direction = Vector2(-self.direction.y, self.direction.x)
         self.rotation_angle = (self.rotation_angle + 90) % 360
         self.image = rotate(self.image_original, -self.rotation_angle)

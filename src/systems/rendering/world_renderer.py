@@ -3,6 +3,9 @@ from objects.filter_badge import draw_filter_badge
 
 
 class WorldRenderer:
+    """Draws the actual game world - the grid, belts, items, machines, and
+    the player - in the right order so nothing gets covered up wrong."""
+
     def __init__(self, world, camera, player, belt_sprite_manager, item_renderer, build_system, grid):
         self.world = world
         self.camera = camera
@@ -27,6 +30,8 @@ class WorldRenderer:
             self.grid.draw(screen, self.camera)
 
     def _draw_belt_segments(self, screen):
+        """Draws every belt tile that's actually on screen, plus a small
+        badge on the ones with an active filter."""
         cell_size = self.grid.CELL_SIZE
 
         camera_left = self.camera.x // cell_size
@@ -56,6 +61,8 @@ class WorldRenderer:
                     draw_filter_badge(screen, (corner_x, corner_y), size=10)
 
     def _draw_items(self, screen):
+        """Draws every item currently traveling on a belt or animating
+        into a machine."""
         for seg in self.world.belt_segments:
             if seg.item:
                 self.item_renderer.draw_item(
@@ -90,6 +97,8 @@ class WorldRenderer:
                 )
     
     def _draw_machines(self, screen):
+        """Draws every machine that's actually on screen, skipping the
+        ones the camera can't currently see."""
         camera_left = self.camera.x // self.grid.CELL_SIZE
         camera_top = self.camera.y // self.grid.CELL_SIZE
         camera_right = (self.camera.x + self.camera.screen_width) // self.grid.CELL_SIZE + 1

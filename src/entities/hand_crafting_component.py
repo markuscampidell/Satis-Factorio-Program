@@ -2,6 +2,9 @@
 from constants.recipes import smelter_recipes, assembler_recipes
 
 class HandcraftingComponent:
+    """Lets the player craft items by hand, straight out of their own
+    inventory, without needing a machine."""
+
     def __init__(self, inventory):
         self.inventory = inventory
         self.recipes = smelter_recipes + assembler_recipes
@@ -13,6 +16,9 @@ class HandcraftingComponent:
         return self.recipes[self.selected_recipe_index]
 
     def check_craft_status(self, recipe=None):
+        """Checks whether a recipe could be crafted right now, without
+        actually crafting it. Tries it on a fake copy of the inventory
+        first, so nothing real changes."""
         recipe = recipe or self.get_selected_recipe()
         if not recipe or not self.inventory.has_enough_items(recipe.inputs):
             return "no_inputs"
@@ -26,6 +32,9 @@ class HandcraftingComponent:
         return "ok"
 
     def try_craft_selected(self):
+        """Actually crafts the selected recipe, if it's possible: takes
+        out the ingredients and adds in the result. Returns False and
+        changes nothing if it isn't possible."""
         recipe = self.get_selected_recipe()
         if self.check_craft_status(recipe) != "ok":
             return False

@@ -5,6 +5,10 @@ from game.grid import four_neighbor_coords
 from objects.conveyors.belt_segment import BeltSegment
 
 class BeltSystem:
+    """Handles everything about placing and deleting conveyor belts -
+    dragging out a line of them, figuring out which way each one should
+    face, and refunding what they cost when they're removed."""
+
     BUILD_COSTS = {
         "basic": {"iron_ingot": 2},
         "fast": {"iron_ingot": 5, "copper_ingot": 1},
@@ -35,6 +39,11 @@ class BeltSystem:
 
     @classmethod
     def apply_refunds(cls, inventory, replaced_segments, replaced_machines):
+        """Gives back everything these belts/machines are worth - any item
+        sitting on them, plus what they originally cost to build - into an
+        inventory. Works just as well on a throwaway copy of the
+        inventory, so it can also be used to check affordability without
+        changing anything for real."""
         for seg in replaced_segments:
             if seg.item and not inventory.try_add_items(seg.item.item_id, 1):
                 return False
@@ -50,6 +59,8 @@ class BeltSystem:
         return True
 
     def gather_replacements(self, segments, belt_type):
+        """Works out what would get replaced - and what it would cost - if
+        these belt tiles were built on top of whatever's already there."""
         cells = [seg.grid_pos for seg in segments]
         replaced_segments, replaced_machines = self.world.gather_occupants(cells)
 
@@ -62,12 +73,18 @@ class BeltSystem:
         return replaced_segments, replaced_machines, total_cost
 
     def check_placement_affordability(self, replaced_segments, replaced_machines, total_cost):
+        """Checks whether building here would actually work: enough room
+        for the refund from whatever gets replaced, and enough items left
+        over afterward to pay the build cost."""
         scratch = self.player.inventory.clone()
         if not self.apply_refunds(scratch, replaced_segments, replaced_machines):
             return "no_space"
         return "ok" if scratch.try_remove_items(total_cost) else "no_funds"
 
     def get_drag_tiles(self, start_tile, end_tile):
+        """Works out the line of tiles between two points when dragging
+        out a belt, flipping the order if you dragged backwards from the
+        direction the belt is actually supposed to flow."""
         x1, y1 = start_tile
         x2, y2 = end_tile
         direction = self.belt_placement_direction
@@ -88,6 +105,9 @@ class BeltSystem:
         return list(reversed(tiles)) if reversed_flow else tiles
 
     def place_belt(self, world_x2, world_y2, belt_type="basic"):
+        """Actually builds a dragged line of belts, after checking the
+        whole thing fits and is affordable - it's all or nothing, never
+        just some of the belts."""
         start_tile = (self.beltX1, self.beltY1)
         end_tile = self.world.snap_to_tile(world_x2, world_y2)
 
@@ -127,6 +147,8 @@ class BeltSystem:
         return self.apply_refunds(scratch, segments, [])
 
     def delete_belt(self, mx, my, delete_whole=False, camera_x=0, camera_y=0):
+        """Deletes the belt under the mouse - or, if asked, its whole
+        connected run at once - and refunds the player for it."""
         world_x, world_y = mx + camera_x, my + camera_y
         shift_held = py.key.get_mods() & py.KMOD_SHIFT
 
@@ -148,6 +170,9 @@ class BeltSystem:
         self.update_belt_incoming_directions()
 
     def get_connected_belt_segments(self, start_seg):
+        """Finds every belt connected to this one, following the belt line
+        outward in every direction - used for deleting a whole run of
+        belts at once."""
         visited = set()
         stack = [start_seg]
 
@@ -176,6 +201,9 @@ class BeltSystem:
         return list(visited)
 
     def _belts_are_connected(self, a, b):
+        """Checks if two belts actually link up (one feeds into the
+        other). Two belts facing straight into each other head-on don't
+        count as connected."""
         ax, ay = a.grid_pos
         bx, by = b.grid_pos
 
@@ -196,6 +224,8 @@ class BeltSystem:
         return a_points_to_b or b_points_to_a
     
     def _tiles_to_segments(self, tiles, belt_type="basic"):
+        """Turns a line of tile positions into actual belt segments, each
+        one facing toward whichever tile comes next in the line."""
         segments = []
 
         for i, tile in enumerate(tiles):
@@ -221,11 +251,40 @@ class BeltSystem:
         targets = segments or self.world.belt_segments
 
         for seg in targets:
+            # current_input_index points into the *old* incoming_directions
+            # list, at whichever side round-robin fairness is about to
+            # favor next. Recomputing the list (e.g. a neighboring belt was
+            # just deleted) can shrink or reorder it, so remember which
+            # actual direction the index meant before overwriting it -
+            # otherwise a stale index either points at the wrong side after
+            # a reorder, or is out of range entirely and crashes
+            # resolve_input_requests() the next time it's used.
+            old_directions = seg.incoming_directions
+            old_priority_direction = (
+                old_directions[seg.current_input_index]
+                if 0 <= seg.current_input_index < len(old_directions)
+                else None
+            )
+
             seg.incoming_directions = self._calculate_incoming_for_segment(
                 seg, self.world.belt_map
             )
 
+            # Keep favoring the same physical side if it still feeds this
+            # segment (even if it moved to a different index); only reset
+            # to the default (0) if that side is the one that just
+            # disappeared - e.g. the neighboring belt was deleted.
+            if old_priority_direction is not None and old_priority_direction in seg.incoming_directions:
+                seg.current_input_index = seg.incoming_directions.index(old_priority_direction)
+            else:
+                seg.current_input_index = 0
+
     def _calculate_incoming_for_segment(self, seg, lookup_map, extra_machines=None, exclude_machines=None):
+        """Works out every direction something could currently feed into
+        this belt tile from - other belts, machines, and splitters all
+        count a bit differently. Used both to pick the right belt picture
+        and to decide which side gets priority when more than one thing
+        feeds the same tile."""
         x, y = seg.grid_pos
 
         neighbors = [lookup_map.get((x - 1, y)),
@@ -298,6 +357,9 @@ class BeltSystem:
         return incoming_directions
     
     def resolve_preview_connections(self, preview_segments):
+        """Pretends a set of ghost belts already exist, and works out how
+        they - and any real belts next to them - would actually connect.
+        Used to preview a belt before you've actually placed it."""
         temp_map = self.world.belt_map.copy()
 
         ghost_positions = {seg.grid_pos for seg in preview_segments}
@@ -337,6 +399,8 @@ class BeltSystem:
         return affected_segments
 
     def _splitter_affected_belt_positions(self, splitter):
+        """Finds every belt tile touching one of a splitter's three output
+        sides."""
         positions = set()
 
         for push_direction in splitter._get_relative_dirs():
@@ -350,6 +414,8 @@ class BeltSystem:
         return positions
 
     def resolve_splitter_preview_connections(self, temp_splitter):
+        """Works out how belts around a splitter would connect if it were
+        placed here - used for the placement preview."""
         affected_segments = []
 
         for pos in self._splitter_affected_belt_positions(temp_splitter):
@@ -364,6 +430,8 @@ class BeltSystem:
         return affected_segments
 
     def resolve_splitter_delete_preview_connections(self, splitter):
+        """Works out how belts around a splitter would reconnect if it
+        were deleted - used for the delete preview."""
         affected_segments = []
 
         for pos in self._splitter_affected_belt_positions(splitter):
@@ -378,6 +446,9 @@ class BeltSystem:
         return affected_segments
 
     def resolve_delete_preview_connections(self, segments_to_delete):
+        """Works out how the belts around a group of belts would look if
+        those belts were deleted - used for the delete preview, only
+        reporting the ones that would actually look different."""
         delete_positions = {
             seg.grid_pos for seg in segments_to_delete
         }
@@ -419,6 +490,9 @@ class BeltSystem:
         return affected_segments
 
     def _get_tiles_for_drag(self, start_tile, end_tile, horizontal_first=True):
+        """Builds an L-shaped path of tiles between two points, going
+        horizontal first or vertical first depending on which way the belt
+        is facing."""
         x1, y1 = start_tile
         x2, y2 = end_tile
         tiles = []

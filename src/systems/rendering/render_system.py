@@ -1,5 +1,8 @@
 # systems.rendering.render_system
 class RenderSystem:
+    """Draws everything, in order, every single frame - the world first,
+    then overlays and UI panels on top."""
+
     def __init__(self, world_renderer, build_renderer, ui_renderer, cursor_renderer, game_menu_bar_renderer, build_hotbar, hover_highlight_renderer):
         self.world_renderer = world_renderer
         self.build_renderer = build_renderer
@@ -9,7 +12,7 @@ class RenderSystem:
         self.build_hotbar = build_hotbar
         self.hover_highlight_renderer = hover_highlight_renderer
 
-    def draw(self, screen):
+    def draw(self, screen, delta_time):
         screen.fill("#987171") # background color
 
         self.world_renderer.draw(screen)
@@ -18,4 +21,4 @@ class RenderSystem:
         self.ui_renderer.draw(screen)
         self.build_hotbar.draw(screen)
         self.cursor_renderer.draw(screen)
-        self.game_menu_bar_renderer.draw(screen)
+        self.game_menu_bar_renderer.draw(screen, delta_time)

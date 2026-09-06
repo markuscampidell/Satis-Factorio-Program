@@ -31,6 +31,9 @@ def _saves_dir() -> Path:
 
 
 def _sanitize_name(name: str) -> str:
+    """Cleans up a save name so it's safe to use as a filename - swaps
+    anything that isn't a letter, number, space, dash or underscore for an
+    underscore."""
     name = (name or "").strip()
     if not name:
         raise ValueError("Save name cannot be empty")
@@ -77,6 +80,8 @@ def delete_save(name: str) -> None:
 
 
 def rename_save(old_name: str, new_name: str) -> None:
+    """Renames a save file on disk. If it was the one marked as "last
+    opened", that mark follows it to the new name."""
     old_path = _save_path(old_name)
     new_path = _save_path(new_name)
     was_last_opened = (get_last_opened() == old_name)
@@ -103,6 +108,9 @@ def _set_last_opened(name: str) -> None:
 
 
 def save_game(world, player, camera, name: str) -> None:
+    """Writes the whole game - player, camera, every belt and machine -
+    to a save file. Saves to a temporary file first and swaps it in at the
+    end, so a crash partway through can't leave a broken save behind."""
     data = {
         "version": SAVE_VERSION,
         "player": _serialize_player(player),
@@ -119,6 +127,9 @@ def save_game(world, player, camera, name: str) -> None:
 
 
 def load_game(world, player, camera, belt_system, name: str) -> None:
+    """Loads a save file and rebuilds the whole game from it - player,
+    camera, every belt and machine - replacing whatever's currently
+    there."""
     path = _save_path(name)
     with open(path, "r") as f:
         data = json.load(f)
@@ -197,6 +208,9 @@ def _serialize_belt(seg):
 
 
 def _deserialize_belt(entry):
+    """Rebuilds a belt segment from saved data. Older saves stored the
+    filter as two separate fields instead of one, so this can still read
+    those too."""
     seg = BeltSegment(
         tuple(entry["grid_pos"]),
         Vector2(*entry["direction"]),

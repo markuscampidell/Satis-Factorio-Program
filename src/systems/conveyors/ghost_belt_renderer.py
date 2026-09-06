@@ -4,6 +4,9 @@ import pygame as py
 from core.vector2 import Vector2
 
 class GhostBeltRenderer:
+    """Draws a faded, see-through version of a belt for previews, tinted
+    red/orange/yellow when there's a problem with placing it."""
+
     def __init__(self, sprite_manager, cell_size):
         self.cell_size = cell_size
         self.sprite_manager = sprite_manager

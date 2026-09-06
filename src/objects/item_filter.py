@@ -31,6 +31,9 @@ class ItemFilter:
 
     @classmethod
     def from_dict(cls, data):
+        """Rebuilds a filter from saved data. Can still read the older
+        save format too, which stored the allowed items as a plain list
+        instead of numbered slots."""
         f = cls()
         f.enabled = data.get("enabled", False)
 

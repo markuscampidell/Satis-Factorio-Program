@@ -71,6 +71,9 @@ class HandCraftingUI:
                     return
 
     def update(self, dt):
+        """Advances the crafting progress bar and finishes a craft once it
+        fills up. Stops automatically if ingredients run out or the
+        result has nowhere to go, instead of losing items silently."""
         if not self.open: return
 
         if self.crafting_mode is None:

@@ -7,11 +7,9 @@ from game.grid import Grid
 
 
 class Storage(Machine):
-    """A 1x1 storage building: a single flat inventory that belts and
+    """A 2x2 storage building: a single flat inventory that belts and
     splitters can both drop any item into and pull items back out of (any
-    side is both a valid input and a valid output, exactly like a
-    producing machine) - no recipe, no processing, just holds items until
-    something (a belt, or the player) takes them."""
+    side is both a valid input and a valid output"""
 
     WIDTH = 2
     HEIGHT = 2
@@ -43,6 +41,7 @@ class Storage(Machine):
         return True
 
     def get_refund_items(self):
+        """Also refunds everything currently stored inside it."""
         refund = super().get_refund_items()
         for item_id, amount in self.inventory.contents_as_dict().items():
             refund[item_id] = refund.get(item_id, 0) + amount

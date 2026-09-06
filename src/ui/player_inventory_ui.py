@@ -7,6 +7,9 @@ from ui.modifier_keys import get_shift_ctrl
 from ui.slot_drawing import draw_item_slot_contents
 
 class PlayerInventoryUI:
+    """Draws the player's own inventory grid, and lets you shift/ctrl-click
+    items into whatever other panel happens to be open."""
+
     SLOT_SIZE = 48
     PADDING = 10
 
@@ -140,6 +143,9 @@ class PlayerInventoryUI:
                 return
 
     def _transfer_slot(self, x, y, expected_item_id, shift_held, machine_ui, storage_ui):
+        """Moves this slot's stack (or every stack of that item type) into
+        whichever other panel is open, double-checking the item hasn't
+        changed since this slot was last drawn."""
         source = self.player.inventory
 
         if storage_ui.open and storage_ui.selected_storage:

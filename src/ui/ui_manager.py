@@ -1,5 +1,9 @@
 # ui.ui_manager
 class UIManager:
+    """Keeps track of every togglable UI panel by name, so things like
+    "ESC closes everything" don't need to know about each panel one by
+    one."""
+
     def __init__(self, uis: dict[str, object]):
         self.uis = uis
 
