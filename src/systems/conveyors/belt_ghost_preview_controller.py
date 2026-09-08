@@ -49,6 +49,34 @@ class BeltGhostPreviewController:
 
         self.ghost_renderer.draw_affected_segments(self.screen, self.camera, visible_affected)
 
+    def _drag_affordability_flags(self, segments):
+        """Per-tile "normal" (can afford) / "yellow" (can't) coloring for
+        an unblocked drag - walks the segments in order against a running
+        scratch copy of the player's inventory, refunding whatever each
+        tile would actually replace before charging that tile's own build
+        cost, so a long line shows normal exactly as far as you can
+        currently afford and yellow from there on. A multi-tile machine
+        that the drag crosses more than one cell of is only ever refunded
+        once, matching what actually placing it would do."""
+        scratch = self.player.inventory.clone()
+        seen_machine_ids = set()
+        color_flags = []
+
+        for seg in segments:
+            replaced_segments, replaced_machines = self.world.gather_occupants([seg.grid_pos])
+            replaced_machines = [m for m in replaced_machines if id(m) not in seen_machine_ids]
+            seen_machine_ids.update(id(m) for m in replaced_machines)
+
+            cost = self.belt_system.BUILD_COSTS[seg.belt_type]
+            refund_ok = self.belt_system.apply_refunds(scratch, replaced_segments, replaced_machines)
+
+            if refund_ok and scratch.try_remove_items(cost):
+                color_flags.append("normal")
+            else:
+                color_flags.append("yellow")
+
+        return color_flags
+
     def draw_ghost(self, selected_machine_class, placing_belt=False, selected_belt_type="basic"):
         """Draws the belt placement preview: a single tile if you've only
         just started, or the whole dragged-out line (colored by whether
@@ -66,20 +94,23 @@ class BeltGhostPreviewController:
 
         allow_replace = self.belt_system.get_placement_modifiers()
 
-        # Single belt
+        # Single belt - not dragging yet, just hovering where a click would
+        # start (and, if released without moving, immediately finish) a
+        # one-tile drag, so it uses the exact same blocked/auto-replace
+        # check as an actual drag would for that one tile.
         if not placing_belt:
-            if self.belt_system.is_tile_blocked_for_placement(mouse_tile, allow_replace):
-                    color_flag = "red"
-
-            elif self.player.inventory.has_enough_items(self.belt_system.BUILD_COSTS[selected_belt_type]):
-                color_flag = "normal"
-
-            else:
-                color_flag = "yellow"
-
             direction = (self.belt_system.belt_placement_direction or Vector2(1, 0)).snapped()
-
             ghost_seg = BeltSegment(mouse_tile, direction, [], belt_type=selected_belt_type)
+
+            if self.belt_system.is_drag_tile_blocked(ghost_seg, None, mouse_tile, True, allow_replace):
+                color_flag = "red"
+            else:
+                replaced_segments, replaced_machines, total_cost = self.belt_system.gather_replacements(
+                    [ghost_seg], selected_belt_type
+                )
+                status = self.belt_system.check_placement_affordability(replaced_segments, replaced_machines, total_cost)
+                color_flag = {"ok": "normal", "no_space": "orange", "no_funds": "yellow"}[status]
+
             affected_segments = self.belt_system.resolve_preview_connections([ghost_seg])
             self._draw_affected(affected_segments)
 
@@ -96,52 +127,28 @@ class BeltGhostPreviewController:
         # Calculate what the entire belt network would look like if these ghost belts were placed.
         affected_segments = (self.belt_system.resolve_preview_connections(segments))
 
-        # Check blocking
+        # Check blocking - a tile can be fine to place on without Shift
+        # held, either because it's empty or because it qualifies for the
+        # auto-replace rules (the drag's own start tile replacing an
+        # existing belt there, or any tile that's already an exact match).
+        others_ok = self.belt_system._others_free_or_direction_matching(segments, start_tile)
+        new_incomings = self.belt_system._new_incoming_directions(segments)
         any_blocked = any(
-            self.belt_system.is_tile_blocked_for_placement(seg.grid_pos, allow_replace)
-            for seg in segments
+            self.belt_system.is_drag_tile_blocked(seg, new_in, start_tile, others_ok, allow_replace)
+            for seg, new_in in zip(segments, new_incomings)
         )
 
         if any_blocked:
             color_flags = ["red"] * len(segments)
 
-        elif allow_replace:
-            replaced_segments, replaced_machines, total_cost = self.belt_system.gather_replacements(
-                segments, selected_belt_type
-            )
-            status = self.belt_system.check_placement_affordability(replaced_segments, replaced_machines, total_cost)
-            color = {"ok": "normal", "no_space": "orange", "no_funds": "yellow"}[status]
-            color_flags = [color] * len(segments)
-
         else:
-            available = {
-                item_id: self.player.inventory.get_amount(item_id)
-                for item_id in self.belt_system.BUILD_COSTS[selected_belt_type]
-            }
-
-            color_flags = []
-
-            for seg in segments:
-                can_build = all(
-                    available[item_id] >= cost
-                    for item_id, cost
-                    in self.belt_system.BUILD_COSTS[
-                        seg.belt_type
-                    ].items()
-                )
-
-                if can_build:
-                    color_flags.append("normal")
-
-                    for item_id, cost in (
-                        self.belt_system.BUILD_COSTS[
-                            seg.belt_type
-                        ].items()
-                    ):
-                        available[item_id] -= cost
-
-                else:
-                    color_flags.append("yellow")
+            # Nothing's blocked, so color each tile on its own running
+            # affordability - normal as far as you can actually afford,
+            # yellow from there on - rather than one lump verdict for the
+            # whole line (which would turn the entire ghost yellow the
+            # moment the line as a whole got too expensive, even for the
+            # leading stretch you could still build).
+            color_flags = self._drag_affordability_flags(segments)
 
         # Camera visibility
         cam_tile_x1, cam_tile_y1, cam_tile_x2, cam_tile_y2 = self._camera_tile_bounds()

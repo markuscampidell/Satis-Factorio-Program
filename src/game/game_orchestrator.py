@@ -41,6 +41,7 @@ class GameOrchestrator:
                 machine.update(delta_time, self.context.world.belt_map, self.context.world.machine_map)
     
             self.context.build_system.update_hovered_delete_target()
+            self.context.build_system.update_drag()
             self.context.machine_interaction_system.update_hover()
 
     def _update_screen_size(self, width, height):

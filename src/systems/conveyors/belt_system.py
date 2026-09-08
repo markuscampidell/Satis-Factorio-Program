@@ -32,6 +32,97 @@ class BeltSystem:
             return True
         return self.world.is_cell_blocked(grid_pos) and not allow_replace
 
+    def _segment_matches_existing(self, seg, require_type):
+        """True if there's already a belt at seg's tile facing the same
+        direction as seg (and, if require_type, also the same belt_type) -
+        i.e. placing seg there would be a genuine no-op, or close to one."""
+        existing = self.world.belt_map.get(seg.grid_pos)
+        if existing is None:
+            return False
+        if existing.direction != seg.direction:
+            return False
+        if require_type and existing.belt_type != seg.belt_type:
+            return False
+        return True
+
+    def _new_incoming_directions(self, segments):
+        """The flow direction arriving at each tile of a dragged line, in
+        order - tile i's incoming is tile (i-1)'s outgoing, the same hop
+        _tiles_to_segments already used to work out tile (i-1)'s own
+        direction. The start tile (index 0) has nothing before it in this
+        drag to define an incoming side, so it's None there."""
+        incoming = [None]
+        for i in range(1, len(segments)):
+            incoming.append(segments[i - 1].direction)
+        return incoming
+
+    def _segment_reverses_existing(self, seg, new_incoming):
+        """True if there's already a belt at seg's tile whose flow is the
+        exact reverse of what's being dragged through it here - not just
+        facing the opposite way, but actually swapping entry and exit: the
+        existing belt's outgoing matches the new flow's incoming, and its
+        (single) incoming matches the new outgoing. A straight belt's
+        incoming and outgoing are the same direction, so this reduces to
+        a plain head-on reversal for those; a curve needs both ends to
+        swap correctly, which is why outgoing-only comparison isn't
+        enough. Only applies when the existing belt has exactly one
+        incoming side - reversing a merge point (multiple inputs) is
+        ambiguous, so that still needs Shift. `new_incoming` is None for
+        the drag's own start tile, which doesn't use this check at all
+        (see is_drag_tile_blocked)."""
+        if new_incoming is None:
+            return False
+        existing = self.world.belt_map.get(seg.grid_pos)
+        if existing is None or len(existing.incoming_directions) != 1:
+            return False
+        existing_in = existing.incoming_directions[0]
+        return seg.direction == -existing_in and new_incoming == -existing.direction
+
+    def _tile_auto_replaceable(self, seg, new_incoming):
+        """Whether this one tile is fine to place on without Shift on its
+        own merits - empty, an exact match, or a clean reversal. Doesn't
+        cover the drag's start tile's own separate always-replace
+        exemption (see is_drag_tile_blocked) - this is only about a tile
+        standing on its own."""
+        return (
+            not self.world.is_cell_blocked(seg.grid_pos)
+            or self._segment_matches_existing(seg, require_type=True)
+            or self._segment_reverses_existing(seg, new_incoming)
+        )
+
+    def _others_free_or_direction_matching(self, segments, start_tile):
+        """Whether every tile in a dragged line OTHER than the start tile
+        is itself already fine to place on without Shift (empty, an exact
+        match, or a reversal) - the qualifying condition for the start
+        tile's own always-replace exemption below."""
+        return all(
+            seg.grid_pos == start_tile or self._tile_auto_replaceable(seg, new_incoming)
+            for seg, new_incoming in zip(segments, self._new_incoming_directions(segments))
+        )
+
+    def is_drag_tile_blocked(self, seg, new_incoming, start_tile, others_ok, allow_replace):
+        """Whether this one tile of a dragged belt line still needs Shift
+        held to place, under the auto-replace rules: an empty tile never
+        needs it; Shift held always overrides everything (except the
+        player's own tile); the drag's start tile replaces an existing
+        BELT there for free as long as the rest of the line is itself
+        either empty or already fine on its own (not a machine, and not
+        when the rest of the drag would still need Shift for something
+        else anyway); any other tile skips Shift if what's there already
+        matches (same direction and belt_type - a true no-op) or is the
+        exact reverse of the new flow through it (see
+        _segment_reverses_existing)."""
+        if self.world.is_blocked_by_player(seg.grid_pos):
+            return True
+        if allow_replace:
+            return False
+        if not self.world.is_cell_blocked(seg.grid_pos):
+            return False
+        if seg.grid_pos == start_tile:
+            return not (self.world.belt_map.get(seg.grid_pos) is not None and others_ok)
+        return not (self._segment_matches_existing(seg, require_type=True)
+                    or self._segment_reverses_existing(seg, new_incoming))
+
     def get_placement_modifiers(self):
         """Shift held means replace everything under the belt path -
         existing belts and machines alike."""
@@ -115,8 +206,11 @@ class BeltSystem:
         segments = self._tiles_to_segments(tiles, belt_type=belt_type)
 
         allow_replace = self.get_placement_modifiers()
+        others_ok = self._others_free_or_direction_matching(segments, start_tile)
+        new_incomings = self._new_incoming_directions(segments)
 
-        if any(self.is_tile_blocked_for_placement(seg.grid_pos, allow_replace) for seg in segments):
+        if any(self.is_drag_tile_blocked(seg, new_in, start_tile, others_ok, allow_replace)
+               for seg, new_in in zip(segments, new_incomings)):
             return  # Can't build here
 
         replaced_segments, replaced_machines, total_cost = self.gather_replacements(segments, belt_type)
@@ -148,18 +242,21 @@ class BeltSystem:
 
     def delete_belt(self, mx, my, delete_whole=False, camera_x=0, camera_y=0):
         """Deletes the belt under the mouse - or, if asked, its whole
-        connected run at once - and refunds the player for it."""
+        connected run at once - and refunds the player for it. Returns
+        True if anything was actually deleted, False otherwise - lets a
+        click-and-drag caller retry the same tile later instead of writing
+        off a merely-blocked attempt as done."""
         world_x, world_y = mx + camera_x, my + camera_y
         shift_held = py.key.get_mods() & py.KMOD_SHIFT
 
         target_seg = self.world.get_belt_segment_at(world_x, world_y)
         if not target_seg:
-            return
+            return False
 
         to_delete = self.get_connected_belt_segments(target_seg) if (delete_whole or shift_held) else [target_seg]
 
         if not self.can_afford_belt_deletion(to_delete):
-            return  # Not enough inventory space to receive the refund
+            return False  # Not enough inventory space to receive the refund
 
         for seg in to_delete:
             seg.refund_item_on_segment(self.player.inventory)
@@ -168,6 +265,7 @@ class BeltSystem:
             self.world.remove_belt_segment(seg)
 
         self.update_belt_incoming_directions()
+        return True
 
     def get_connected_belt_segments(self, start_seg):
         """Finds every belt connected to this one, following the belt line

@@ -19,13 +19,19 @@ class MachineSystem:
         self.just_placed_machine = False
         self.splitter_rotation_steps = 0
 
-    def place_machine(self, selected_machine_class):
+    def place_machine(self, selected_machine_class, protected_machine=None):
         """Tries to place the selected machine under the mouse. Makes sure
         the spot is free and that the cost (after accounting for any
         refund from what it would replace) actually works out, before
-        really building it."""
+        really building it. `protected_machine`, if given, is never
+        replaced even with Shift held - used by click-and-drag placement
+        so dragging with Shift down to overwrite other things doesn't also
+        immediately overwrite the machine the same drag just placed one
+        tile ago. Returns the placed machine on success, False otherwise -
+        lets a click-and-drag caller retry the same tile later instead of
+        writing off a merely-blocked attempt as done."""
         if selected_machine_class is None:
-            return
+            return False
 
         # Snap mouse to grid
         mx, my = py.mouse.get_pos()
@@ -50,12 +56,17 @@ class MachineSystem:
         cells = getattr(machine, "occupied_cells", [])
         allow_replace = bool(py.key.get_mods() & py.KMOD_SHIFT)
 
-        # The player always blocks. A belt or machine tile only blocks if
-        # we're not allowed to replace it (shift held).
+        # The player always blocks. protected_machine always blocks too,
+        # even with Shift held - it's exempt from replacement, not just
+        # from the ordinary blocked check below. A belt or any other
+        # machine tile only blocks if we're not allowed to replace it.
         if any(self.world.is_blocked_by_player(cell) for cell in cells):
-            return
+            return False
+        if protected_machine is not None and any(
+                self.world.machine_map.get(cell) is protected_machine for cell in cells):
+            return False
         if not allow_replace and any(self.world.is_cell_blocked(cell) for cell in cells):
-            return
+            return False
 
         replaced_segments, replaced_machines = self.world.gather_occupants(cells)
 
@@ -63,9 +74,9 @@ class MachineSystem:
         # placement if a refund doesn't fit or the cost isn't affordable.
         scratch = self.player.inventory.clone()
         if not BeltSystem.apply_refunds(scratch, replaced_segments, replaced_machines):
-            return
+            return False
         if not scratch.try_remove_items(cost):
-            return
+            return False
 
         # Simulation succeeded exactly as it will for real - apply it.
         BeltSystem.apply_refunds(self.player.inventory, replaced_segments, replaced_machines)
@@ -79,6 +90,7 @@ class MachineSystem:
         self.world.add_machine(machine)
         self.preview_machine = None
         self.just_placed_machine = True
+        return machine
 
     def can_afford_deletion(self, machine):
         """True if the player's inventory has room for everything this
@@ -88,19 +100,24 @@ class MachineSystem:
 
     def delete_machine(self, mx, my):
         """Deletes whatever machine is under the mouse and refunds the
-        player, as long as there's room in their inventory for it."""
+        player, as long as there's room in their inventory for it. Returns
+        True if a machine was actually deleted, False otherwise - lets a
+        click-and-drag caller retry the same tile later instead of writing
+        off a merely-blocked attempt as done."""
         grid_x, grid_y = self.world.snap_to_tile(mx + self.camera.x, my + self.camera.y)
 
         for machine in list(self.world.machines):
             if (grid_x, grid_y) in getattr(machine, "occupied_cells", []):
                 if not self.can_afford_deletion(machine):
-                    return  # Not enough inventory space to receive the refund
+                    return False  # Not enough inventory space to receive the refund
 
                 for item_id, amount in machine.get_refund_items().items():
                     self.player.inventory.try_add_items(item_id, amount)
 
                 self.world.remove_machine(machine)
-                return
+                return True
+
+        return False
 
     def get_machine_placement_preview(self, selected_machine_class):
         """Figures out where a machine would land if placed right now, and

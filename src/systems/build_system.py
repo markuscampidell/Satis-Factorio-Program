@@ -28,29 +28,48 @@ class BuildSystem:
         self.selected_machine_class = Smelter
         self.hovered_delete_target = None
 
+        # Dedupe key for click-and-drag placing/deleting: the last tile
+        # acted on while the mouse button's been held down, so a drag
+        # places or deletes (at most) once per tile it crosses instead of
+        # re-attempting on every single motion event.
+        self._last_dragged_tile = None
+
+        # The machine placed most recently during the current drag, if
+        # any - passed to place_machine() as protected_machine so
+        # dragging with Shift held to overwrite other things can't also
+        # immediately overwrite the machine this same drag just placed.
+        self._last_placed_machine = None
+
     def handle_placement(self, event):
         """Handles a click while in build or delete mode: places whatever's
-        selected, drags out a belt, or deletes what's under the cursor."""
+        selected, starts/finishes dragging out a belt, or deletes what's
+        under the cursor. Continuing to place/delete while the mouse
+        button stays held is handled separately by update_drag(), called
+        once per frame - not here, since events alone would miss it: the
+        camera can pan underneath a perfectly still mouse (e.g. walking
+        with WASD while holding the button down), changing what world tile
+        is under the cursor without ever firing a MOUSEMOTION event."""
         if (self.player_inventory_ui.open or self.machine_ui.open or self.storage_ui.open
                 or self.belt_filter_ui.open or self.splitter_filter_ui.open): return
-        if event.type != py.MOUSEBUTTONDOWN or event.button != 1: return
+
+        if event.type == py.MOUSEBUTTONUP and event.button == 1:
+            self._last_dragged_tile = None
+            self._last_placed_machine = None
+            return
+
+        if not (event.type == py.MOUSEBUTTONDOWN and event.button == 1):
+            return
 
         mx, my = event.pos
         world_x = mx + self.camera.x
         world_y = my + self.camera.y
 
-        # Delete mode
         if self.build_mode == "deleting":
-            self.machine_system.delete_machine(mx, my)
-            self.belt_system.delete_belt(
-                mx, my,
-                delete_whole=bool(py.key.get_mods() & py.KMOD_SHIFT),
-                camera_x=self.camera.x,
-                camera_y=self.camera.y)
-            self.belt_system.update_belt_incoming_directions()
+            self._try_delete_at(mx, my, world_x, world_y)
             return
 
-        # Belt placement
+        # Belt placement - dragging out a belt line is its own separate
+        # start-click/end-click gesture, not the held-down kind.
         if self.build_mode == "building" and self.selected_machine_class is BeltSegment:
             if not self.belt_system.placing_belt:
                 if self._mouse_over_ui(mx, my):
@@ -66,9 +85,73 @@ class BuildSystem:
                 self.belt_system.placing_belt = False
                 return
 
-        # Machine placement
         if self.build_mode == "building" and self.selected_machine_class is not None:
-            self.machine_system.place_machine(self.selected_machine_class)
+            self._try_place_machine_at(mx, my, world_x, world_y)
+
+    def update_drag(self):
+        """Keeps placing or deleting, once per frame, for as long as the
+        mouse button stays held - covers both dragging the mouse across
+        new tiles and the camera panning a stationary mouse onto new
+        tiles (see handle_placement's docstring), which a purely
+        event-driven MOUSEMOTION check would miss entirely."""
+        if (self.player_inventory_ui.open or self.machine_ui.open or self.storage_ui.open
+                or self.belt_filter_ui.open or self.splitter_filter_ui.open): return
+        if not py.mouse.get_pressed()[0]:
+            return
+        # Belt placement is its own click-to-click gesture, never a hold-drag.
+        if self.build_mode == "building" and self.selected_machine_class is BeltSegment:
+            return
+
+        mx, my = py.mouse.get_pos()
+        world_x = mx + self.camera.x
+        world_y = my + self.camera.y
+
+        if self.build_mode == "deleting":
+            self._try_delete_at(mx, my, world_x, world_y)
+        elif self.build_mode == "building" and self.selected_machine_class is not None:
+            self._try_place_machine_at(mx, my, world_x, world_y)
+
+    def _try_delete_at(self, mx, my, world_x, world_y):
+        """Deletes whatever's at this screen position, unless it's the
+        same tile the current drag already handled."""
+        tile = self.world.snap_to_tile(world_x, world_y)
+        if tile == self._last_dragged_tile:
+            return
+
+        deleted_machine = self.machine_system.delete_machine(mx, my)
+        deleted_belt = self.belt_system.delete_belt(
+            mx, my,
+            delete_whole=bool(py.key.get_mods() & py.KMOD_SHIFT),
+            camera_x=self.camera.x,
+            camera_y=self.camera.y)
+
+        # Only remember this tile as "done" if something actually got
+        # deleted - a merely-blocked attempt (e.g. not enough inventory
+        # room for the refund yet) stays eligible for a retry next frame
+        # instead of being silently written off for the rest of this drag.
+        if deleted_machine or deleted_belt:
+            self._last_dragged_tile = tile
+            self.belt_system.update_belt_incoming_directions()
+
+    def _try_place_machine_at(self, mx, my, world_x, world_y):
+        """Places the selected machine at this screen position, unless
+        it's the same tile the current drag already handled."""
+        tile = self.world.snap_to_tile(world_x, world_y)
+        if tile == self._last_dragged_tile:
+            return
+
+        placed = self.machine_system.place_machine(
+            self.selected_machine_class, protected_machine=self._last_placed_machine)
+
+        # Only remember this tile as "done" if a machine actually went
+        # down - a merely-blocked attempt (occupied without Shift held
+        # yet, say) stays eligible for a retry next frame instead of being
+        # silently written off for the rest of this drag, which is what
+        # made holding Shift mid-drag look like it didn't do anything
+        # until you let go and clicked again.
+        if placed:
+            self._last_dragged_tile = tile
+            self._last_placed_machine = placed
             self.belt_system.update_belt_incoming_directions()
             if hasattr(self, 'preview_splitter'):
                 self.preview_splitter = None
