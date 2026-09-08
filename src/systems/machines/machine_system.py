@@ -19,17 +19,17 @@ class MachineSystem:
         self.just_placed_machine = False
         self.splitter_rotation_steps = 0
 
-    def place_machine(self, selected_machine_class, protected_machine=None):
+    def place_machine(self, selected_machine_class, protected_machines=None):
         """Tries to place the selected machine under the mouse. Makes sure
         the spot is free and that the cost (after accounting for any
         refund from what it would replace) actually works out, before
-        really building it. `protected_machine`, if given, is never
-        replaced even with Shift held - used by click-and-drag placement
-        so dragging with Shift down to overwrite other things doesn't also
-        immediately overwrite the machine the same drag just placed one
-        tile ago. Returns the placed machine on success, False otherwise -
-        lets a click-and-drag caller retry the same tile later instead of
-        writing off a merely-blocked attempt as done."""
+        really building it. `protected_machines`, if given, is a collection
+        of machines that are never replaced even with Shift held - used by
+        click-and-drag placement so dragging with Shift down to overwrite
+        other things doesn't also immediately overwrite any machine the
+        same drag already placed. Returns the placed machine on success,
+        False otherwise - lets a click-and-drag caller retry the same tile
+        later instead of writing off a merely-blocked attempt as done."""
         if selected_machine_class is None:
             return False
 
@@ -56,14 +56,14 @@ class MachineSystem:
         cells = getattr(machine, "occupied_cells", [])
         allow_replace = bool(py.key.get_mods() & py.KMOD_SHIFT)
 
-        # The player always blocks. protected_machine always blocks too,
-        # even with Shift held - it's exempt from replacement, not just
+        # The player always blocks. protected_machines always block too,
+        # even with Shift held - they're exempt from replacement, not just
         # from the ordinary blocked check below. A belt or any other
         # machine tile only blocks if we're not allowed to replace it.
         if any(self.world.is_blocked_by_player(cell) for cell in cells):
             return False
-        if protected_machine is not None and any(
-                self.world.machine_map.get(cell) is protected_machine for cell in cells):
+        if protected_machines and any(
+                self.world.machine_map.get(cell) in protected_machines for cell in cells):
             return False
         if not allow_replace and any(self.world.is_cell_blocked(cell) for cell in cells):
             return False

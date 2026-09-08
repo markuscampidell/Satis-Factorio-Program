@@ -34,11 +34,12 @@ class BuildSystem:
         # re-attempting on every single motion event.
         self._last_dragged_tile = None
 
-        # The machine placed most recently during the current drag, if
-        # any - passed to place_machine() as protected_machine so
-        # dragging with Shift held to overwrite other things can't also
-        # immediately overwrite the machine this same drag just placed.
-        self._last_placed_machine = None
+        # Every machine placed so far during the current drag - passed to
+        # place_machine() as protected_machines so dragging with Shift
+        # held to overwrite other things can't also immediately overwrite
+        # a machine this same drag already placed, no matter how many
+        # steps ago (not just the most recent one).
+        self._drag_placed_machines = set()
 
     def handle_placement(self, event):
         """Handles a click while in build or delete mode: places whatever's
@@ -54,7 +55,7 @@ class BuildSystem:
 
         if event.type == py.MOUSEBUTTONUP and event.button == 1:
             self._last_dragged_tile = None
-            self._last_placed_machine = None
+            self._drag_placed_machines = set()
             return
 
         if not (event.type == py.MOUSEBUTTONDOWN and event.button == 1):
@@ -141,7 +142,7 @@ class BuildSystem:
             return
 
         placed = self.machine_system.place_machine(
-            self.selected_machine_class, protected_machine=self._last_placed_machine)
+            self.selected_machine_class, protected_machines=self._drag_placed_machines)
 
         # Only remember this tile as "done" if a machine actually went
         # down - a merely-blocked attempt (occupied without Shift held
@@ -151,7 +152,7 @@ class BuildSystem:
         # until you let go and clicked again.
         if placed:
             self._last_dragged_tile = tile
-            self._last_placed_machine = placed
+            self._drag_placed_machines.add(placed)
             self.belt_system.update_belt_incoming_directions()
             if hasattr(self, 'preview_splitter'):
                 self.preview_splitter = None
