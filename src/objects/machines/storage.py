@@ -4,6 +4,7 @@ from objects.machines.machine import Machine
 from objects.machines.input_animator import InputAnimator
 from objects.machines.machine_output_pusher import push_storage_output
 from game.grid import Grid
+from constants.itemdata import get_item_by_id
 
 
 class Storage(Machine):
@@ -39,6 +40,28 @@ class Storage(Machine):
 
         self.input_animator.start(item, source_grid_pos, direction, tiles_per_sec=source_speed)
         return True
+
+    def draw(self, screen, camera):
+        super().draw(screen, camera)
+        self._draw_top_item(screen, camera)
+
+    def _draw_top_item(self, screen, camera):
+        """Draws an icon of whichever item this storage is currently
+        holding the most of, centered on top of it - a quick at-a-glance
+        hint of what's inside without opening it."""
+        contents = self.inventory.contents_as_dict()
+        if not contents:
+            return
+
+        top_item_id = max(contents, key=contents.get)
+        item_obj = get_item_by_id(top_item_id)
+        if not item_obj or not item_obj.sprite:
+            return
+
+        center_x = self.grid_pos[0] * self.cell_size + (self.WIDTH * self.cell_size) // 2 - camera.x
+        center_y = self.grid_pos[1] * self.cell_size + (self.HEIGHT * self.cell_size) // 2 - camera.y
+        img = item_obj.sprite
+        screen.blit(img, (center_x - img.get_width() // 2, center_y - img.get_height() // 2))
 
     def get_refund_items(self):
         """Also refunds everything currently stored inside it."""

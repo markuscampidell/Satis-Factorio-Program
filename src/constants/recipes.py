@@ -39,7 +39,8 @@ smelter_recipes.extend([iron_ingot_recipe, copper_ingot_recipe, test, steel_reci
 
 assembler_recipes = []
 iron_plate_recipe = Recipe("iron_plate", "Iron Plate", {"iron_ingot": 2}, {"iron_plate": 40, "coal": 40}, 1) # for testing
-assembler_recipes.extend([iron_plate_recipe])
+iron_rod_recipe = Recipe("iron_rod", "Iron Rod", {"iron_ingot": 1}, {"iron_rod": 5}, 1)
+assembler_recipes.extend([iron_plate_recipe, iron_rod_recipe])
 
 
 def get_recipe_by_id(recipe_id):
