@@ -40,4 +40,4 @@ Temporary for game development:
   
 You can click on machines to open their UI and change their selected recipe.
 
-<img width="2068" height="1167" alt="image" src="https://github.com/user-attachments/assets/672b7b14-fe5d-4670-8843-7c1a464b05d7" />
+<img width="2069" height="1311" alt="image" src="https://github.com/user-attachments/assets/97728996-0ab7-4957-aebc-5b6304ec8814" />
