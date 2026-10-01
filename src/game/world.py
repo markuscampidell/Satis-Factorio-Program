@@ -1,13 +1,24 @@
 # game.world
-from game.chunk import Chunk, chunk_coords
+import random
+
+from game.chunk import Chunk, chunk_coords, CHUNK_SIZE
+from game import terrain
 
 class World:
     """Keeps track of every machine and belt that's been built, and where
     each one sits on the grid."""
 
-    def __init__(self, player, cell_size):
+    def __init__(self, player, cell_size, seed=None):
         self.player = player
         self.cell_size = cell_size
+
+        # Terrain is fully deterministic from this one seed (see
+        # game.terrain) - nothing about it needs saving tile-by-tile, only
+        # this. Defaults to a fresh random seed so a bare `World()` is still
+        # usable (e.g. in tests); new_game()/load_game() always overwrite
+        # this with the real one immediately after construction, before any
+        # terrain query can happen.
+        self.seed = seed if seed is not None else random.randint(0, 2**31 - 1)
 
         self.machines = []
         self.belt_segments = []
@@ -113,6 +124,40 @@ class World:
                 chunk = self.chunks.get((cx, cy))
                 if chunk is not None:
                     yield chunk
+
+    def ensure_chunks_in_tile_rect(self, left, top, right, bottom):
+        """Same range as chunks_in_tile_rect, but creates (and terrain-
+        generates) every chunk in it instead of only yielding ones that
+        already exist - unlike machines/belts, terrain needs to exist
+        everywhere the camera can see, not just where something's been
+        built. Used only by the terrain-drawing pass; every other chunk
+        query stays read-only on purpose so machine/belt culling behavior
+        doesn't change."""
+        cx1, cy1 = chunk_coords((left, top))
+        cx2, cy2 = chunk_coords((right - 1, bottom - 1))
+        for cy in range(cy1, cy2 + 1):
+            for cx in range(cx1, cx2 + 1):
+                chunk = self._get_or_create_chunk((cx, cy))
+                self._ensure_chunk_terrain(chunk)
+                yield chunk
+
+    def _ensure_chunk_terrain(self, chunk):
+        if chunk.tiles is None:
+            chunk.tiles = terrain.generate_chunk_tiles(self.seed, chunk.cx, chunk.cy)
+
+    def get_tile_type(self, tile_pos):
+        """The terrain tile-type index at one absolute tile - grass
+        (terrain.EMPTY_TILE) or one of terrain.ORE_TILE_TYPES."""
+        chunk = self._get_or_create_chunk(chunk_coords(tile_pos))
+        self._ensure_chunk_terrain(chunk)
+        local_x = tile_pos[0] - chunk.cx * CHUNK_SIZE
+        local_y = tile_pos[1] - chunk.cy * CHUNK_SIZE
+        return chunk.tiles[local_y][local_x]
+
+    def get_ore_item_id(self, tile_pos):
+        """The ore item_id this tile would let a Miner produce, or None if
+        it's just grass."""
+        return terrain.ORE_TILE_TYPES.get(self.get_tile_type(tile_pos))
 
     def machines_in_tile_rect(self, left, top, right, bottom):
         """Deduped machines whose chunk(s) overlap the rect. Chunk-grained,

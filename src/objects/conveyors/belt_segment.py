@@ -8,11 +8,15 @@ class BeltSegment:
     """One tile of a conveyor belt. Carries at most one item at a time and
     hands it off to whatever's next once it reaches the far end."""
 
-    def __init__(self, grid_pos, direction: Vector2, incoming_directions: list, belt_type="basic"):
+    # There's only one belt speed now - kept as a named constant (rather
+    # than a bare number in __init__) so Splitter can import and match it
+    # exactly (see Splitter.DEFAULT_TILES_PER_SEC).
+    SPEED_TILES_PER_SEC = 8.0
+
+    def __init__(self, grid_pos, direction: Vector2, incoming_directions: list):
         self.grid_pos = grid_pos  # tile coordinates (x, y)
         self.direction = direction or Vector2(1, 0)
         self.incoming_directions = incoming_directions
-        self.belt_type = belt_type
 
         # For drawing only
         self.rect = py.Rect(grid_pos[0] * Grid.CELL_SIZE, grid_pos[1] * Grid.CELL_SIZE, Grid.CELL_SIZE, Grid.CELL_SIZE)
@@ -24,8 +28,7 @@ class BeltSegment:
         self.input_requests = []
         self.current_input_index = 0
 
-        self.items_per_minute = self._get_items_per_minute_for_type()
-        self.speed = (self.items_per_minute / 60)  # tiles per second
+        self.speed = self.SPEED_TILES_PER_SEC
 
         # What's allowed to enter this tile - from another belt, a
         # machine/storage push, or a splitter. Doesn't affect what this
@@ -176,17 +179,6 @@ class BeltSegment:
             self._clear_item()
 
         return added
-
-
-    def _get_items_per_minute_for_type(self):
-        if self.belt_type == "basic":
-            return 120
-        elif self.belt_type == "fast":
-            return 240
-        elif self.belt_type == "express":
-            return 480
-        else:
-            return 120
 
 
 def update_all(belt_segments, belt_map, machine_map, dt):

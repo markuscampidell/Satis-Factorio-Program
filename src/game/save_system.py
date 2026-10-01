@@ -1,6 +1,7 @@
 # game.save_system
 import json
 import os
+import random
 import re
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from objects.machines.smelter import Smelter
 from objects.machines.assembler import Assembler
 from objects.machines.splitter import Splitter
 from objects.machines.storage import Storage
+from objects.machines.miner import Miner
 from constants.itemdata import get_item_by_id
 
 SAVE_VERSION = 1
@@ -22,7 +24,7 @@ _LAST_OPENED_FILE = _SAVES_DIR / ".last_opened"
 # SAVE_TYPE tag - each owns its (de)serialization via to_dict()/from_dict(),
 # so adding a new machine type only means adding it here, not touching
 # _serialize_machine/_deserialize_machine at all.
-_SAVABLE_MACHINE_TYPES = {cls.SAVE_TYPE: cls for cls in (Smelter, Assembler, Splitter, Storage)}
+_SAVABLE_MACHINE_TYPES = {cls.SAVE_TYPE: cls for cls in (Smelter, Assembler, Splitter, Storage, Miner)}
 
 
 def _saves_dir() -> Path:
@@ -115,6 +117,7 @@ def save_game(world, player, camera, name: str) -> None:
         "version": SAVE_VERSION,
         "player": _serialize_player(player),
         "camera": {"x": camera.x, "y": camera.y},
+        "seed": world.seed,
         "belts": [_serialize_belt(seg) for seg in world.belt_segments],
         "machines": [_serialize_machine(m) for m in world.machines],
     }
@@ -135,6 +138,11 @@ def load_game(world, player, camera, belt_system, name: str) -> None:
         data = json.load(f)
 
     world.clear()
+
+    # Older saves (before terrain existed) have no seed - a fresh random
+    # one is fine, since there was never any terrain generated under that
+    # save to stay consistent with.
+    world.seed = data.get("seed", random.randint(0, 2**31 - 1))
 
     _deserialize_player(player, data["player"])
 
@@ -163,6 +171,7 @@ def new_game(world, player, camera, name: str) -> None:
     """Reset world/player to a brand-new game state (empty world, starting
     grant inventory) and immediately persist it."""
     world.clear()
+    world.seed = random.randint(0, 2**31 - 1)
 
     player.inventory.clear()
     player.rect.centerx = 0
@@ -201,7 +210,6 @@ def _serialize_belt(seg):
     return {
         "grid_pos": list(seg.grid_pos),
         "direction": [seg.direction.x, seg.direction.y],
-        "belt_type": seg.belt_type,
         "item": seg.item.item_id if seg.item else None,
         "filter": seg.filter.to_dict(),
     }
@@ -210,12 +218,13 @@ def _serialize_belt(seg):
 def _deserialize_belt(entry):
     """Rebuilds a belt segment from saved data. Older saves stored the
     filter as two separate fields instead of one, so this can still read
-    those too."""
+    those too. Older saves also stored a "belt_type" (basic/fast/express) -
+    now that there's only one belt speed, that field (if present) is simply
+    ignored."""
     seg = BeltSegment(
         tuple(entry["grid_pos"]),
         Vector2(*entry["direction"]),
         [],
-        belt_type=entry["belt_type"],
     )
     seg.item = get_item_by_id(entry["item"]) if entry["item"] else None
 

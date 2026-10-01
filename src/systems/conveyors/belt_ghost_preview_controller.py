@@ -67,7 +67,7 @@ class BeltGhostPreviewController:
             replaced_machines = [m for m in replaced_machines if id(m) not in seen_machine_ids]
             seen_machine_ids.update(id(m) for m in replaced_machines)
 
-            cost = self.belt_system.BUILD_COSTS[seg.belt_type]
+            cost = self.belt_system.BUILD_COST
             refund_ok = self.belt_system.apply_refunds(scratch, replaced_segments, replaced_machines)
 
             if refund_ok and scratch.try_remove_items(cost):
@@ -77,7 +77,7 @@ class BeltGhostPreviewController:
 
         return color_flags
 
-    def draw_ghost(self, selected_machine_class, placing_belt=False, selected_belt_type="basic"):
+    def draw_ghost(self, selected_machine_class, placing_belt=False):
         """Draws the belt placement preview: a single tile if you've only
         just started, or the whole dragged-out line (colored by whether
         you can afford it) once you're dragging."""
@@ -100,13 +100,13 @@ class BeltGhostPreviewController:
         # check as an actual drag would for that one tile.
         if not placing_belt:
             direction = (self.belt_system.belt_placement_direction or Vector2(1, 0)).snapped()
-            ghost_seg = BeltSegment(mouse_tile, direction, [], belt_type=selected_belt_type)
+            ghost_seg = BeltSegment(mouse_tile, direction, [])
 
             if self.belt_system.is_drag_tile_blocked(ghost_seg, None, mouse_tile, True, allow_replace):
                 color_flag = "red"
             else:
                 replaced_segments, replaced_machines, total_cost = self.belt_system.gather_replacements(
-                    [ghost_seg], selected_belt_type
+                    [ghost_seg]
                 )
                 status = self.belt_system.check_placement_affordability(replaced_segments, replaced_machines, total_cost)
                 color_flag = {"ok": "normal", "no_space": "orange", "no_funds": "yellow"}[status]
@@ -122,7 +122,7 @@ class BeltGhostPreviewController:
 
         tiles = self.belt_system.get_drag_tiles(start_tile, mouse_tile)
 
-        segments = self.belt_system._tiles_to_segments(tiles, belt_type=selected_belt_type)
+        segments = self.belt_system._tiles_to_segments(tiles)
 
         # Calculate what the entire belt network would look like if these ghost belts were placed.
         affected_segments = (self.belt_system.resolve_preview_connections(segments))

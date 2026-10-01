@@ -82,7 +82,7 @@ class BuildSystem:
             else:
                 if self._mouse_over_ui(mx, my):
                     return
-                self.belt_system.place_belt(world_x, world_y, self.belt_system.selected_belt_type)
+                self.belt_system.place_belt(world_x, world_y)
                 self.belt_system.placing_belt = False
                 return
 

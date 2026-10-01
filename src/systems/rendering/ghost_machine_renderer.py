@@ -4,6 +4,7 @@ import pygame as py
 from core.vector2 import Vector2
 from objects.conveyors.belt_segment import BeltSegment
 from objects.machines.splitter import relative_dirs
+from objects.machines.miner import Miner
 from systems.conveyors.belt_system import BeltSystem
 
 
@@ -28,6 +29,7 @@ class GhostMachineRenderer:
         "blocked": (255, 0, 0, 120),
         "no_space": (255, 165, 0, 120),
         "no_funds": (255, 255, 0, 120),
+        "no_ore": (128, 0, 128, 120),
     }
 
     def __init__(self, world, player, camera, grid, screen, belt_ghost_preview_controller):
@@ -61,7 +63,7 @@ class GhostMachineRenderer:
         ]
 
         allow_replace = bool(py.key.get_mods() & py.KMOD_SHIFT)
-        status = self._check_status(cells, selected_machine_class.BUILD_COST, allow_replace)
+        status = self._check_status(cells, selected_machine_class.BUILD_COST, allow_replace, selected_machine_class)
 
         # Create ghost surface (cached)
         pixel_width = width * self.grid.CELL_SIZE
@@ -71,9 +73,14 @@ class GhostMachineRenderer:
         if not hasattr(selected_machine_class, cache_key):
             ghost = py.Surface((pixel_width, pixel_height), py.SRCALPHA)
             if selected_machine_class.SPRITE_PATH:
-                original = py.image.load(selected_machine_class.SPRITE_PATH).convert_alpha()
-                scaled = py.transform.scale(original, (pixel_width, pixel_height))
-                ghost.blit(scaled, (0, 0))
+                # A missing sprite leaves the ghost blank/transparent
+                # instead of crashing - same fallback as Machine.__init__.
+                try:
+                    original = py.image.load(selected_machine_class.SPRITE_PATH).convert_alpha()
+                    scaled = py.transform.scale(original, (pixel_width, pixel_height))
+                    ghost.blit(scaled, (0, 0))
+                except (FileNotFoundError, py.error):
+                    pass
             setattr(selected_machine_class, cache_key, ghost)
 
         ghost = getattr(selected_machine_class, cache_key).copy()
@@ -108,16 +115,20 @@ class GhostMachineRenderer:
 
         self.belt_ghost_preview_controller._draw_affected(affected_segments)
 
-    def _check_status(self, cells, cost, allow_replace):
-        """Returns "blocked", "no_space", "no_funds", or "ok" - the same
-        rule MachineSystem.place_machine enforces: the player always
-        blocks; a belt/machine tile blocks unless shift is held; and if
-        not blocked, replacing whatever's there (if anything) has to
-        actually fit and the net cost has to be affordable."""
+    def _check_status(self, cells, cost, allow_replace, selected_machine_class=None):
+        """Returns "blocked", "no_space", "no_funds", "no_ore", or "ok" -
+        the same rule MachineSystem.place_machine enforces: the player
+        always blocks; a belt/machine tile blocks unless shift is held; a
+        Miner additionally needs at least one tile of its footprint to be
+        a matching ore tile, Shift or not; and if none of that blocks it,
+        replacing whatever's there (if anything) has to actually fit and
+        the net cost has to be affordable."""
         if any(self.world.is_blocked_by_player(cell) for cell in cells):
             return "blocked"
         if not allow_replace and any(self.world.is_cell_blocked(cell) for cell in cells):
             return "blocked"
+        if selected_machine_class is Miner and not any(self.world.get_ore_item_id(cell) for cell in cells):
+            return "no_ore"
 
         replaced_segments, replaced_machines = self.world.gather_occupants(cells)
 

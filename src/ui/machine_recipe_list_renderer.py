@@ -24,13 +24,19 @@ class MachineRecipeListRenderer:
         y = ui.rect.y + padding
         right_edge = ui.rect.right - padding
 
-        title = self.font.render("Recipes:", True, "#000000")
-        title_rect = title.get_rect(topright=(right_edge, y))
-        screen.blit(title, title_rect)
-        y += title_rect.height + 15
+        # A machine with nothing to pick from (e.g. a Miner, whose output
+        # is dictated by the ore tile it's standing on, not a chosen
+        # recipe) has no `recipes` list at all - skip the header entirely
+        # instead of showing an empty "Recipes:" label with nothing under
+        # it.
+        recipes = getattr(ui.selected_machine, "recipes", [])
+        if recipes:
+            title = self.font.render("Recipes:", True, "#000000")
+            title_rect = title.get_rect(topright=(right_edge, y))
+            screen.blit(title, title_rect)
+            y += title_rect.height + 15
 
         selected_index = None
-        recipes = getattr(ui.selected_machine, "recipes", [])
         if hasattr(ui.selected_machine, "recipe"):
             for idx, recipe in enumerate(recipes):
                 if recipe == ui.selected_machine.recipe:

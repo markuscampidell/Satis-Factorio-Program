@@ -31,11 +31,18 @@ class Machine:
         self.occupied_cells = self._compute_occupied_cells()
         self._output_tiles = self._compute_output_tiles()
 
-        # Load and scale image to rect
+        # Load and scale image to rect. A missing sprite (e.g. a new
+        # machine type wired up in code before its art exists) leaves
+        # self.image as None rather than crashing - draw() already treats
+        # that as "nothing to draw", so the machine still works (it's just
+        # invisible) instead of the whole game refusing to start.
         self.image = None
         if self.SPRITE_PATH:
-            self.image = py.image.load(self.SPRITE_PATH).convert_alpha()
-            self.image = py.transform.scale(self.image, (self.rect.width, self.rect.height))
+            try:
+                self.image = py.image.load(self.SPRITE_PATH).convert_alpha()
+                self.image = py.transform.scale(self.image, (self.rect.width, self.rect.height))
+            except (FileNotFoundError, py.error):
+                self.image = None
 
     def _compute_occupied_cells(self):
         return [

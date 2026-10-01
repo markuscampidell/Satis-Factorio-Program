@@ -9,11 +9,7 @@ class BeltSystem:
     dragging out a line of them, figuring out which way each one should
     face, and refunding what they cost when they're removed."""
 
-    BUILD_COSTS = {
-        "basic": {"iron_ingot": 2},
-        "fast": {"iron_ingot": 5, "copper_ingot": 1},
-        "express": {"iron_ingot": 10, "copper_ingot": 5}
-    }
+    BUILD_COST = {"iron_ingot": 10, "copper_ingot": 5}
 
     def __init__(self, world, grid, player, ghost_belt_renderer):
         self.world = world
@@ -24,7 +20,6 @@ class BeltSystem:
         self.beltX1 = 0
         self.beltY1 = 0
         self.placing_belt = False
-        self.selected_belt_type = "express"
         self.belt_placement_direction = Vector2(1, 0)
 
     def is_tile_blocked_for_placement(self, grid_pos, allow_replace):
@@ -32,18 +27,14 @@ class BeltSystem:
             return True
         return self.world.is_cell_blocked(grid_pos) and not allow_replace
 
-    def _segment_matches_existing(self, seg, require_type):
+    def _segment_matches_existing(self, seg):
         """True if there's already a belt at seg's tile facing the same
-        direction as seg (and, if require_type, also the same belt_type) -
-        i.e. placing seg there would be a genuine no-op, or close to one."""
+        direction as seg - i.e. placing seg there would be a genuine
+        no-op."""
         existing = self.world.belt_map.get(seg.grid_pos)
         if existing is None:
             return False
-        if existing.direction != seg.direction:
-            return False
-        if require_type and existing.belt_type != seg.belt_type:
-            return False
-        return True
+        return existing.direction == seg.direction
 
     def _new_incoming_directions(self, segments):
         """The flow direction arriving at each tile of a dragged line, in
@@ -86,7 +77,7 @@ class BeltSystem:
         standing on its own."""
         return (
             not self.world.is_cell_blocked(seg.grid_pos)
-            or self._segment_matches_existing(seg, require_type=True)
+            or self._segment_matches_existing(seg)
             or self._segment_reverses_existing(seg, new_incoming)
         )
 
@@ -109,9 +100,8 @@ class BeltSystem:
         either empty or already fine on its own (not a machine, and not
         when the rest of the drag would still need Shift for something
         else anyway); any other tile skips Shift if what's there already
-        matches (same direction and belt_type - a true no-op) or is the
-        exact reverse of the new flow through it (see
-        _segment_reverses_existing)."""
+        matches (same direction - a true no-op) or is the exact reverse of
+        the new flow through it (see _segment_reverses_existing)."""
         if self.world.is_blocked_by_player(seg.grid_pos):
             return True
         if allow_replace:
@@ -120,7 +110,7 @@ class BeltSystem:
             return False
         if seg.grid_pos == start_tile:
             return not (self.world.belt_map.get(seg.grid_pos) is not None and others_ok)
-        return not (self._segment_matches_existing(seg, require_type=True)
+        return not (self._segment_matches_existing(seg)
                     or self._segment_reverses_existing(seg, new_incoming))
 
     def get_placement_modifiers(self):
@@ -138,7 +128,7 @@ class BeltSystem:
         for seg in replaced_segments:
             if seg.item and not inventory.try_add_items(seg.item.item_id, 1):
                 return False
-            for item_id, amount in cls.BUILD_COSTS[seg.belt_type].items():
+            for item_id, amount in cls.BUILD_COST.items():
                 if not inventory.try_add_items(item_id, amount):
                     return False
 
@@ -149,16 +139,15 @@ class BeltSystem:
 
         return True
 
-    def gather_replacements(self, segments, belt_type):
+    def gather_replacements(self, segments):
         """Works out what would get replaced - and what it would cost - if
         these belt tiles were built on top of whatever's already there."""
         cells = [seg.grid_pos for seg in segments]
         replaced_segments, replaced_machines = self.world.gather_occupants(cells)
 
         total_cost = {}
-        build_cost = self.BUILD_COSTS[belt_type]
         for seg in segments:
-            for item_id, amount in build_cost.items():
+            for item_id, amount in self.BUILD_COST.items():
                 total_cost[item_id] = total_cost.get(item_id, 0) + amount
 
         return replaced_segments, replaced_machines, total_cost
@@ -195,7 +184,7 @@ class BeltSystem:
         tiles = self._get_tiles_for_drag(start_tile, end_tile, horizontal_first=horizontal_first)
         return list(reversed(tiles)) if reversed_flow else tiles
 
-    def place_belt(self, world_x2, world_y2, belt_type="basic"):
+    def place_belt(self, world_x2, world_y2):
         """Actually builds a dragged line of belts, after checking the
         whole thing fits and is affordable - it's all or nothing, never
         just some of the belts."""
@@ -203,7 +192,7 @@ class BeltSystem:
         end_tile = self.world.snap_to_tile(world_x2, world_y2)
 
         tiles = self.get_drag_tiles(start_tile, end_tile)
-        segments = self._tiles_to_segments(tiles, belt_type=belt_type)
+        segments = self._tiles_to_segments(tiles)
 
         allow_replace = self.get_placement_modifiers()
         others_ok = self._others_free_or_direction_matching(segments, start_tile)
@@ -213,7 +202,7 @@ class BeltSystem:
                for seg, new_in in zip(segments, new_incomings)):
             return  # Can't build here
 
-        replaced_segments, replaced_machines, total_cost = self.gather_replacements(segments, belt_type)
+        replaced_segments, replaced_machines, total_cost = self.gather_replacements(segments)
 
         # Simulate the whole operation first - no lost items, no partial
         # placement if anything doesn't fit or isn't affordable.
@@ -260,7 +249,7 @@ class BeltSystem:
 
         for seg in to_delete:
             seg.refund_item_on_segment(self.player.inventory)
-            for item_id, amount in self.BUILD_COSTS[seg.belt_type].items():
+            for item_id, amount in self.BUILD_COST.items():
                 self.player.inventory.try_add_items(item_id, amount)
             self.world.remove_belt_segment(seg)
 
@@ -321,7 +310,7 @@ class BeltSystem:
 
         return a_points_to_b or b_points_to_a
     
-    def _tiles_to_segments(self, tiles, belt_type="basic"):
+    def _tiles_to_segments(self, tiles):
         """Turns a line of tile positions into actual belt segments, each
         one facing toward whichever tile comes next in the line."""
         segments = []
@@ -339,7 +328,7 @@ class BeltSystem:
                     x, y = tile
                     direction = Vector2(x - px, y - py)
 
-            segments.append(BeltSegment(tile, direction, [], belt_type=belt_type))
+            segments.append(BeltSegment(tile, direction, []))
 
         return segments
 

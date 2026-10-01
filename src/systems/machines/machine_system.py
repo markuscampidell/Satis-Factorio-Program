@@ -2,6 +2,7 @@
 import pygame as py
 
 from objects.machines.splitter import Splitter
+from objects.machines.miner import Miner
 from core.vector2 import Vector2
 from systems.conveyors.belt_system import BeltSystem
 
@@ -44,7 +45,25 @@ class MachineSystem:
         cost = selected_machine_class.BUILD_COST
 
         # Create machine instance
-        if selected_machine_class.__name__ == "Splitter":
+        if selected_machine_class is Miner:
+            # A Miner can go anywhere at least one tile of its footprint
+            # touches a matching ore tile - not just the tile under the
+            # cursor - checked and rejected right here, before there's even
+            # a machine instance to run the usual blocked/afford checks
+            # against. Whichever ore tile is found first (top-left to
+            # bottom-right) is what it ends up producing.
+            ore_item_id = None
+            for dy in range(height):
+                for dx in range(width):
+                    ore_item_id = self.world.get_ore_item_id((top_left_x + dx, top_left_y + dy))
+                    if ore_item_id:
+                        break
+                if ore_item_id:
+                    break
+            if ore_item_id is None:
+                return False
+            machine = Miner(grid_pos=(top_left_x, top_left_y), ore_item_id=ore_item_id)
+        elif selected_machine_class.__name__ == "Splitter":
             direction_map = [Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0), Vector2(0, -1)]
             direction = direction_map[self.splitter_rotation_steps]
             machine = Splitter(grid_pos=(top_left_x, top_left_y), direction=direction)
@@ -130,7 +149,12 @@ class MachineSystem:
         top_left_x = grid_x - width // 2
         top_left_y = grid_y - height // 2
 
-        temp_machine = selected_machine_class(grid_pos=(top_left_x, top_left_y))
+        # Miner needs an ore_item_id to construct - a throwaway one is fine
+        # here, since this preview only cares about occupied_cells geometry,
+        # not which ore it'd actually produce.
+        temp_machine = (Miner(grid_pos=(top_left_x, top_left_y), ore_item_id="iron_ore")
+                         if selected_machine_class is Miner
+                         else selected_machine_class(grid_pos=(top_left_x, top_left_y)))
 
         blocked = any(self.world.is_cell_blocked(cell) or self.world.is_blocked_by_player(cell)
                       for cell in getattr(temp_machine, "occupied_cells", []))

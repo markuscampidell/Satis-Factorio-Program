@@ -5,6 +5,7 @@ from objects.machines.smelter import Smelter
 from objects.machines.assembler import Assembler
 from objects.machines.splitter import Splitter
 from objects.machines.storage import Storage
+from objects.machines.miner import Miner
 from objects.conveyors.belt_segment import BeltSegment
 
 BELT_ICON_PATH = "src/assets/sprites/conveyors/straight/belt_straight_right.png"
@@ -12,15 +13,16 @@ BELT_ICON_PATH = "src/assets/sprites/conveyors/straight/belt_straight_right.png"
 # Ordered slot definitions - (key, kind, payload). kind is one of
 # "none" | "machine" | "delete". Index in this list (+1) is both the
 # number key that selects it and the label drawn on the slot, so this one
-# list is the single source of truth for the 1-7 hotbar layout.
+# list is the single source of truth for the 1-8 hotbar layout.
 SLOT_DEFS = [
     (py.K_1, "machine", Smelter),
     (py.K_2, "machine", Assembler),
     (py.K_3, "machine", BeltSegment),
     (py.K_4, "machine", Splitter),
     (py.K_5, "machine", Storage),
-    (py.K_6, "none", None),
-    (py.K_7, "delete", None),
+    (py.K_6, "machine", Miner),
+    (py.K_7, "none", None),
+    (py.K_8, "delete", None),
 ]
 
 
@@ -45,12 +47,20 @@ class BuildHotbar:
         self.slot_rects = []  # [(rect, kind, payload)] - populated each draw
 
     def _load_icons(self):
+        """Loads each machine slot's icon, skipping (rather than crashing
+        the whole game over) any whose sprite doesn't exist yet - e.g. a
+        machine type that's been wired up in code before its art is ready.
+        _draw_slot_icon draws a placeholder box for any "machine" slot
+        that ends up with no icon here."""
         icons = {}
         for _key, kind, payload in SLOT_DEFS:
             if kind != "machine":
                 continue
             path = BELT_ICON_PATH if payload is BeltSegment else payload.SPRITE_PATH
-            image = py.image.load(path).convert_alpha()
+            try:
+                image = py.image.load(path).convert_alpha()
+            except (FileNotFoundError, py.error):
+                continue
             icons[payload] = py.transform.scale(image, (self.SLOT_SIZE - 16, self.SLOT_SIZE - 16))
         return icons
 
@@ -120,6 +130,12 @@ class BuildHotbar:
             icon = self._icons.get(payload)
             if icon:
                 screen.blit(icon, icon.get_rect(center=rect.center))
+            else:
+                # Sprite not loaded (missing/not drawn yet) - a plain
+                # dashed box instead of a blank slot, so it's still obvious
+                # something's selectable here.
+                inner = rect.inflate(-18, -18)
+                py.draw.rect(screen, (170, 170, 170), inner, width=2, border_radius=4)
             return
 
         if kind == "none":

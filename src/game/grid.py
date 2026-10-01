@@ -14,7 +14,7 @@ class Grid:
     see, mostly while building."""
 
     CELL_SIZE = 32
-
+    
     CHUNK_LINE_COLOR = (255, 140, 0)
     CHUNK_LINE_ALPHA = 160
     CHUNK_LINE_WIDTH = 2

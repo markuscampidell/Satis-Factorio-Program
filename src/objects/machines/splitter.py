@@ -6,6 +6,7 @@ from core.vector2 import Vector2
 from objects.machines.machine import Machine
 from objects.item_filter import ItemFilter
 from objects.filter_badge import draw_filter_badge
+from objects.conveyors.belt_segment import BeltSegment
 from game.grid import Grid
 
 
@@ -41,7 +42,9 @@ class Splitter(Machine):
     BUILD_COST = {"iron_ingot": 4}
     SAVE_TYPE = "splitter"
 
-    DEFAULT_TILES_PER_SEC = 2.0
+    # Matches BeltSegment's speed exactly (rather than its own separate
+    # number) so an item doesn't visibly change pace crossing a splitter.
+    DEFAULT_TILES_PER_SEC = BeltSegment.SPEED_TILES_PER_SEC
 
     def __init__(self, grid_pos=(0,0), direction=None, cell_size=Grid.CELL_SIZE):
         super().__init__(grid_pos, cell_size)

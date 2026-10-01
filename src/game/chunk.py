@@ -22,5 +22,14 @@ class Chunk:
         self.machines = set()
         self.belt_segments = set()
 
+        # Terrain, both lazily populated the first time something actually
+        # needs them - see World._ensure_chunk_terrain and
+        # WorldRenderer._draw_terrain. `tiles` is plain per-tile data (a
+        # CHUNK_SIZE x CHUNK_SIZE grid of tile-type ints); `terrain_surface`
+        # is a cached pygame.Surface built from it purely for rendering, so
+        # it doesn't get rebuilt every frame.
+        self.tiles = None
+        self.terrain_surface = None
+
     def is_empty(self):
         return not self.machines and not self.belt_segments

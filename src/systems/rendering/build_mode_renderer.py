@@ -37,7 +37,7 @@ class BuildModeRenderer:
     def _draw_ghost(self):
         if (self.build_system.build_mode == "building" and self.build_system.selected_machine_class is not None):
             self.ghost_machine_renderer.draw(self.build_system.selected_machine_class, self.build_system.build_mode, self.machine_system.splitter_rotation_steps)
-            self.ghost_belt_drawer.draw_ghost(self.build_system.selected_machine_class, self.belt_system.placing_belt, self.belt_system.selected_belt_type)
+            self.ghost_belt_drawer.draw_ghost(self.build_system.selected_machine_class, self.belt_system.placing_belt)
 
     def _highlight_hovered_delete_target(self, screen):
         """Highlights whatever's about to be deleted - red if the refund

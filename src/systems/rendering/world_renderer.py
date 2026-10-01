@@ -1,10 +1,18 @@
 # systems.rendering.world_renderer
+import pygame as py
+
 from objects.filter_badge import draw_filter_badge
+from game.chunk import CHUNK_SIZE
+from game.terrain import ORE_TILE_TYPES
+from constants.itemdata import get_item_by_id
+
+GROUND_COLOR = (110, 88, 60)  # placeholder flat ground color
 
 
 class WorldRenderer:
-    """Draws the actual game world - the grid, belts, items, machines, and
-    the player - in the right order so nothing gets covered up wrong."""
+    """Draws the actual game world - the ground, grid, belts, items,
+    machines, and the player - in the right order so nothing gets covered
+    up wrong."""
 
     def __init__(self, world, camera, player, belt_sprite_manager, item_renderer, build_system, grid):
         self.world = world
@@ -16,15 +24,59 @@ class WorldRenderer:
         self.grid = grid
 
         self.image_cache = {}
-    
+
     def draw(self, screen):
+        self._draw_terrain(screen)
         self._draw_grid(screen)
 
         self._draw_belt_segments(screen)
         self._draw_items(screen)
         self._draw_machines(screen)
         self.player.draw(screen, self.camera)
-    
+
+    def _draw_terrain(self, screen):
+        """Draws the generated ground - grass, with a small icon of
+        whichever ore an ore tile would let a Miner produce - under
+        everything else. One cached Surface per chunk (see
+        _build_terrain_surface), so this is just a cheap blit per visible
+        chunk every frame, not a per-tile draw."""
+        cell_size = self.grid.CELL_SIZE
+        camera_left, camera_top, camera_right, camera_bottom = self.camera.visible_tile_rect(cell_size)
+
+        for chunk in self.world.ensure_chunks_in_tile_rect(camera_left, camera_top, camera_right, camera_bottom):
+            if chunk.terrain_surface is None:
+                chunk.terrain_surface = self._build_terrain_surface(chunk, cell_size)
+
+            pixel_x = chunk.cx * CHUNK_SIZE * cell_size - self.camera.x
+            pixel_y = chunk.cy * CHUNK_SIZE * cell_size - self.camera.y
+            screen.blit(chunk.terrain_surface, (pixel_x, pixel_y))
+
+    def _build_terrain_surface(self, chunk, cell_size):
+        """Built once per chunk and cached on it: a flat ground color, with
+        a small icon of the matching ore item (reusing its existing
+        sprite - same idiom as Storage's own "what's inside" icon) centered
+        on each ore tile. No new ground-tile art needed."""
+        size = CHUNK_SIZE * cell_size
+        surface = py.Surface((size, size))
+        surface.fill(GROUND_COLOR)
+
+        for ly in range(CHUNK_SIZE):
+            for lx in range(CHUNK_SIZE):
+                item_id = ORE_TILE_TYPES.get(chunk.tiles[ly][lx])
+                if not item_id:
+                    continue
+
+                item = get_item_by_id(item_id)
+                if not item or not item.sprite:
+                    continue
+
+                icon = item.get_scaled_sprite(int(cell_size * 0.7))
+                screen_x = lx * cell_size + (cell_size - icon.get_width()) // 2
+                screen_y = ly * cell_size + (cell_size - icon.get_height()) // 2
+                surface.blit(icon, (screen_x, screen_y))
+
+        return surface
+
     def _draw_grid(self, screen):
         if self.build_system.build_mode is not None:
             self.grid.draw(screen, self.camera)
