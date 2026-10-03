@@ -5,9 +5,8 @@ from objects.conveyors.belt_segment import BeltSegment
 from objects.machines.splitter import Splitter
 
 class BuildModeRenderer:
-    """Draws everything to do with build/delete mode: the tinted screen
-    overlay, placement/delete previews, and a highlight on whatever's
-    about to be deleted."""
+    """Draws everything to do with build/delete mode: placement/delete
+    previews, and a highlight on whatever's about to be deleted."""
 
     def __init__(self, build_system, machine_system, ghost_machine_renderer, ghost_belt_drawer, belt_system, camera, grid):
         self.build_system = build_system
@@ -20,16 +19,13 @@ class BuildModeRenderer:
 
         self.delete_overlay_tile = self._make_tile_overlay((255, 0, 0, 100))
         self.delete_blocked_overlay_tile = self._make_tile_overlay((255, 165, 0, 100))
-        self.update_overlay_surfaces(camera.screen_width, camera.screen_height)
 
     def _make_tile_overlay(self, color):
         surf = py.Surface((self.grid.CELL_SIZE, self.grid.CELL_SIZE), py.SRCALPHA)
         surf.fill(color)
         return surf
-    
+
     def draw(self, screen):
-        self._draw_build_overlay(screen)
-        self._draw_delete_overlay(screen)
         self._draw_ghost()
         self._draw_delete_ghost()
         self._highlight_hovered_delete_target(screen)
@@ -78,14 +74,6 @@ class BuildModeRenderer:
                 overlay.fill(overlay_color)
                 screen.blit(overlay, (rect.x - self.camera.x, rect.y - self.camera.y))
     
-    def _draw_build_overlay(self, screen):
-        if self.build_system.build_mode == "building":
-            screen.blit(self.overlay_build_place, (0, 0))
-    
-    def _draw_delete_overlay(self, screen):
-        if self.build_system.build_mode == "deleting":
-            screen.blit(self.overlay_delete, (0, 0))
-
     def _draw_delete_ghost(self):
         if (
             self.build_system.build_mode != "deleting"
@@ -110,10 +98,3 @@ class BuildModeRenderer:
             )
         elif isinstance(target, Splitter):
             self.ghost_belt_drawer.draw_splitter_delete_ghost(target)
-    
-    def update_overlay_surfaces(self, width, height):
-        self.overlay_build_place = py.Surface((width, height), py.SRCALPHA)
-        self.overlay_build_place.fill((255, 170, 80, 28))
-
-        self.overlay_delete = py.Surface((width, height), py.SRCALPHA)
-        self.overlay_delete.fill((255, 80, 80, 35))

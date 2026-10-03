@@ -13,8 +13,11 @@ class RenderSystem:
         self.hover_highlight_renderer = hover_highlight_renderer
 
     def draw(self, screen, delta_time):
-        screen.fill("#987171") # background color
-
+        # No background fill needed here - world_renderer always paints
+        # generated ground terrain across the entire visible area first
+        # (every chunk the camera can see gets a fully-opaque terrain
+        # surface), so a full-screen fill underneath it would just be
+        # painted over, unconditionally, every single frame.
         self.world_renderer.draw(screen)
         self.hover_highlight_renderer.draw(screen)
         self.build_renderer.draw(screen)

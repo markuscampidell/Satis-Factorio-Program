@@ -206,7 +206,6 @@ class GameOrchestrator:
                 self.context.screen = self.screen
                 self._update_screen_size(width, height)
                 self.context.grid.update_screen_size(width, height)
-                self.context.build_mode_renderer.update_overlay_surfaces(width, height)
 
     def _update_just_placed_machine(self, event):
         """Clears the "just placed a machine" flag once the mouse button

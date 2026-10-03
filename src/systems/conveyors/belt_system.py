@@ -397,9 +397,25 @@ class BeltSystem:
         # extra_machines lets a preview include a machine/splitter that
         # isn't actually in the world yet (e.g. a hovered placement ghost).
         # exclude_machines lets a preview act as if a real one were already
-        # gone (e.g. a hovered deletion target).
+        # gone (e.g. a hovered deletion target). A machine can only ever
+        # push into (x, y) from a footprint cell touching one of its 4
+        # neighbors (every output/relative-dir target sits exactly one
+        # step outside a machine's own footprint) - so rather than
+        # scanning every machine in the world, those 4 neighbor cells are
+        # the only places a candidate could possibly be, found with the
+        # same O(1) map lookups already used for belts above. This is the
+        # difference between belt topology staying cheap and it getting
+        # slower the more machines are built, regardless of where they are.
         excluded = exclude_machines or []
-        all_machines = [m for m in self.world.machines if m not in excluded] + list(extra_machines or [])
+        seen_ids = set()
+        candidate_machines = []
+        for pos in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            candidate = self.world.machine_map.get(pos)
+            if candidate is not None and id(candidate) not in seen_ids:
+                seen_ids.add(id(candidate))
+                candidate_machines.append(candidate)
+
+        all_machines = [m for m in candidate_machines if m not in excluded] + list(extra_machines or [])
 
         # A machine pushing into this segment only ever succeeds when the
         # segment faces directly away from it (ProducingMachine.push_output

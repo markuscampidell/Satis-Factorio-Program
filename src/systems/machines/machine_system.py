@@ -125,18 +125,18 @@ class MachineSystem:
         off a merely-blocked attempt as done."""
         grid_x, grid_y = self.world.snap_to_tile(mx + self.camera.x, my + self.camera.y)
 
-        for machine in list(self.world.machines):
-            if (grid_x, grid_y) in getattr(machine, "occupied_cells", []):
-                if not self.can_afford_deletion(machine):
-                    return False  # Not enough inventory space to receive the refund
+        machine = self.world.machine_map.get((grid_x, grid_y))
+        if machine is None:
+            return False
 
-                for item_id, amount in machine.get_refund_items().items():
-                    self.player.inventory.try_add_items(item_id, amount)
+        if not self.can_afford_deletion(machine):
+            return False  # Not enough inventory space to receive the refund
 
-                self.world.remove_machine(machine)
-                return True
+        for item_id, amount in machine.get_refund_items().items():
+            self.player.inventory.try_add_items(item_id, amount)
 
-        return False
+        self.world.remove_machine(machine)
+        return True
 
     def get_machine_placement_preview(self, selected_machine_class):
         """Figures out where a machine would land if placed right now, and
